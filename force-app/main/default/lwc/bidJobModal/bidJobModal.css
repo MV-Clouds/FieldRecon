@@ -10,15 +10,19 @@
 }
 
 .main-div{
-    padding: 1rem;
+    padding: 0;
     padding-bottom: 0;
+}
+
+lightning-record-edit-form {
+    padding: 1 rem;
 }
 
 .component-wrapper{
     display: flex;
     flex-direction: column;
     max-height: 70vh;
-    min-height: 200px;
+    /* min-height: 200px; */
     padding: 0;
 }
 
@@ -56,6 +60,7 @@
 .modal-scrollable{
     overflow-y: auto;
     flex: 1 1 auto;
+    padding: 1rem;
 }
 
 .footer-div{
@@ -98,6 +103,18 @@
     cursor: not-allowed;
 }
 
+.back-btn{
+    background-color: white;
+    color: #323232;
+    border: 1px solid #c2c2c2;
+    border-radius: 4px;
+    padding-inline: 1.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    height: 2.25rem;
+    min-width: 6rem;
+}
 /* Custom scrollbar styling */
 .modal-scrollable::-webkit-scrollbar {
     width: 8px;
@@ -145,5 +162,312 @@
         width: 100%;
         min-width: unset;
     }
+}
 
+/* Proposal Modal Styles */
+.library-popup {
+    scrollbar-width: none;
+    overflow: hidden;
+    background-image: url('/resource/wfrecon__FieldReconBG');
+    background-repeat: no-repeat;
+    background-size: cover;
+    max-height: 75vh;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 1rem;
+}
+
+.bid-accordion {
+    padding: 1rem;
+}
+
+.proposal-line-checkbox, .select-all-proposal-lines {
+    transform: scale(1.2);
+}
+
+.nested-row {
+    background-color: transparent !important;
+}
+
+.nested-row:hover {
+    background-color: transparent !important;
+}
+
+.nested-table-container {
+    padding: 0 !important;
+    background-color: rgb(244, 244, 255);
+    border-top: 1px solid #e5e5e5;
+}
+
+.nested-table-wrapper {
+    padding: 16px;
+    border-left: 4px solid rgba(94, 90, 219, 1);
+    background-color: #ffffff;
+    margin: 8px 16px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.nested-table {
+    background-color: #ffffff;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.nested-table .table-header {
+    background-color: rgb(244, 244, 255);
+}
+
+.nested-table .header-cell {
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e5e5e5;
+    background-color: rgba(94, 90, 219, 0.8) !important;
+}
+
+.nested-table-row {
+    border-bottom: 1px solid #f1f1f1;
+}
+
+.nested-table-row:last-child {
+    border-bottom: none;
+}
+
+.nested-table-row td {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #555;
+}
+
+.nested-table-row:nth-child(odd) {
+    background-color: rgb(249, 249, 255);
+}
+
+.nested-table-row:nth-child(even) {
+    background-color: #ffffff;
+}
+
+.nested-table-row:hover {
+    background-color: rgb(244, 244, 255) !important;
+    cursor: pointer;
+}
+
+.process-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.loading-state, .error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    min-height: 200px;
+}
+
+.error-icon {
+    margin-bottom: 1rem;
+}
+
+.error-message {
+    color: #c23934;
+    font-size: 14px;
+    text-align: center;
+}
+
+.empty-state {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px 20px;
+    min-height: 200px;
+}
+
+.empty-state__content {
+    text-align: center;
+}
+
+.empty-state__message {
+    color: #706e6b;
+    font-size: 14px;
+    margin-top: 1rem;
+}
+
+.no-prop, .no-bids {
+    padding: 2rem;
+}
+
+.actions-column {
+    width: 80px;
+}
+
+.icon-button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #5e5adb;
+    transition: all 0.2s;
+}
+
+.icon-button:hover {
+    background: rgba(94, 90, 219, 0.1);
+    border-radius: 4px;
+}
+
+.view-lines-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.name-link {
+    color: #0176d3;
+    text-decoration: none;
+}
+
+.name-link:hover {
+    text-decoration: underline;
+}
+
+.scope-name {
+    font-weight: 500;
+}
+
+.text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+}
+
+/* Page 2 Heading */
+.page-heading {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid rgba(94, 90, 219, 0.2);
+}
+
+.page-heading h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #5e5adb;
+    margin: 0 0 0.5rem 0;
+}
+
+.page-subheading {
+    font-size: 0.875rem;
+    color: #706e6b;
+    margin: 0;
+}
+
+/* Proposals Accordion Section */
+.proposals-accordion-section {
+    margin-bottom: 2rem;
+}
+
+.create-link-job-section {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 2px solid rgba(94, 90, 219, 0.2);
+}
+
+/* Proposal Info */
+.proposal-info {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background-color: #fafafa;
+    border-radius: 4px;
+    border: 1px solid #e5e5e5;
+}
+
+.proposal-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.proposal-info-row:last-child {
+    margin-bottom: 0;
+}
+
+.proposal-info-label {
+    font-weight: 600;
+    color: #706e6b;
+    font-size: 0.875rem;
+}
+
+.proposal-info-value {
+    color: #080707;
+    font-size: 0.875rem;
+}
+
+/* Proposal Checkbox */
+.proposal-checkbox, .select-all-proposals {
+    transform: scale(1.2);
+}
+
+/* Custom Data Table Styles */
+.custom-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #ffffff;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.custom-data-table .table-header {
+    background-color: rgb(244, 244, 255);
+}
+
+.custom-data-table .header-cell {
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+    padding: 12px;
+    border-bottom: 1px solid #e5e5e5;
+    background-color: rgba(94, 90, 219, 0.8) !important;
+    text-align: left;
+}
+
+.custom-data-table .table-body {
+    background-color: #ffffff;
+}
+
+.custom-data-table .table-body tr {
+    border-bottom: 1px solid #f1f1f1;
+}
+
+.custom-data-table .table-body tr:last-child {
+    border-bottom: none;
+}
+
+.custom-data-table .table-body tr:nth-child(odd) {
+    background-color: rgb(249, 249, 255);
+}
+
+.custom-data-table .table-body tr:nth-child(even) {
+    background-color: #ffffff;
+}
+
+.custom-data-table .table-body tr:hover {
+    background-color: rgb(244, 244, 255) !important;
+}
+
+.custom-data-table .center-trancate-text {
+    padding: 12px;
+    font-size: 12px;
+    color: #555;
 }
