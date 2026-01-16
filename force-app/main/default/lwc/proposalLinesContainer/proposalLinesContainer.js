@@ -68,6 +68,15 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         return (!isNaN(num)) ? num : defaultValue;
     }
 
+    // Format number as currency with commas
+    formatCurrency(value, decimals = 2) {
+        const num = this.safeNumber(value, 0);
+        return num.toLocaleString('en-US', { 
+            minimumFractionDigits: decimals, 
+            maximumFractionDigits: decimals 
+        });
+    }
+
     getBudgetCellClass(isModified, baseClass = 'editable-cell') {
         return isModified ? `${baseClass} modified-cell` : baseClass;
     }
@@ -330,7 +339,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             return {
                 ...line,
                 serialNumber: line.currentSequence || (index + 1),
-                totalAmount: this.safeNumber(line.wfrecon__Total_Cost__c, 0).toFixed(2),
+                totalAmount: this.formatCurrency(line.wfrecon__Total_Cost__c),
                 isOddRow: (index % 2 === 0),
                 isModified: modifiedFields.size > 0,
                 isEditingQuantity: this.editingProposalLines.has(`${line.Id}_wfrecon__Quantity__c`),
@@ -359,21 +368,19 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 displayOH: this.safeNumber(line.wfrecon__OH_Per__c, 0),
                 displayWarranty: this.safeNumber(line.wfrecon__Warranty_Per__c, 0),
                 displayProfit: this.safeNumber(line.wfrecon__Profit_Per__c, 0),
-                displayOHAmount: this.safeNumber(line.wfrecon__OH_Amount__c, 0).toFixed(2),
-                displayWarrantyAmount: this.safeNumber(line.wfrecon__Warranty_Amount__c, 0).toFixed(2),
-                displayProfitAmount: this.safeNumber(line.wfrecon__Profit_Amount__c, 0).toFixed(2),
-                displayTotalCost: this.safeNumber(line.wfrecon__Total_Cost__c, 0).toFixed(2),
-                displayRecommendedPrice: this.safeNumber(line.wfrecon__Recommended_Price__c, 0).toFixed(2),
-                displaySalesPrice: isEditingSalesPrice && this.editingFieldValues.has(editingKey) 
-                    ? this.editingFieldValues.get(editingKey) 
-                    : this.safeNumber(line.wfrecon__Sales_Price__c, 0).toFixed(2),
-                formattedRecommendedPrice: this.safeNumber(line.wfrecon__Recommended_Price__c, 0).toFixed(2),
-                formattedSalesPrice: this.safeNumber(line.wfrecon__Sales_Price__c, 0).toFixed(2),
-                displayLaborCost: this.safeNumber(line.wfrecon__Labor_Cost__c, 0).toFixed(2),
-                displayMaterialCost: this.safeNumber(line.wfrecon__Material_Cost__c, 0).toFixed(2),
-                displayHotelCost: this.safeNumber(line.wfrecon__Hotel_Cost__c, 0).toFixed(2),
-                displayMileageCost: this.safeNumber(line.wfrecon__Mileage_Cost__c, 0).toFixed(2),
-                displayPerDiemCost: this.safeNumber(line.wfrecon__Per_Diem_Cost__c, 0).toFixed(2)
+                displayOHAmount: this.formatCurrency(line.wfrecon__OH_Amount__c),
+                displayWarrantyAmount: this.formatCurrency(line.wfrecon__Warranty_Amount__c),
+                displayProfitAmount: this.formatCurrency(line.wfrecon__Profit_Amount__c),
+                displayTotalCost: this.formatCurrency(line.wfrecon__Total_Cost__c),
+                displayRecommendedPrice: this.safeNumber(line.wfrecon__Recommended_Price__c, 0),
+                displaySalesPrice: this.safeNumber(line.wfrecon__Sales_Price__c, 0),
+                formattedRecommendedPrice: this.formatCurrency(line.wfrecon__Recommended_Price__c),
+                formattedSalesPrice: this.formatCurrency(line.wfrecon__Sales_Price__c),
+                displayLaborCost: this.formatCurrency(line.wfrecon__Labor_Cost__c),
+                displayMaterialCost: this.formatCurrency(line.wfrecon__Material_Cost__c),
+                displayHotelCost: this.formatCurrency(line.wfrecon__Hotel_Cost__c),
+                displayMileageCost: this.formatCurrency(line.wfrecon__Mileage_Cost__c),
+                displayPerDiemCost: this.formatCurrency(line.wfrecon__Per_Diem_Cost__c)
             };
         });
     }
@@ -421,7 +428,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 return sum + this.safeNumber(line.wfrecon__Total_Cost__c, 0);
             }, 0);
 
-        return total.toFixed(2);
+        return this.formatCurrency(total);
     }
 
     // Get total sales price of all proposal lines (only Base Contract)
@@ -434,16 +441,16 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 return sum + this.safeNumber(line.wfrecon__Sales_Price__c, 0);
             }, 0);
 
-        return total.toFixed(2);
+        return this.formatCurrency(total);
     }
 
     // Get margin (Total Sales Price - Grand Total Cost)
     get margin() {
-        const totalSales = parseFloat(this.totalSalesPrice) || 0;
-        const totalCost = parseFloat(this.grandTotal) || 0;
+        const totalSales = parseFloat(this.totalSalesPrice.replace(/,/g, '')) || 0;
+        const totalCost = parseFloat(this.grandTotal.replace(/,/g, '')) || 0;
         const marginValue = totalSales - totalCost;
 
-        return marginValue.toFixed(2);
+        return this.formatCurrency(marginValue);
     }
 
     // Handle toggle expand/collapse
@@ -585,16 +592,28 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
 
         this.newProposalLines = this.newProposalLines.map(line => {
             if (line.tempId === tempId) {
+                let fieldValue = field === 'quantity' || field === 'oh' || field === 'warranty' || field === 'profit'
+                    ? parseFloat(value) || 0
+                    : value;
+                
+                // Ensure quantity is at least 1 and is a whole number
+                if (field === 'quantity') {
+                    fieldValue = Math.round(fieldValue);
+                    if (fieldValue <= 0) {
+                        fieldValue = 1;
+                    }
+                }
+
                 return {
                     ...line,
-                    [field]: field === 'quantity' || field === 'oh' || field === 'warranty' || field === 'profit'
-                        ? parseFloat(value) || 0
-                        : value
+                    [field]: fieldValue
                 };
             }
             return line;
         });
     }
+
+
 
     // Handle add another proposal line
     handleAddAnotherLine() {
@@ -640,13 +659,24 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
 
     // Handle save proposal lines
     handleSaveProposalLines() {
-        // Validate
+        // Validate required fields
         const hasInvalidLines = this.newProposalLines.some(line =>
             !line.pricebookId || !line.productId || !line.quantity || line.quantity <= 0
         );
 
         if (hasInvalidLines) {
             this.showToast('Validation Error', 'Please fill all required fields (Pricebook, Product, Quantity)', 'warning');
+            return;
+        }
+
+        // Validate profit percentage
+        const invalidProfit = this.newProposalLines.find(line => {
+            const profit = parseFloat(line.profit) || 0;
+            return profit < 1 || profit > 100;
+        });
+
+        if (invalidProfit) {
+            this.showToast('Validation Error', 'Profit percentage must be between 1 and 100', 'warning');
             return;
         }
 
@@ -748,7 +778,16 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             .then(result => {
                 if (result.success) {
                     this.showToast('Success', result.message, 'success');
+                    // Reload data then clear all tracking like confirmDiscardAllChanges does
                     this.loadProposalLines();
+                    this.editingProposalLines.clear();
+                    this.modifiedProposalLines.clear();
+                    this.originalProposalLineValues.clear();
+                    this.manuallyEditedSalesPrices.clear();
+                    this.editingBudgetLines.clear();
+                    this.hasModificationsBySection.clear();
+                    this.modifiedBudgetLineFields.clear();
+                    this.hasSequenceChanges = false;
                 } else {
                     this.showToast('Error', result.message, 'error');
                 }
@@ -794,14 +833,6 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         const editKey = `${proposalLineId}_${fieldName}`;
         this.editingProposalLines.add(editKey);
         
-        // Store initial editing value for sales price
-        if (fieldName === 'wfrecon__Sales_Price__c') {
-            const line = this.proposalLinesRaw.find(l => l.Id === proposalLineId);
-            if (line) {
-                this.editingFieldValues.set(editKey, this.safeNumber(line.wfrecon__Sales_Price__c, 0).toFixed(2));
-            }
-        }
-        
         this.proposalLinesRaw = [...this.proposalLinesRaw];
 
         // Focus the input in the next tick
@@ -820,47 +851,28 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         const fieldName = event.currentTarget.dataset.field;
         let value = event.target.value;
 
-        // For sales price, validate input and store raw string
-        if (fieldName === 'wfrecon__Sales_Price__c') {
-            // Only validate numbers and decimal points
-            if (value !== '' && !/^\d*\.?\d*$/.test(value)) {
-                // Invalid input, don't update
-                return;
+        // Handle field value
+        this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
+            if (line.Id === proposalLineId) {
+                let fieldValue;
+                if (fieldName === 'wfrecon__Description__c') {
+                    fieldValue = value;
+                } else {
+                    fieldValue = value === '' ? 0 : (parseFloat(value) || 0);
+                }
+                
+                // Track manually edited sales prices
+                if (fieldName === 'wfrecon__Sales_Price__c') {
+                    this.manuallyEditedSalesPrices.set(proposalLineId, fieldValue);
+                }
+                
+                return {
+                    ...line,
+                    [fieldName]: fieldValue
+                };
             }
-            // Store the raw string value for editing
-            const editKey = `${proposalLineId}_${fieldName}`;
-            this.editingFieldValues.set(editKey, value);
-            
-            // Update the actual field value as number
-            const numericValue = value === '' ? 0 : (parseFloat(value) || 0);
-            this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
-                if (line.Id === proposalLineId) {
-                    this.manuallyEditedSalesPrices.set(proposalLineId, numericValue);
-                    return {
-                        ...line,
-                        [fieldName]: numericValue
-                    };
-                }
-                return line;
-            });
-        } else {
-            // Handle other fields normally
-            this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
-                if (line.Id === proposalLineId) {
-                    let fieldValue;
-                    if (fieldName === 'wfrecon__Description__c') {
-                        fieldValue = value;
-                    } else {
-                        fieldValue = value === '' ? 0 : (parseFloat(value) || 0);
-                    }
-                    return {
-                        ...line,
-                        [fieldName]: fieldValue
-                    };
-                }
-                return line;
-            });
-        }
+            return line;
+        });
 
         // Mark only this specific field as modified
         if (!this.modifiedProposalLines.has(proposalLineId)) {
@@ -880,6 +892,35 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         const proposalLineId = event.currentTarget.dataset.proposalLineId;
         const fieldName = event.currentTarget.dataset.field;
         const editKey = `${proposalLineId}_${fieldName}`;
+
+        // Validate Quantity on blur
+        if (fieldName === 'wfrecon__Quantity__c') {
+            const line = this.proposalLinesRaw.find(l => l.Id === proposalLineId);
+            if (line) {
+                let quantity = parseFloat(line.wfrecon__Quantity__c);
+                
+                // Round to whole number and ensure at least 1
+                quantity = Math.round(quantity);
+                if (isNaN(quantity) || quantity <= 0) {
+                    quantity = 1;
+                }
+                
+                // Update if value changed
+                if (quantity !== line.wfrecon__Quantity__c) {
+                    this.proposalLinesRaw = this.proposalLinesRaw.map(l => {
+                        if (l.Id === proposalLineId) {
+                            return {
+                                ...l,
+                                wfrecon__Quantity__c: quantity
+                            };
+                        }
+                        return l;
+                    });
+                    this.showToast('Info', 'Quantity has been rounded to a whole number', 'info');
+                    this.recalculateProposalLineTotals(proposalLineId);
+                }
+            }
+        }
 
         // Validate Sales Price on blur
         if (fieldName === 'wfrecon__Sales_Price__c') {
@@ -905,7 +946,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                         return l;
                     });
                     this.manuallyEditedSalesPrices.set(proposalLineId, recommendedPrice);
-                    this.showToast('Error', `Sales Price cannot be less than Recommended Price ($${recommendedPrice.toFixed(2)})`, 'error');
+                    this.showToast('Error', `Sales Price cannot be less than Recommended Price ($${this.formatCurrency(recommendedPrice)})`, 'error');
                 } else if (salesPrice !== parseFloat(line.wfrecon__Sales_Price__c)) {
                     // Update to the valid parsed value
                     this.proposalLinesRaw = this.proposalLinesRaw.map(l => {
@@ -919,8 +960,6 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                     });
                 }
                 
-                // Clear the editing value
-                this.editingFieldValues.delete(editKey);
             }
         }
 
@@ -986,9 +1025,73 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     handleBudgetLineCellBlur(event) {
         const proposalLineId = event.currentTarget.dataset.proposalLineId;
         const budgetLineId = event.currentTarget.dataset.budgetLineId;
+        const costType = event.currentTarget.dataset.costType;
         const fieldName = event.currentTarget.dataset.field;
 
         const editKey = `${proposalLineId}_${budgetLineId}_${fieldName}`;
+
+        // Validate quantity-related fields (crew, rooms, men, qty, etc.)
+        const quantityFields = [
+            'wfrecon__No_Of_Crew_Members__c',
+            'wfrecon__Number_Of_Rooms__c',
+            'wfrecon__of_Men__c',
+            'wfrecon__QTY__c'
+        ];
+
+        if (quantityFields.includes(fieldName)) {
+            this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
+                if (line.Id === proposalLineId && line.budget) {
+                    const allBudgetLines = [];
+                    let hasInvalidValue = false;
+                    
+                    Object.keys(line.budget.budgetLinesByCostType).forEach(type => {
+                        const lines = line.budget.budgetLinesByCostType[type].map(budgetLine => {
+                            if ((budgetLine.Id === budgetLineId || budgetLine.tempId === budgetLineId) && type === costType) {
+                                let value = parseFloat(budgetLine[fieldName]);
+                                // Round to whole number
+                                value = Math.round(value);
+                                if (isNaN(value) || value <= 0) {
+                                    hasInvalidValue = true;
+                                    value = 1;
+                                }
+                                // Update if value is different
+                                if (value !== budgetLine[fieldName]) {
+                                    hasInvalidValue = true;
+                                    return {
+                                        ...budgetLine,
+                                        [fieldName]: value
+                                    };
+                                }
+                            }
+                            return budgetLine;
+                        });
+                        allBudgetLines.push(...lines);
+                    });
+
+                    if (hasInvalidValue) {
+                        this.showToast('Info', 'Quantity has been rounded to a whole number', 'info');
+                    }
+
+                    // Recalculate after fixing invalid values
+                    const recalculatedLines = allBudgetLines.map(bl => {
+                        const type = bl.wfrecon__Cost_Type__c;
+                        return this.calculateFormulaFields(bl, type);
+                    });
+
+                    this.recalculateProposalLineTotals(proposalLineId);
+
+                    return {
+                        ...line,
+                        budget: {
+                            ...line.budget,
+                            budgetLinesByCostType: this.organizeBudgetLinesByCostType(recalculatedLines, line.Id)
+                        }
+                    };
+                }
+                return line;
+            });
+        }
+
         this.editingBudgetCells.delete(editKey);
 
         // Reorganize budget lines to recalculate editing flags
@@ -1335,20 +1438,23 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             const ohAmount = ohPer * salesPrice;
             const profitAmount = profitPer * salesPrice;
             const warrantyAmount = warrantyPer * salesPrice;
+            
+            // Round all calculated values to 2 decimal places
+            const roundTo2 = (num) => Math.round(num * 100) / 100;
 
             return {
                 ...line,
-                wfrecon__Labor_Cost__c: laborCost,
-                wfrecon__Material_Cost__c: materialCost,
-                wfrecon__Hotel_Cost__c: hotelCost,
-                wfrecon__Mileage_Cost__c: mileageCost,
-                wfrecon__Per_Diem_Cost__c: perDiemCost,
-                wfrecon__Total_Cost__c: totalCost,
-                wfrecon__Recommended_Price__c: recommendedPrice,
-                wfrecon__Sales_Price__c: salesPrice,
-                wfrecon__OH_Amount__c: ohAmount,
-                wfrecon__Profit_Amount__c: profitAmount,
-                wfrecon__Warranty_Amount__c: warrantyAmount
+                wfrecon__Labor_Cost__c: roundTo2(laborCost),
+                wfrecon__Material_Cost__c: roundTo2(materialCost),
+                wfrecon__Hotel_Cost__c: roundTo2(hotelCost),
+                wfrecon__Mileage_Cost__c: roundTo2(mileageCost),
+                wfrecon__Per_Diem_Cost__c: roundTo2(perDiemCost),
+                wfrecon__Total_Cost__c: roundTo2(totalCost),
+                wfrecon__Recommended_Price__c: roundTo2(recommendedPrice),
+                wfrecon__Sales_Price__c: roundTo2(salesPrice),
+                wfrecon__OH_Amount__c: roundTo2(ohAmount),
+                wfrecon__Profit_Amount__c: roundTo2(profitAmount),
+                wfrecon__Warranty_Amount__c: roundTo2(warrantyAmount)
             };
         });
     }
@@ -1384,41 +1490,43 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
 
     extractBudgetLineFields(line, costType) {
         const fields = {};
+        const roundTo2 = (num) => Math.round((parseFloat(num) || 0) * 100) / 100;
+        const roundTo0 = (num) => Math.round(parseFloat(num) || 0);
 
         switch (costType) {
             case 'labor':
-                fields.noOfCrewMembers = line.wfrecon__No_Of_Crew_Members__c;
-                fields.hrsDay = line.wfrecon__Hrs_day__c;
-                fields.burdenRateHour = line.wfrecon__Burden_Rate_Hour__c;
-                fields.ofDays = line.wfrecon__of_Days__c;
-                fields.estimatedHours = line.wfrecon__Estimated_Hours__c;
-                fields.laborCost = line.wfrecon__Labor_Cost__c;
+                fields.noOfCrewMembers = roundTo0(line.wfrecon__No_Of_Crew_Members__c);
+                fields.hrsDay = roundTo2(line.wfrecon__Hrs_day__c);
+                fields.burdenRateHour = roundTo2(line.wfrecon__Burden_Rate_Hour__c);
+                fields.ofDays = roundTo0(line.wfrecon__of_Days__c);
+                fields.estimatedHours = roundTo2(line.wfrecon__Estimated_Hours__c);
+                fields.laborCost = roundTo2(line.wfrecon__Labor_Cost__c);
                 fields.note = line.wfrecon__Note__c;
                 break;
             case 'materials':
                 fields.materials = line.wfrecon__Material__c;
-                fields.qty = line.wfrecon__QTY__c;
-                fields.materialCostEach = line.wfrecon__Cost_Each__c;
-                fields.materialCostSubTotal = line.wfrecon__Material_Cost__c;
+                fields.qty = roundTo0(line.wfrecon__QTY__c);
+                fields.materialCostEach = roundTo2(line.wfrecon__Cost_Each__c);
+                fields.materialCostSubTotal = roundTo2(line.wfrecon__Material_Cost__c);
                 break;
             case 'hotel':
-                fields.ofNights = line.wfrecon__Of_Nights__c;
-                fields.numberOfRooms = line.wfrecon__Number_Of_Rooms__c;
-                fields.costsPerNight = line.wfrecon__Costs_Per_Night__c;
-                fields.totalHotelCost = line.wfrecon__Total_Hotel_Cost__c;
+                fields.ofNights = roundTo0(line.wfrecon__Of_Nights__c);
+                fields.numberOfRooms = roundTo0(line.wfrecon__Number_Of_Rooms__c);
+                fields.costsPerNight = roundTo2(line.wfrecon__Costs_Per_Night__c);
+                fields.totalHotelCost = roundTo2(line.wfrecon__Total_Hotel_Cost__c);
                 break;
             case 'mileage':
-                fields.ofTrips = line.wfrecon__Of_Trips__c;
-                fields.ofTrucks = line.wfrecon__Of_Trucks__c;
-                fields.mileage = line.wfrecon__Mileage__c;
-                fields.mileageRate = line.wfrecon__Mileage_Rate__c;
-                fields.totalMileage = line.wfrecon__Total_Mileage__c;
+                fields.ofTrips = roundTo0(line.wfrecon__Of_Trips__c);
+                fields.ofTrucks = roundTo0(line.wfrecon__Of_Trucks__c);
+                fields.mileage = roundTo2(line.wfrecon__Mileage__c);
+                fields.mileageRate = roundTo2(line.wfrecon__Mileage_Rate__c);
+                fields.totalMileage = roundTo2(line.wfrecon__Total_Mileage__c);
                 break;
             case 'perdiem':
-                fields.perDiemOfDays = line.wfrecon__Per_Diem_of_Days__c;
-                fields.perDiemRate = line.wfrecon__Per_Diem_Rate__c;
-                fields.totalPerDiem = line.wfrecon__Total_Per_Diem__c;
-                fields.ofMen = line.wfrecon__of_Men__c;
+                fields.perDiemOfDays = roundTo0(line.wfrecon__Per_Diem_of_Days__c);
+                fields.perDiemRate = roundTo2(line.wfrecon__Per_Diem_Rate__c);
+                fields.totalPerDiem = roundTo2(line.wfrecon__Total_Per_Diem__c);
+                fields.ofMen = roundTo0(line.wfrecon__of_Men__c);
                 break;
         }
 
@@ -1445,6 +1553,9 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     }
 
     removeNewBudgetLine(proposalLineId, budgetLineId, costType) {
+        // Clear modification tracking for this budget line
+        this.modifiedBudgetLineFields.delete(budgetLineId);
+        
         this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
             if (line.Id === proposalLineId && line.budget) {
                 // Flatten all budget lines and filter out the one to remove
@@ -1475,7 +1586,16 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             .then(result => {
                 if (result.success) {
                     this.showToast('Success', result.message, 'success');
+                    // Reload data then clear all tracking like confirmDiscardAllChanges does
                     this.loadProposalLines();
+                    this.editingProposalLines.clear();
+                    this.modifiedProposalLines.clear();
+                    this.originalProposalLineValues.clear();
+                    this.manuallyEditedSalesPrices.clear();
+                    this.editingBudgetLines.clear();
+                    this.hasModificationsBySection.clear();
+                    this.modifiedBudgetLineFields.clear();
+                    this.hasSequenceChanges = false;
                 } else {
                     this.showToast('Error', result.message, 'error');
                 }
@@ -1547,42 +1667,55 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         const allBudgetLinesToSave = [];
         const modifiedProposalLinesArray = [];
 
-        // Validate all sales prices before saving
+        // Validate all sales prices and profit percentages before saving
         let hasInvalidSalesPrice = false;
+        let hasInvalidProfit = false;
         let errorMessage = '';
 
         this.modifiedProposalLines.forEach((modifiedFields, proposalLineId) => {
-            if (modifiedFields.has('wfrecon__Sales_Price__c')) {
-                const line = this.proposalLinesRaw.find(l => l.Id === proposalLineId);
-                if (line) {
+            const line = this.proposalLinesRaw.find(l => l.Id === proposalLineId);
+            if (line) {
+                // Validate profit percentage
+                if (modifiedFields.has('wfrecon__Profit_Per__c')) {
+                    const profit = parseFloat(line.wfrecon__Profit_Per__c) || 0;
+                    if (profit < 1 || profit > 100) {
+                        hasInvalidProfit = true;
+                        errorMessage = 'Profit percentage must be between 1 and 100';
+                    }
+                }
+                
+                // Validate sales price
+                if (modifiedFields.has('wfrecon__Sales_Price__c')) {
                     const salesPrice = parseFloat(line.wfrecon__Sales_Price__c) || 0;
                     const recommendedPrice = parseFloat(line.wfrecon__Recommended_Price__c) || 0;
 
                     if (salesPrice < recommendedPrice) {
                         hasInvalidSalesPrice = true;
-                        errorMessage = `Sales Price ($${salesPrice.toFixed(2)}) cannot be less than Recommended Price ($${recommendedPrice.toFixed(2)}) for ${line.Name}`;
+                        errorMessage = `Sales Price ($${this.formatCurrency(salesPrice)}) cannot be less than Recommended Price ($${this.formatCurrency(recommendedPrice)}) for ${line.Name}`;
                     }
                 }
             }
         });
 
-        if (hasInvalidSalesPrice) {
+        if (hasInvalidSalesPrice || hasInvalidProfit) {
             this.showToast('Validation Error', errorMessage, 'error');
             return;
         }
 
         // Collect modified proposal lines
+        const roundTo2 = (num) => Math.round((parseFloat(num) || 0) * 100) / 100;
+        
         this.modifiedProposalLines.forEach((modifiedFields, proposalLineId) => {
             const line = this.proposalLinesRaw.find(l => l.Id === proposalLineId);
             if (line && modifiedFields.size > 0) {
                 const updateData = {
                     Id: line.Id,
-                    wfrecon__Quantity__c: line.wfrecon__Quantity__c,
+                    wfrecon__Quantity__c: Math.round(parseFloat(line.wfrecon__Quantity__c) || 0),
                     wfrecon__Description__c: line.wfrecon__Description__c,
-                    wfrecon__OH_Per__c: line.wfrecon__OH_Per__c,
-                    wfrecon__Warranty_Per__c: line.wfrecon__Warranty_Per__c,
-                    wfrecon__Profit_Per__c: line.wfrecon__Profit_Per__c,
-                    wfrecon__Sales_Price__c: line.wfrecon__Sales_Price__c,
+                    wfrecon__OH_Per__c: roundTo2(line.wfrecon__OH_Per__c),
+                    wfrecon__Warranty_Per__c: roundTo2(line.wfrecon__Warranty_Per__c),
+                    wfrecon__Profit_Per__c: Math.round(parseFloat(line.wfrecon__Profit_Per__c) || 0),
+                    wfrecon__Sales_Price__c: roundTo2(line.wfrecon__Sales_Price__c),
                     wfrecon__Type__c: line.wfrecon__Type__c || 'Base Contract'
                 };
                 
