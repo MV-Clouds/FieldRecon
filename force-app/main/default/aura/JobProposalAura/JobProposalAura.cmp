@@ -1,0 +1,5 @@
+<aura:component implements="force:lightningQuickAction,force:hasRecordId" access="global">
+    <aura:attribute name="recordId" type="String" />
+    
+    <c:jobProposalModal recordId="{!v.recordId}" onclose="{!c.handleClose}" />
+</aura:component>
