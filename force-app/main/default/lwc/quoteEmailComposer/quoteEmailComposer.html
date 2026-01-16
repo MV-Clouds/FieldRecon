@@ -5,178 +5,207 @@
                 <lightning-spinner alternative-text="Loading..." size="medium" variant="brand"></lightning-spinner>
             </template>
 
-            <div class="content-body">
-                <div class="outer-grid">
-                    
-                    <div class="inner-grid-1 left-panel">
-                        <div class="form-scroll-container">
+            <template if:true={isStepOne}>
+                <template if:true={proposalLines.length}>
+                    <div class="step-header">
+                        <h2>Select Proposal Lines Which You Want to Add in Email:</h2>
+                    </div>
+                </template>
+                
+                <div class="content-body step-one-body">
+                    <template if:true={proposalLines.length}>
+                        <div class="data-table-container">
+                            <table class="custom-data-table">
+                                <thead class="table-header">
+                                    <tr>
+                                        <th class="header-cell col-toggle">
+                                            <lightning-input type="checkbox" variant="label-hidden" 
+                                                onchange={handleSelectAll} checked={isAllSelected}></lightning-input>
+                                        </th>
+                                        <th class="header-cell col-sr-no">Sr No.</th>
+                                        <th class="header-cell col-service">Proposal Line</th>
+                                        <th class="header-cell col-description">Description</th>
+                                        <th class="header-cell col-quantity">Quantity</th>
+                                        <th class="header-cell col-total-cost">Total Amount</th>
+                                        <th class="header-cell col-sales-price">Sales Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="table-body">
+                                    <template for:each={proposalLines} for:item="line">
+                                        <tr key={line.Id} class="proposal-line-row">
+                                            <td class="table-cell">
+                                                <lightning-input type="checkbox" variant="label-hidden" 
+                                                    checked={line.Selected__c} 
+                                                    data-id={line.Id}
+                                                    onchange={handleLineSelect}></lightning-input>
+                                            </td>
+                                            <td class="center-trancate-text">{line.wfrecon__Sequence__c}</td>
+                                            <td class="center-trancate-text name-link">{line.Name}</td>
+                                            <td class="center-trancate-text" title={line.wfrecon__Description__c}>
+                                                {line.wfrecon__Description__c}
+                                            </td>
+                                            <td class="center-trancate-text">
+                                                <lightning-formatted-number value={line.wfrecon__Quantity__c}></lightning-formatted-number>
+                                            </td>
+                                            <td class="center-trancate-text total-amount">
+                                                <lightning-formatted-number value={line.wfrecon__Total_Cost__c} format-style="currency" currency-code="USD"></lightning-formatted-number>
+                                            </td>
+                                            <td class="center-trancate-text">
+                                                <lightning-formatted-number value={line.wfrecon__Sales_Price__c} format-style="currency" currency-code="USD"></lightning-formatted-number>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
                             
-                            <div class="form-group">
-                                <lightning-combobox
-                                    name="template"
-                                    label="Select Email Template"
-                                    value={selectedTemplateId}
-                                    placeholder="Select Template..."
-                                    options={templateOptions}
-                                    onchange={handleTemplateChange}
-                                    required
-                                    class="validate-field">
-                                </lightning-combobox>
-                            </div>
+                            
+                        </div>
+                    </template>
+                    <template if:false={proposalLines.length}>
+                        <div class="no-records-message">
+                            <p>No Proposal Lines found</p>
+                        </div>
+                    </template>
+                </div>
 
-                            <div class="form-group">
-                                <lightning-combobox
-                                    name="fromAddress"
-                                    label="From Address (Org-Wide Email)"
-                                    value={selectedFromAddress}
-                                    placeholder="Select From Address..."
-                                    options={fromOptions}
-                                    onchange={handleFromChange}
-                                    required
-                                    class="validate-field">
-                                </lightning-combobox>
-                            </div>
+                <div class="popUpFooter">
+                    <button class="footer-btn secondary btn-active" onclick={handleNext} disabled={isNextDisabled}>Next</button>
+                    <button class="footer-btn primary-outline" onclick={handleClose}>Cancel</button>
+                </div>
+            </template>
 
-                            <div class="form-group">
-                                <lightning-record-picker
-                                    label="To"
-                                    placeholder="Search Contact..."
-                                    object-api-name="Contact"
-                                    value={selectedToId}
-                                    onchange={handleToChange}
-                                    required
-                                    class="validate-field">
-                                </lightning-record-picker>
-                            </div>
-
-                            <div class="form-group">
-                                <lightning-record-picker
-                                    label="CC"
-                                    placeholder="Search Contact..."
-                                    object-api-name="Contact"
-                                    onchange={handleCcSelect}
-                                    data-id="cc-picker">
-                                </lightning-record-picker>
-                                <template if:true={ccItems.length}>
-                                    <lightning-pill-container items={ccItems} onitemremove={handleCcRemove}></lightning-pill-container>
-                                </template>
-                            </div>
-
-                            <div class="form-group">
-                                <lightning-record-picker
-                                    label="BCC"
-                                    placeholder="Search Contact..."
-                                    object-api-name="Contact"
-                                    onchange={handleBccSelect}
-                                    data-id="bcc-picker">
-                                </lightning-record-picker>
-                                <template if:true={bccItems.length}>
-                                    <lightning-pill-container items={bccItems} onitemremove={handleBccRemove}></lightning-pill-container>
-                                </template>
-                            </div>
-
-                            <div class="form-group">
-                                <lightning-input 
-                                    label="Subject" 
-                                    value={subject} 
-                                    onchange={handleSubjectChange} 
-                                    required
-                                    class="validate-field">
-                                </lightning-input>
-                            </div>
-
-                            <div class="form-group">
-                                <label class="slds-form-element__label">
-                                    <abbr title="required" class="slds-required">*</abbr>Body
-                                </label>
-                                <lightning-input-rich-text
-                                    label=" "
-                                    value={emailBody}
-                                    onchange={handleBodyChange}
-                                    required
-                                    variant="bottom-toolbar"
-                                    class="validate-field">
-                                </lightning-input-rich-text>
-                            </div>
-
-                            <div class="form-group mt-3">
-                                <label class="slds-form-element__label">Attachments</label>
-                                <div class="upload-buttons-container">
-                                    <div class="upload-button-wrapper">
-                                        <lightning-file-upload 
-                                            name="fileUploader"
-                                            record-id={recordId} 
-                                            onuploadfinished={handleUploadFinished}
-                                            variant="label-hidden"
-                                            label=" "
-                                            multiple>
-                                        </lightning-file-upload>
-                                    </div>
-                                    <button type="button" class="upload-action-btn chatter-btn" onclick={openFileSelectionModal}>
-                                        <lightning-icon icon-name="utility:open_folder" size="x-small" variant="inverse" class="mr-1"></lightning-icon>
-                                        Select from Record
-                                    </button>
+            <template if:true={isStepTwo}>
+                <div class="content-body">
+                    <div class="outer-grid">
+                        <div class="inner-grid-1 left-panel">
+                            <div class="form-scroll-container">
+                                
+                                <div class="form-group">
+                                    <lightning-combobox name="template" label="Select Email Template"
+                                        value={selectedTemplateId} placeholder="Select Template..." options={templateOptions}
+                                        onchange={handleTemplateChange} required class="validate-field">
+                                    </lightning-combobox>
                                 </div>
 
-                                <div class="file-pills-container mt-2" if:true={hasFiles}>
-                                    <template for:each={uploadedFiles} for:item="file" for:index="index">
-                                        <lightning-pill 
-                                            key={file.id} 
-                                            label={file.name} 
-                                            name={file.id} 
-                                            onremove={handleRemoveFile}
-                                            class="slds-m-right_xx-small slds-m-bottom_xx-small">
-                                            <lightning-icon icon-name={file.icon} size="x-small"></lightning-icon>
-                                        </lightning-pill>
+                                <div class="form-group">
+                                    <lightning-combobox name="fromAddress" label="From Address (Org-Wide Email)"
+                                        value={selectedFromAddress} placeholder="Select From Address..." options={fromOptions}
+                                        onchange={handleFromChange} required class="validate-field">
+                                    </lightning-combobox>
+                                </div>
+
+                                <div class="form-group">
+                                    <lightning-record-picker label="To" placeholder="Search Contact..." object-api-name="Contact"
+                                        value={selectedToId} onchange={handleToChange} required class="validate-field">
+                                    </lightning-record-picker>
+                                </div>
+
+                                <div class="form-group">
+                                    <lightning-record-picker label="CC" placeholder="Search Contact..." object-api-name="Contact"
+                                        onchange={handleCcSelect} data-id="cc-picker">
+                                    </lightning-record-picker>
+                                    <template if:true={ccItems.length}>
+                                        <lightning-pill-container items={ccItems} onitemremove={handleCcRemove}></lightning-pill-container>
                                     </template>
                                 </div>
-                            </div>
 
+                                <div class="form-group">
+                                    <lightning-record-picker label="BCC" placeholder="Search Contact..." object-api-name="Contact"
+                                        onchange={handleBccSelect} data-id="bcc-picker">
+                                    </lightning-record-picker>
+                                    <template if:true={bccItems.length}>
+                                        <lightning-pill-container items={bccItems} onitemremove={handleBccRemove}></lightning-pill-container>
+                                    </template>
+                                </div>
+
+                                <div class="form-group">
+                                    <lightning-input label="Subject" value={subject} onchange={handleSubjectChange} required
+                                        class="validate-field">
+                                    </lightning-input>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="slds-form-element__label">
+                                        <abbr title="required" class="slds-required">*</abbr>Body
+                                    </label>
+                                    <lightning-input-rich-text label=" " value={emailBody} onchange={handleBodyChange} required
+                                        variant="bottom-toolbar" class="validate-field">
+                                    </lightning-input-rich-text>
+                                </div>
+
+                                <div class="form-group mt-3">
+                                    <label class="slds-form-element__label">Attachments</label>
+                                    <div class="upload-buttons-container">
+                                        <div class="upload-button-wrapper">
+                                            <lightning-file-upload name="fileUploader" record-id={recordId}
+                                                onuploadfinished={handleUploadFinished} variant="label-hidden" label=" " multiple>
+                                            </lightning-file-upload>
+                                        </div>
+                                        <button type="button" class="upload-action-btn chatter-btn" onclick={openFileSelectionModal}>
+                                            <lightning-icon icon-name="utility:open_folder" size="x-small" variant="inverse"
+                                                class="mr-1"></lightning-icon>
+                                            Select from Record
+                                        </button>
+                                    </div>
+
+                                    <div class="file-pills-container mt-2" if:true={hasFiles}>
+                                        <template for:each={uploadedFiles} for:item="file" for:index="index">
+                                            <lightning-pill key={file.id} label={file.name} name={file.id} onremove={handleRemoveFile}
+                                                class="slds-m-right_xx-small slds-m-bottom_xx-small">
+                                                <lightning-icon icon-name={file.icon} size="x-small"></lightning-icon>
+                                            </lightning-pill>
+                                        </template>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <div class="inner-grid-2 right-panel">
+                            <div class="preview-scroll-container">
+                                <div class="accordion-container">
+                                    <lightning-accordion active-section-name={activeSectionName} allow-multiple-sections-open="true"
+                                        onsectiontoggle={handleSectionToggle}>
+
+                                        <lightning-accordion-section name="bodyPreview" label="Email Body Preview">
+                                            <div class="preview-content">
+                                                <lightning-formatted-rich-text value={emailBody}></lightning-formatted-rich-text>
+                                                <div if:false={emailBody} class="slds-text-color_weak slds-text-align_center">
+                                                    Body is empty...
+                                                </div>
+                                            </div>
+                                        </lightning-accordion-section>
+
+                                        <lightning-accordion-section name="templatePreview" label="Email Template Preview">
+                                            <div class="preview-content">
+                                                <div class="preview-subject" if:true={subject}>
+                                                    <div class="slds-text-title_bold slds-m-bottom_xx-small">Subject:</div>
+                                                    <div class="slds-m-bottom_small">{subject}</div>
+                                                    <hr style="margin: 5px 0; border: 0; border-top: 1px solid #ddd;" />
+                                                </div>
+
+                                                <lightning-formatted-rich-text value={templatePreviewHtml}></lightning-formatted-rich-text>
+
+                                                <div if:false={templatePreviewHtml}
+                                                    class="slds-text-color_weak slds-text-align_center slds-p-around_medium">
+                                                    Select a template to view preview.
+                                                </div>
+                                            </div>
+                                        </lightning-accordion-section>
+
+                                    </lightning-accordion>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
-                    <div class="inner-grid-2 right-panel">
-                        <div class="preview-scroll-container">
-                            
-                            <div class="accordion-container">
-                                <lightning-accordion active-section-name={activeSectionName} allow-multiple-sections-open="true" onsectiontoggle={handleSectionToggle}>
-                                    
-                                    <lightning-accordion-section name="bodyPreview" label="Email Body Preview">
-                                        <div class="preview-content">
-                                            <lightning-formatted-rich-text value={emailBody}></lightning-formatted-rich-text>
-                                            <div if:false={emailBody} class="slds-text-color_weak slds-text-align_center">
-                                                Body is empty...
-                                            </div>
-                                        </div>
-                                    </lightning-accordion-section>
-
-                                    <lightning-accordion-section name="templatePreview" label="Email Template Preview">
-                                        <div class="preview-content">
-                                            <div class="preview-subject" if:true={subject}>
-                                                <div class="slds-text-title_bold slds-m-bottom_xx-small">Subject:</div>
-                                                <div class="slds-m-bottom_small">{subject}</div>
-                                                <hr style="margin: 5px 0; border: 0; border-top: 1px solid #ddd;"/>
-                                            </div>
-                                            
-                                            <lightning-formatted-rich-text value={templatePreviewHtml}></lightning-formatted-rich-text>
-                                            
-                                            <div if:false={templatePreviewHtml} class="slds-text-color_weak slds-text-align_center slds-p-around_medium">
-                                                Select a template to view preview.
-                                            </div>
-                                        </div>
-                                    </lightning-accordion-section>
-
-                                </lightning-accordion>
-                            </div>
-                            </div>
-                    </div>
                 </div>
-            </div>
 
-            <div class="popUpFooter">
-                <button class={sendButtonClass} onclick={handleSendEmail} disabled={isSendDisabled}>Send Email</button>
-                <button class="footer-btn primary-outline" onclick={handleClose}>Cancel</button>
-            </div>
+                <div class="popUpFooter">
+                    <button class="footer-btn primary-outline" onclick={handleBack}>Back</button>
+                    <button class={sendButtonClass} onclick={handleSendEmail} disabled={isSendDisabled}>Send Email</button>
+                    <button class="footer-btn primary-outline" onclick={handleClose}>Cancel</button>
+                </div>
+            </template>
         </div>
     </section>
 

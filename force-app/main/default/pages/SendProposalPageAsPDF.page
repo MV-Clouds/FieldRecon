@@ -1,0 +1,4 @@
+<apex:page controller="SendProposalPageAsPDFController" renderAs="pdf" standardStylesheets="false" applyHtmlTag="false"
+    applyBodyTag="false" showHeader="false" cache="false" action="{!createPDF}">
+    <apex:outputText value="{!strBody}" escape="false"/>
+</apex:page>

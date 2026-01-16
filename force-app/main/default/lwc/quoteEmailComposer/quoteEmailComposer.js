@@ -6,6 +6,8 @@ import getRecordFiles from '@salesforce/apex/QuoteEmailController.getRecordFiles
 import getUploadedFileDetails from '@salesforce/apex/QuoteEmailController.getUploadedFileDetails';
 import getContactName from '@salesforce/apex/QuoteEmailController.getContactName';
 import deleteContentDocuments from '@salesforce/apex/QuoteEmailController.deleteContentDocuments';
+import getBaseContractLines from '@salesforce/apex/QuoteEmailController.getBaseContractLines';
+import updateLineSelection from '@salesforce/apex/QuoteEmailController.updateLineSelection';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { gql, graphql } from 'lightning/uiGraphQLApi';
 
@@ -16,6 +18,13 @@ export default class QuoteEmailComposer extends LightningElement {
     @api recordId;
     
     @track isLoading = false;
+
+    // Wizard Logic
+    @track step = 1;
+
+    // Step 1 Data (Proposal Lines)
+    @track proposalLines = [];
+    @track isAllSelected = false;
 
     // Accordion Logic
     @track activeSectionName = ['bodyPreview', 'templatePreview'];
@@ -60,6 +69,8 @@ export default class QuoteEmailComposer extends LightningElement {
 
     connectedCallback() {
         this.overrideSLDS();
+        // Load Step 1 Data immediately
+        this.fetchProposalLines();
     }
 
     renderedCallback() {
@@ -117,6 +128,20 @@ export default class QuoteEmailComposer extends LightningElement {
     }
 
     // --- Computed Properties ---
+    
+    get isStepOne() {
+        return this.step === 1;
+    }
+
+    get isStepTwo() {
+        return this.step === 2;
+    }
+
+    get isNextDisabled() {
+        // Disable next if no lines are selected
+        return !this.proposalLines.some(line => line.Selected__c);
+    }
+
     get isSendDisabled() {
         const hasTemplate = !!this.selectedTemplateId;
         const hasFrom = !!this.selectedFromAddress;
@@ -138,7 +163,109 @@ export default class QuoteEmailComposer extends LightningElement {
         return this.uploadedFiles.length > 0;
     }
 
-    // --- Event Handlers ---
+    // --- Step 1 Handlers (Selection Wizard) ---
+
+    fetchProposalLines() {
+        try{
+            this.isLoading = true;
+            getBaseContractLines({ recordId: this.recordId })
+                .then(result => {
+                    this.proposalLines = result.map(line => ({
+                        ...line,
+                        // Ensure boolean for checkbox
+                        // Selected__c: line.wfrecon__Selected__c || false
+                    }));
+                    this.checkAllSelected();
+                })
+                .catch(error => {
+                    this.showToast('Error', 'Error fetching proposal lines', 'error');
+                    console.error(error);
+                })
+                .finally(() => this.isLoading = false);
+        }catch(err){
+            console.error('Unexpected error in fetchProposalLines:', err.stack);
+            this.showToast('Error', 'An unexpected error occurred while fetching proposal lines.', 'error');
+            this.isLoading = false;
+        }
+    }
+
+    handleLineSelect(event) {
+        try{
+            const id = event.target.dataset.id;
+            const checked = event.target.checked;
+            
+            this.proposalLines = this.proposalLines.map(line => {
+                if (line.Id === id) {
+                    return { ...line, Selected__c: checked };
+                }
+                return line;
+            });
+            
+            this.checkAllSelected();
+        }catch(err){
+            console.error('Unexpected error in handleLineSelect:', err.stack);
+            this.showToast('Error', 'An unexpected error occurred while selecting a line.', 'error');
+        }
+    }
+
+    handleSelectAll(event) {
+        try{
+            const checked = event.target.checked;
+            this.isAllSelected = checked;
+            
+            this.proposalLines = this.proposalLines.map(line => ({
+                ...line,
+                Selected__c: checked
+            }));
+        }catch(err){
+            console.error('Unexpected error in handleSelectAll:', err.stack);
+            this.showToast('Error', 'An unexpected error occurred while selecting all lines.', 'error');
+        }
+    }
+
+    checkAllSelected() {
+        const allSelected = this.proposalLines.length > 0 && this.proposalLines.every(line => line.Selected__c);
+        this.isAllSelected = allSelected;
+    }
+
+    handleNext() {
+        try{
+            this.isLoading = true;
+            
+            // 1. Get IDs of selected lines to update backend
+            const selectedIds = this.proposalLines
+                .filter(line => line.Selected__c)
+                .map(line => line.Id);
+    
+            // 2. Call Apex to save selection state
+            updateLineSelection({ selectedIds: selectedIds, recordId: this.recordId })
+                .then(() => {
+                    // 3. Move to Email Step
+                    this.step = 2;
+                    
+                    // 4. Refresh Email Preview with new selections if template already selected
+                    if(this.selectedTemplateId) {
+                        this.fetchAndRenderTemplate();
+                    }
+                })
+                .catch(error => {
+                    this.showToast('Error', 'Failed to update selection: ' + (error.body ? error.body.message : error.message), 'error');
+                })
+                .finally(() => this.isLoading = false);
+        }catch(err){
+            console.error('Unexpected error in handleNext:', err.stack);
+            this.showToast('Error', 'An unexpected error occurred while proceeding to the next step.', 'error');
+            this.isLoading = false;
+        }
+    }
+
+    handleBack() {
+        this.step = 1;
+        // Re-fetch to ensure we have latest state if needed, or just switch view
+        // this.fetchProposalLines();
+    }
+
+    // --- Step 2 Event Handlers (Email Composer) ---
 
     handleTemplateChange(event) {
         this.selectedTemplateId = event.detail.value;
@@ -442,7 +569,6 @@ export default class QuoteEmailComposer extends LightningElement {
             const allValid = [
                     ...this.template.querySelectorAll('.validate-field'),
             ].reduce((validSoFar, inputCmp) => {
-                // Check validation for standard inputs and record pickers
                 if (inputCmp.reportValidity) {
                     inputCmp.reportValidity();
                     return validSoFar && inputCmp.checkValidity();
@@ -459,7 +585,6 @@ export default class QuoteEmailComposer extends LightningElement {
             this.isLoading = true;
             const fileIds = this.uploadedFiles.map(f => f.id);
             
-            // Collect IDs from multi-select pills
             const ccIdList = this.ccItems.map(item => item.name);
             const bccIdList = this.bccItems.map(item => item.name);
     
@@ -471,14 +596,12 @@ export default class QuoteEmailComposer extends LightningElement {
                 body: this.emailBody,
                 fromId: this.selectedFromAddress,
                 relatedToId: this.recordId,
-                contentDocumentIds: fileIds
+                contentDocumentIds: fileIds,
+                templateId: this.selectedTemplateId // Ensure this is passed!
             })
             .then(() => {
                 this.showToast('Success', 'Email Sent Successfully', 'success');
-                // Flag success so disconnectedCallback knows NOT to delete files
                 this.emailSentSuccessfully = true;
-                
-                // Ensure no new uploads are left hanging if we success (they are now sent/attached)
                 this.dispatchEvent(new CustomEvent('close'));
             })
             .catch(error => {

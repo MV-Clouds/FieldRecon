@@ -104,32 +104,25 @@ public with sharing class QuoteEmailController {
         String body, 
         String fromId, 
         String relatedToId,
-        List<String> contentDocumentIds 
+        List<String> contentDocumentIds,
+        String templateId
     ) {
         try {
 
-            // 1. Fetch the Proposal Expiration Date
-            Date expirationDate = null;
-            if(String.isNotBlank(relatedToId)) {
-                wfrecon__Proposal__c currentProposal = [
-                    SELECT wfrecon__Expiration_Date__c 
-                    FROM wfrecon__Proposal__c 
-                    WHERE Id = :relatedToId 
-                    WITH USER_MODE 
-                    LIMIT 1
-                ];
-                expirationDate = currentProposal.wfrecon__Expiration_Date__c;
-            }
+            System.debug('sendQuoteEmail called with templateId: ' + templateId +
+                         ' toId: ' + toId +
+                         ' relatedToId: ' + relatedToId +
+                         ' fromId: ' + fromId +
+                         ' ccIds: ' + ccIds +
+                         ' bccIds: ' + bccIds +
+                         ' contentDocumentIds: ' + contentDocumentIds);
 
-            // 2. Insert wfrecon__Proposal_Recipient__c
+            // 1. Insert Recipient Logic
             if(String.isNotBlank(toId) && String.isNotBlank(relatedToId)) {
                 wfrecon__Proposal_Recipient__c recipient = new wfrecon__Proposal_Recipient__c();
                 recipient.wfrecon__Proposal__c = relatedToId;
                 recipient.wfrecon__Contact__c = toId;
                 recipient.wfrecon__Status__c = 'Pending';
-                recipient.wfrecon__Due_Date__c = expirationDate;
-                
-                // Using User Mode to enforce permissions
                 insert as user recipient;
             }
 
@@ -160,13 +153,41 @@ public with sharing class QuoteEmailController {
             mail.setHtmlBody(body);
             mail.setSaveAsActivity(true);
 
-            // Handle Attachments
+            // 3. GENERATE PDF USING REFERENCE CODE LOGIC
+            // We call the Visualforce Page SendProposalPageAsPDF which runs the rollback logic
+            if(String.isNotBlank(relatedToId) && String.isNotBlank(templateId)) {
+                
+                PageReference pdfPage = Page.SendProposalPageAsPDF;
+                pdfPage.getParameters().put('recordId', relatedToId);
+                pdfPage.getParameters().put('templateId', templateId);
+                if(String.isNotBlank(toId)) {
+                    pdfPage.getParameters().put('contactId', toId);
+                }
+
+                Blob pdfBlob;
+                if(Test.isRunningTest()) {
+                    pdfBlob = Blob.valueOf('Test PDF Content');
+                } else {
+                    // This triggers the createPDF action in SendProposalPageAsPDFController
+                    pdfBlob = pdfPage.getContentAsPDF(); 
+                }
+
+                Messaging.EmailFileAttachment pdfAtt = new Messaging.EmailFileAttachment();
+                pdfAtt.setFileName('Proposal.pdf');
+                pdfAtt.setBody(pdfBlob);
+                pdfAtt.setContentType('application/pdf');
+                
+                mail.setFileAttachments(new Messaging.EmailFileAttachment[] { pdfAtt });
+            }
+
+            // 4. Handle Existing Files
             if (contentDocumentIds != null && !contentDocumentIds.isEmpty()) {
                 List<ContentVersion> versions = [
                     SELECT Id 
                     FROM ContentVersion 
                     WHERE ContentDocumentId IN :contentDocumentIds 
                     AND IsLatest = true
+                    WITH USER_MODE
                 ];
                 List<Id> entityAttachments = new List<Id>();
                 for(ContentVersion cv : versions) {
@@ -260,7 +281,6 @@ public with sharing class QuoteEmailController {
             }
             return fileList;
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'QuoteEmailController', 'methodName' => 'getRecordFiles', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             return new List<FileWrapper>();
         }
     }
@@ -275,6 +295,53 @@ public with sharing class QuoteEmailController {
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'QuoteEmailController', 'methodName' => 'getEmailsFromIds', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
             return new List<String>();
+        }
+    }
+
+    // NEW METHOD: Get Base Contract Lines for the Wizard Step 1
+    @AuraEnabled
+    public static List<wfrecon__Proposal_Line__c> getBaseContractLines(String recordId) {
+        return [
+            SELECT Id, Name, wfrecon__Description__c, wfrecon__Total_Cost__c, 
+                   wfrecon__Quantity__c, wfrecon__Sales_Price__c, 
+                   wfrecon__Selected__c, wfrecon__Sequence__c
+            FROM wfrecon__Proposal_Line__c
+            WHERE wfrecon__Proposal__c = :recordId
+            AND (wfrecon__Type__c = 'Base Contract' OR wfrecon__Type__c = NULL)
+            ORDER BY wfrecon__Sequence__c ASC
+        ];
+    }
+
+    // NEW METHOD: Update the checkbox on records based on user selection
+    @AuraEnabled
+    public static void updateLineSelection(List<String> selectedIds, String recordId) {
+        try {
+            // Fetch ALL Base Contract lines for this Proposal
+            List<wfrecon__Proposal_Line__c> allLines = [
+                SELECT Id, wfrecon__Selected__c 
+                FROM wfrecon__Proposal_Line__c 
+                WHERE wfrecon__Proposal__c = :recordId
+                AND (wfrecon__Type__c = 'Base Contract' OR wfrecon__Type__c = NULL)
+                WITH USER_MODE
+            ];
+
+            List<wfrecon__Proposal_Line__c> linesToUpdate = new List<wfrecon__Proposal_Line__c>();
+            Set<String> selectedSet = new Set<String>(selectedIds);
+
+            for(wfrecon__Proposal_Line__c line : allLines) {
+                Boolean shouldBeSelected = selectedSet.contains(line.Id);
+                // Only add to update list if value changes
+                if(line.wfrecon__Selected__c != shouldBeSelected) {
+                    line.wfrecon__Selected__c = shouldBeSelected;
+                    linesToUpdate.add(line);
+                }
+            }
+
+            if(!linesToUpdate.isEmpty()) {
+                update as user linesToUpdate;
+            }
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
         }
     }
 
