@@ -51,6 +51,11 @@
                                         onchange={handleMobilizationChange} 
                                         variant="label-hidden">
                                     </lightning-combobox>
+                                    <template if:true={selectedMobilizationDate}>
+                                        <div class="slds-text-body_small slds-p-top_xx-small selected-text" >
+                                            Start Date: {selectedMobilizationDate}
+                                        </div>
+                                    </template>
                                 </div>
                             </div>
                         </template>

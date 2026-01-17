@@ -576,6 +576,11 @@
     max-width: 400px;
 }
 
+.selected-text{
+    color: #444;
+    margin-left: 0.3rem;
+}
+
 /* ===== Responsive Design ===== */
 @media (min-width: 768px) {
     .members-grid {

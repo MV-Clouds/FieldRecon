@@ -27,6 +27,9 @@ export default class WholeCrewClockInOut extends LightningElement {
     @track currentDisplayTime;
     @track currentDateTimeForApex;
     @track timeUpdateInterval;
+    
+    @track mobilizationDateMap = {};
+    @track selectedMobilizationDate = '';
 
     // Getters
     get showMobilizationSelector() {
@@ -259,10 +262,12 @@ export default class WholeCrewClockInOut extends LightningElement {
             }
             
             this.mobilizationOptions = result.mobilizationOptions || [];
+            this.mobilizationDateMap = result.mobilizationDates || {};
             this.selectedMobilizationId = result.defaultMobilizationId || '';
             
             // Auto-load members for default mobilization
             if (this.selectedMobilizationId) {
+                this.updateSelectedMobilizationDate();
                 this.loadMembers();
             }
             
@@ -466,6 +471,7 @@ export default class WholeCrewClockInOut extends LightningElement {
     handleMobilizationChange(event) {
         try {
             this.selectedMobilizationId = event.target.value;
+            this.updateSelectedMobilizationDate();
             this.hasData = false;
             this.clockInMembers = [];
             this.clockOutMembers = [];
@@ -479,8 +485,19 @@ export default class WholeCrewClockInOut extends LightningElement {
         }
     }
 
-    /** 
-    * Method Name: handleBulkInputChange
+    /**
+     * Method Name: updateSelectedMobilizationDate
+     * @description: Updates the displayed date based on the selected mobilization ID
+     */
+    updateSelectedMobilizationDate() {
+        if (this.selectedMobilizationId && this.mobilizationDateMap) {
+            this.selectedMobilizationDate = this.mobilizationDateMap[this.selectedMobilizationId];
+        } else {
+            this.selectedMobilizationDate = '';
+        }
+    }
+
+    /** * Method Name: handleBulkInputChange
     * @description: Handles input changes for bulk clock in/out form fields
     */
     handleBulkInputChange(event) {
