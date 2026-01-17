@@ -4,92 +4,381 @@
             <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
         </template>
 
-            <div class="slds-p-around_medium component-wrapper">
-
-                <!-- Tab Navigation -->
-                <div class="tab-navigation">
-                    <button class={createNewTabClass} onclick={handleCreateNewTab}>Create New Job</button>
-                    <button class={linkExistingTabClass} onclick={handleLinkExistingTab}>Link Existing Job</button>
-                </div>
-
-                <div class="main-div">
-                    <!-- Bid Field - Display Only (Not part of Job object) -->
-                    <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
-                        <lightning-input label="Bid" value={bidName} disabled variant="label-stacked">
-                        </lightning-input>
+        <!-- Show status message if bid is not Closed Won -->
+        <template if:false={isClosedWonBid}>
+            <div class="slds-p-around_large status-message-container">
+                <div class="slds-align_absolute-center slds-text-align_center">
+                    <div class="status-icon-container">
+                        <lightning-icon icon-name="utility:warning" size="large"
+                            class="slds-text-color_error slds-m-bottom_medium">
+                        </lightning-icon>
                     </div>
+                    <div class="status-text-container">
+                        <h2 class="slds-text-heading_medium slds-m-bottom_x-small">Cannot Create Job</h2>
+                        <p class="slds-text-body_regular">
+                            Job can only be created when the Bid status is "Closed Won".
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </template>
 
-
-                    <!-- Link Existing Job Section (Outside of form) -->
-                    <template if:true={isLinkExisting}>
-                        <div class="slds-grid slds-wrap slds-gutters modal-scrollable">
-                            <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
-                                <lightning-record-picker label="Select Job" placeholder="Search Jobs..."
-                                    object-api-name="wfrecon__Job__c" onchange={handleJobSelection} required>
-                                </lightning-record-picker>
-                            </div>
+        <template if:true={isClosedWonBid}>
+            <div class="slds-p-around_medium component-wrapper">
+                <!-- Page 1: Create or Link Job -->
+                <template if:true={isCreateLinkPage}>
+                    <div class="main-div">
+                        <!-- Tab Navigation -->
+                        <div class="tab-navigation">
+                            <button class={createNewTabClass} onclick={handleCreateNewJob}>Create New Job</button>
+                            <button class={linkExistingTabClass} onclick={handleLinkExistingJob}>Link Existing
+                                Job</button>
                         </div>
 
+                        <!-- Link Existing Job Section -->
+                        <template if:true={isLinkMode}>
+                            <div class="slds-grid slds-wrap slds-gutters modal-scrollable">
+                                <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                                    <lightning-record-picker label="Select Job" placeholder="Search Jobs..."
+                                        object-api-name="wfrecon__Job__c" onchange={handleJobSelection} required>
+                                    </lightning-record-picker>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Create New Job Section -->
+                        <template if:true={isCreateMode}>
+                            <lightning-record-edit-form object-api-name="wfrecon__Job__c" onsuccess={handleSuccess}
+                                onerror={handleError} onload={handleLoad} density="comfy">
+
+                                <div class="slds-grid slds-wrap slds-gutters modal-scrollable">
+                                    <!-- Job Name & Status - Side by Side -->
+                                    <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                        <lightning-input-field field-name="wfrecon__Job_Name__c" value={defaultJobName}
+                                            required>
+                                        </lightning-input-field>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                        <lightning-input-field field-name="wfrecon__Status__c" value="Active" required>
+                                        </lightning-input-field>
+                                    </div>
+
+                                    <!-- Total Contract Price & Account - Side by Side -->
+                                    <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                        <lightning-input-field field-name="wfrecon__Total_Contract_Price__c"
+                                            value={defaultAmount}>
+                                        </lightning-input-field>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                        <lightning-input-field field-name="wfrecon__Account__c" value={accountId}
+                                            required>
+                                        </lightning-input-field>
+                                    </div>
+
+                                    <!-- Description - Full Width -->
+                                    <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                                        <lightning-input-field field-name="wfrecon__Description__c"
+                                            value={defaultDescription}>
+                                        </lightning-input-field>
+                                    </div>
+
+                                    <!-- Hidden Bid field for relationship -->
+                                    <div style="display: none;">
+                                        <lightning-input-field field-name="wfrecon__Bid__c" value={bidId}>
+                                        </lightning-input-field>
+                                    </div>
+                                </div>
+                            </lightning-record-edit-form>
+                        </template>
+
+                        <!-- Footer -->
                         <div class="footer-div">
-                            <button class="save-btn" onclick={handleLinkJob} disabled={isSaveDisabled}>
-                                {saveButtonLabel}
+                            <button class="save-btn" onclick={handleNextToProposals}>
+                                Next
                             </button>
                         </div>
-                    </template>
+                    </div>
+                </template>
 
-                    <!-- Create New Job Section (Inside form) -->
-                    <template if:true={isCreateNew}>
-                        <lightning-record-edit-form object-api-name="wfrecon__Job__c" onsuccess={handleSuccess}
-                            onerror={handleError} onload={handleLoad} density="comfy">
+                <!-- Page 2: Proposals Table with Expandable Rows -->
+                <template if:true={isProposalsPage}>
+                    <div class="main-div">
+                        <!-- Hidden form for create mode - needed for submission from proposals page -->
+                        <template if:true={isCreateMode}>
+                            <div style="display: none;">
+                                <lightning-record-edit-form object-api-name="wfrecon__Job__c" onsuccess={handleSuccess}
+                                    onerror={handleError} onload={handleLoad} density="comfy">
 
-                            <div class="slds-grid slds-wrap slds-gutters modal-scrollable">
-                                <!-- Job Name & Status - Side by Side -->
-                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
-                                    <lightning-input-field field-name="wfrecon__Job_Name__c" value={defaultJobName}
-                                        required>
-                                    </lightning-input-field>
-                                </div>
-                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
-                                    <lightning-input-field field-name="wfrecon__Status__c" value="Active" required>
-                                    </lightning-input-field>
-                                </div>
+                                    <div class="slds-grid slds-wrap slds-gutters modal-scrollable">
+                                        <!-- Job Name & Status - Side by Side -->
+                                        <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                            <lightning-input-field field-name="wfrecon__Job_Name__c"
+                                                value={defaultJobName} required>
+                                            </lightning-input-field>
+                                        </div>
+                                        <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                            <lightning-input-field field-name="wfrecon__Status__c" value="Active"
+                                                required>
+                                            </lightning-input-field>
+                                        </div>
 
-                                <!-- Total Contract Price & Account - Side by Side -->
-                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
-                                    <lightning-input-field field-name="wfrecon__Total_Contract_Price__c"
-                                        value={defaultAmount}>
-                                    </lightning-input-field>
-                                </div>
-                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
-                                    <lightning-input-field field-name="wfrecon__Account__c" value={accountId} required>
-                                    </lightning-input-field>
-                                </div>
+                                        <!-- Total Contract Price & Account - Side by Side -->
+                                        <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                            <lightning-input-field field-name="wfrecon__Total_Contract_Price__c"
+                                                value={defaultAmount}>
+                                            </lightning-input-field>
+                                        </div>
+                                        <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                            <lightning-input-field field-name="wfrecon__Account__c" value={accountId}
+                                                required>
+                                            </lightning-input-field>
+                                        </div>
 
-                                <!-- Description - Full Width -->
-                                <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
-                                    <lightning-input-field field-name="wfrecon__Description__c"
-                                        value={defaultDescription}>
-                                    </lightning-input-field>
-                                </div>
+                                        <!-- Description - Full Width -->
+                                        <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                                            <lightning-input-field field-name="wfrecon__Description__c"
+                                                value={defaultDescription}>
+                                            </lightning-input-field>
+                                        </div>
 
-                                <!-- Hidden Bid field for relationship -->
-                                <div style="display: none;">
-                                    <lightning-input-field field-name="wfrecon__Bid__c" value={bidId}>
-                                    </lightning-input-field>
-                                </div>
+                                        <!-- Hidden Bid field for relationship -->
+                                        <div style="display: none;">
+                                            <lightning-input-field field-name="wfrecon__Bid__c" value={bidId}>
+                                            </lightning-input-field>
+                                        </div>
+                                    </div>
+                                </lightning-record-edit-form>
                             </div>
+                        </template>
 
-                            <div class="footer-div">
-                                <button class="save-btn" onclick={handleSave}>
-                                    {saveButtonLabel}
+                        <div class="slds-modal__content library-popup">
+                            <!-- Loading State -->
+                            <template if:true={isLoadingBidData}>
+                                <div class="loading-state">
+                                    <lightning-spinner alternative-text="Loading proposals..."
+                                        size="medium"></lightning-spinner>
+                                </div>
+                            </template>
+
+                            <!-- Error State -->
+                            <template if:true={hasBidError}>
+                                <div class="error-state">
+                                    <lightning-icon icon-name="utility:error" size="medium"
+                                        class="error-icon"></lightning-icon>
+                                    <div class="error-message">{bidErrorMessage}</div>
+                                </div>
+                            </template>
+
+                            <!-- Content -->
+                            <template if:false={isLoadingBidData}>
+                                <template if:false={hasBidError}>
+                                    <div class="data-table-container">
+                                        <template if:true={displayedProposals.length}>
+                                            <table class="custom-data-table">
+                                                <thead class="table-header">
+                                                    <tr>
+                                                        <!-- Actions column for opening proposal lines -->
+                                                        <th class="header-cell center-trancate-head actions-column">
+                                                            Actions</th>
+                                                        <!-- Proposal fields -->
+                                                        <th class="header-cell center-trancate-head">Name</th>
+                                                        <th class="header-cell center-trancate-head">Type</th>
+                                                        <th class="header-cell center-trancate-head">Sales Price</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="table-body">
+                                                    <template for:each={displayedProposals} for:item="proposal">
+                                                        <tr key={proposal.Id}>
+                                                            <!-- Actions column -->
+                                                            <td class="center-trancate-text actions-column">
+                                                                <div class="action-icons">
+                                                                    <button class="icon-button view-lines-btn"
+                                                                        title="View Proposal Lines"
+                                                                        onclick={handleToggleProposalLines}
+                                                                        data-proposal-id={proposal.Id}
+                                                                        data-expanded={proposal.showLines}>
+                                                                        <svg width="16" height="16" viewBox="0 0 24 24"
+                                                                            fill="none"
+                                                                            xmlns="http://www.w3.org/2000/svg">
+                                                                            <template if:true={proposal.showLines}>
+                                                                                <!-- Chevron Up - Collapse -->
+                                                                                <path d="M18 15L12 9L6 15"
+                                                                                    stroke="currentColor"
+                                                                                    stroke-width="2"
+                                                                                    stroke-linecap="round"
+                                                                                    stroke-linejoin="round" />
+                                                                            </template>
+                                                                            <template if:false={proposal.showLines}>
+                                                                                <!-- Chevron Down - Expand -->
+                                                                                <path d="M6 9L12 15L18 9"
+                                                                                    stroke="currentColor"
+                                                                                    stroke-width="2"
+                                                                                    stroke-linecap="round"
+                                                                                    stroke-linejoin="round" />
+                                                                            </template>
+                                                                        </svg>
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+
+                                                            <!-- Proposal Data -->
+                                                            <td class="center-trancate-text">
+                                                                <a href={proposal.recordUrl} target="_blank"
+                                                                    class="name-link">
+                                                                    <span class="scope-name">{proposal.Name}</span>
+                                                                </a>
+                                                            </td>
+                                                            <td class="center-trancate-text">
+                                                                <span>{proposal.Type__c}</span>
+                                                            </td>
+                                                            <td class="center-trancate-text">
+                                                                <lightning-formatted-number
+                                                                    value={proposal.Sales_Price__c}
+                                                                    format-style="currency" currency-code="USD">
+                                                                </lightning-formatted-number>
+                                                            </td>
+                                                        </tr>
+
+                                                        <!-- Nested Proposal Lines Table -->
+                                                        <template if:true={proposal.showLines}>
+                                                            <tr key={proposal.Id} class="nested-row">
+                                                                <td colspan="100%" class="nested-table-container">
+                                                                    <div class="nested-table-wrapper">
+                                                                        <template if:true={proposal.isLoadingLines}>
+                                                                            <div class="process-loading">
+                                                                                <lightning-spinner
+                                                                                    alternative-text="Loading proposal lines"
+                                                                                    variant="brand"
+                                                                                    size="medium"></lightning-spinner>
+                                                                            </div>
+                                                                        </template>
+
+                                                                        <template if:false={proposal.isLoadingLines}>
+                                                                            <template if:true={proposal.proposalLines}>
+                                                                                <template
+                                                                                    if:true={proposal.proposalLines.length}>
+                                                                                    <table
+                                                                                        class="custom-data-table nested-table">
+                                                                                        <thead class="table-header">
+                                                                                            <tr>
+                                                                                                <th
+                                                                                                    class="header-cell center-trancate-head">
+                                                                                                    <input
+                                                                                                        type="checkbox"
+                                                                                                        class="select-all-proposal-lines"
+                                                                                                        data-proposal-id={proposal.Id}
+                                                                                                        checked={proposal.isAllLinesSelected}
+                                                                                                        onchange={handleSelectAllProposalLines}
+                                                                                                        title="Select All Proposal Lines">
+                                                                                                </th>
+                                                                                                <th
+                                                                                                    class="header-cell center-trancate-head">
+                                                                                                    Name</th>
+                                                                                                <th
+                                                                                                    class="header-cell center-trancate-head">
+                                                                                                    Description</th>
+                                                                                                <th
+                                                                                                    class="header-cell center-trancate-head">
+                                                                                                    Sales Price</th>
+                                                                                            </tr>
+                                                                                        </thead>
+                                                                                        <tbody class="table-body">
+                                                                                            <template
+                                                                                                for:each={proposal.proposalLines}
+                                                                                                for:item="line">
+                                                                                                <tr key={line.Id}
+                                                                                                    class="nested-table-row">
+                                                                                                    <td
+                                                                                                        class="center-trancate-text">
+                                                                                                        <input
+                                                                                                            type="checkbox"
+                                                                                                            class="proposal-line-checkbox"
+                                                                                                            data-proposal-id={proposal.Id}
+                                                                                                            data-line-id={line.Id}
+                                                                                                            checked={line.isSelected}
+                                                                                                            onchange={handleProposalLineSelection}>
+                                                                                                    </td>
+                                                                                                    <td
+                                                                                                        class="center-trancate-text">
+                                                                                                        <span
+                                                                                                            class="text-truncate">{line.Name}</span>
+                                                                                                    </td>
+                                                                                                    <td
+                                                                                                        class="center-trancate-text">
+                                                                                                        <span
+                                                                                                            class="text-truncate">{line.Description__c}</span>
+                                                                                                    </td>
+                                                                                                    <td
+                                                                                                        class="center-trancate-text">
+                                                                                                        <lightning-formatted-number
+                                                                                                            value={line.Sales_Price__c}
+                                                                                                            format-style="currency"
+                                                                                                            currency-code="USD">
+                                                                                                        </lightning-formatted-number>
+                                                                                                    </td>
+                                                                                                </tr>
+                                                                                            </template>
+                                                                                        </tbody>
+                                                                                    </table>
+                                                                                </template>
+                                                                                <template
+                                                                                    if:false={proposal.proposalLines.length}>
+                                                                                    <div class="no-process-data">
+                                                                                        <div class="empty-state">
+                                                                                            <div
+                                                                                                class="empty-state__content">
+                                                                                                <div
+                                                                                                    class="empty-state__message">
+                                                                                                    No proposal lines
+                                                                                                    found</div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </template>
+                                                                            </template>
+                                                                        </template>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        </template>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </template>
+
+                                        <template if:false={displayedProposals.length}>
+                                            <div class="no-prop">
+                                                <div class="empty-state">
+                                                    <div class="empty-state__content">
+                                                        <div class="empty-state__message">No proposals found for this
+                                                            bid</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </template>
+                        </div>
+
+                        <!-- Footer with Create/Link Job Buttons -->
+                        <div class="footer-div">
+                            <button class="slds-button slds-button_neutral back-btn"
+                                onclick={handleBackToCreateLink}>Back</button>
+                            <template if:true={isLinkMode}>
+                                <button class="save-btn" onclick={handleLinkJob} disabled={isSaveDisabled}>
+                                    Link Job
                                 </button>
-                            </div>
-
-                        </lightning-record-edit-form>
-                    </template>
-                </div>
-
-
+                            </template>
+                            <template if:true={isCreateMode}>
+                                <button class="save-btn" onclick={handleSave}>
+                                    Create Job
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                </template>
             </div>
+        </template>
     </lightning-card>
 </template>
