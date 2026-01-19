@@ -220,7 +220,20 @@
                                     <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                     <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c1.68 0 3.25.46 4.6 1.27" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
-                                Approve All Contract Entries
+                                Approve All Contracts
+                            </button>
+                            <button class="action-button delete-btn slds-m-left--medium" 
+                                    onclick={handleUnapproveSelectedContracts}
+                                    disabled={isUnapproveContractDisabled}
+                                    title="Unapprove selected contract entries">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Unapprove Selected Contracts
+                                <template if:true={selectedApprovedContractCount}>
+                                    <span class="selected-count-badge">({selectedApprovedContractCount})</span>
+                                </template>
                             </button>
                         </div>
                     </template>
@@ -265,35 +278,33 @@
                                 <tbody class="table-body">
                                     <template for:each={displayedContractEntries} for:item="entry">
                                         <tr key={entry.Id}>
-                                            <!-- Show checkbox only for users with delete permission -->
+                                            <!-- Show checkbox for all entries (for delete and unapprove) -->
                                             <template if:true={canDelete}>
                                                 <td class="center-trancate-text checkbox-column">
-                                                    <template if:false={entry.isScopeEntryApproved}>
-                                                        <input type="checkbox" 
-                                                                checked={entry.isSelected}
-                                                                onchange={handleRowSelection}
-                                                                data-row-id={entry.Id}
-                                                                data-type="row-checkbox">
-                                                    </template>
+                                                    <input type="checkbox" 
+                                                            checked={entry.isSelected}
+                                                            onchange={handleRowSelection}
+                                                            data-row-id={entry.Id}
+                                                            data-type="row-checkbox">
                                                 </td>
                                             </template>
                                             <!-- Show actions only for users with edit permission -->
                                             <template if:true={canEdit}>
                                                 <td class="center-trancate-text actions-column">
                                                     <div class="action-icons">
-                                                        <template if:false={entry.isScopeEntryApproved}>
-                                                            <button class="icon-button add-location-btn" 
-                                                                    title="Add Location" 
-                                                                    onclick={handleAddLocation}
-                                                                    data-record-id={entry.Id}>
-                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                    <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 4.5 7.5 1 12 1S21 4.5 21 10Z" stroke="currentColor" stroke-width="2"/>
-                                                                    <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2"/>
+                                                        <button class="icon-button add-location-btn" 
+                                                                title={entry.locationButtonTitle}
+                                                                onclick={handleAddLocation}
+                                                                data-record-id={entry.Id}>
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 4.5 7.5 1 12 1S21 4.5 21 10Z" stroke="currentColor" stroke-width="2"/>
+                                                                <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2"/>
+                                                                <template if:false={entry.isScopeEntryApproved}>
                                                                     <path d="M12 7V13" stroke="currentColor" stroke-width="1.5"/>
                                                                     <path d="M9 10H15" stroke="currentColor" stroke-width="1.5"/>
-                                                                </svg>
-                                                            </button>
-                                                        </template>
+                                                                </template>
+                                                            </svg>
+                                                        </button>
                                                         <button class="icon-button child-records-btn" 
                                                                 title="View Process Details" 
                                                                 onclick={handleToggleProcessDetails}
@@ -784,7 +795,20 @@
                                     <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                     <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c1.68 0 3.25.46 4.6 1.27" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
-                                Approve All Change Order Entries
+                                Approve All CO
+                            </button>
+                            <button class="action-button delete-btn slds-m-left--medium" 
+                                    onclick={handleUnapproveSelectedChangeOrders}
+                                    disabled={isUnapproveChangeOrderDisabled}
+                                    title="Unapprove selected change order entries">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Unapprove Selected CO
+                                <template if:true={selectedApprovedChangeOrderCount}>
+                                    <span class="selected-count-badge">({selectedApprovedChangeOrderCount})</span>
+                                </template>
                             </button>
                         </div>
                     </template>
@@ -829,35 +853,33 @@
                                 <tbody class="table-body">
                                     <template for:each={displayedChangeOrderEntries} for:item="entry">
                                         <tr key={entry.Id}>
-                                            <!-- Show checkbox only for users with delete permission -->
+                                            <!-- Show checkbox for all entries (for delete and unapprove) -->
                                             <template if:true={canDelete}>
                                                 <td class="center-trancate-text checkbox-column">
-                                                    <template if:false={entry.isScopeEntryApproved}>
-                                                        <input type="checkbox" 
-                                                                checked={entry.isSelected}
-                                                                onchange={handleRowSelection}
-                                                                data-row-id={entry.Id}
-                                                                data-type="row-checkbox">
-                                                    </template>
+                                                    <input type="checkbox" 
+                                                            checked={entry.isSelected}
+                                                            onchange={handleRowSelection}
+                                                            data-row-id={entry.Id}
+                                                            data-type="row-checkbox">
                                                 </td>
                                             </template>
                                             <!-- Show actions only for users with edit permission -->
                                             <template if:true={canEdit}>
                                                 <td class="center-trancate-text actions-column">
                                                     <div class="action-icons">
-                                                        <template if:false={entry.isScopeEntryApproved}>
-                                                            <button class="icon-button add-location-btn" 
-                                                                    title="Add Location" 
-                                                                    onclick={handleAddLocation}
-                                                                    data-record-id={entry.Id}>
-                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                    <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 4.5 7.5 1 12 1S21 4.5 21 10Z" stroke="currentColor" stroke-width="2"/>
-                                                                    <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2"/>
+                                                        <button class="icon-button add-location-btn" 
+                                                                title={entry.locationButtonTitle}
+                                                                onclick={handleAddLocation}
+                                                                data-record-id={entry.Id}>
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 4.5 7.5 1 12 1S21 4.5 21 10Z" stroke="currentColor" stroke-width="2"/>
+                                                                <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2"/>
+                                                                <template if:false={entry.isScopeEntryApproved}>
                                                                     <path d="M12 7V13" stroke="currentColor" stroke-width="1.5"/>
                                                                     <path d="M9 10H15" stroke="currentColor" stroke-width="1.5"/>
-                                                                </svg>
-                                                            </button>
-                                                        </template>
+                                                                </template>
+                                                            </svg>
+                                                        </button>
                                                         <button class="icon-button child-records-btn" 
                                                                 title="View Process Details" 
                                                                 onclick={handleToggleProcessDetails}
@@ -1693,117 +1715,195 @@
                 </button>
 
                 <div class="pop-heading">
-                    Add Locations - {selectedScopeEntryName}
+                    <template if:true={isLocationViewMode}>
+                        View Locations - {selectedScopeEntryName}
+                    </template>
+                    <template if:false={isLocationViewMode}>
+                        Add Locations - {selectedScopeEntryName}
+                    </template>
                 </div>
     
                 <div class="slds-modal__content pop-up" id="modal-content-id-5">
                     <div class="popUpBody slds-p-around--medium">
-                        <!-- Search Section -->
-                        <div class="filter-search-section">
-                            <div class="search-group location-search">
-                                <label class="filter-label">Search Locations</label>
-                                <lightning-input
-                                    type="search"
-                                    variant="label-hidden"
-                                    placeholder="Search locations..."
-                                    value={locationSearchTerm}
-                                    onchange={handleLocationSearch}
-                                    class="search-bar-input">
-                                </lightning-input>
+                        <!-- Search Section - Show only for edit mode -->
+                        <template if:false={isLocationViewMode}>
+                            <div class="filter-search-section">
+                                <div class="search-group location-search">
+                                    <label class="filter-label">Search Locations</label>
+                                    <lightning-input
+                                        type="search"
+                                        variant="label-hidden"
+                                        placeholder="Search locations..."
+                                        value={locationSearchTerm}
+                                        onchange={handleLocationSearch}
+                                        class="search-bar-input">
+                                    </lightning-input>
+                                </div>
                             </div>
-                        </div>
+                        </template>
     
-                        <!-- Location Selection Table -->
+                        <!-- Location Table -->
                         <div class="location-container">
-                            <template if:true={locationDisplayRecords.length}>
-                                <table class="custom-data-table location-table">
-                                    <thead class="table-header">
-                                        <tr>
-                                            <th class="header-cell center-trancate-head checkbox-column">
-                                                <input type="checkbox" 
-                                                        checked={isAllLocationsSelected}
-                                                        onchange={handleSelectAllLocations}
-                                                        data-type="select-all-locations"
-                                                        title="Select All">
-                                            </th>
-                                            <template for:each={locationTableColumns} for:item="column">
-                                                <th key={column.fieldName} class="header-cell center-trancate-head">
-                                                    {column.label}
-                                                </th>
-                                            </template>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="table-body">
-                                        <template for:each={locationDisplayRecords} for:item="location">
-                                            <tr key={location.Id} class="location-row">
-                                                <td class="center-trancate-text checkbox-column">
-                                                    <input type="checkbox" 
-                                                            data-location-id={location.Id}
-                                                            data-type="location-checkbox"
-                                                            checked={location.isSelected}
-                                                            onchange={handleLocationSelection}>
-                                                </td>
-                                                <template for:each={location.displayFields} for:item="field">
-                                                    <td key={field.key} class="center-trancate-text">
-                                                        <template if:true={field.isNumber}>
-                                                            <template if:true={field.hasValue}>
-                                                                <lightning-formatted-number 
-                                                                    value={field.numberValue} 
-                                                                    maximum-fraction-digits="2">
-                                                                </lightning-formatted-number>
-                                                            </template>
-                                                            <template if:false={field.hasValue}>--</template>
-                                                        </template>
-                                                        <template if:false={field.isNumber}>
-                                                            <template if:true={field.hasValue}>
-                                                                {field.value}
-                                                            </template>
-                                                            <template if:false={field.hasValue}>--</template>
-                                                        </template>
-                                                    </td>
+                            <!-- View Mode - Show only selected/added locations without checkboxes -->
+                            <template if:true={isLocationViewMode}>
+                                <template if:true={viewModeLocationRecords.length}>
+                                    <table class="custom-data-table location-table">
+                                        <thead class="table-header">
+                                            <tr>
+                                                <template for:each={locationTableColumns} for:item="column">
+                                                    <th key={column.fieldName} class="header-cell center-trancate-head">
+                                                        {column.label}
+                                                    </th>
                                                 </template>
                                             </tr>
-                                        </template>
-                                    </tbody>
-                                </table>
-                            </template>
-    
-                            <template if:false={locationDisplayRecords.length}>
-                                <div class="no-location-data">
-                                    <div class="empty-state">
-                                        <div class="empty-state__content">
-                                            <div class="empty-state__icon">
-                                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                    <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 4.5 7.5 1 12 1S21 4.5 21 10Z" stroke="#0176D3" stroke-width="2"/>
-                                                    <circle cx="12" cy="10" r="3" stroke="#0176D3" stroke-width="2"/>
-                                                </svg>
-                                            </div>
-                                            <div class="empty-state__message">No locations found</div>
-                                            <template if:true={locationSearchTerm}>
-                                                <div class="empty-state__subtitle">Try adjusting your search criteria</div>
+                                        </thead>
+                                        <tbody class="table-body">
+                                            <template for:each={viewModeLocationRecords} for:item="location">
+                                                <tr key={location.Id} class="location-row">
+                                                    <template for:each={location.displayFields} for:item="field">
+                                                        <td key={field.key} class="center-trancate-text">
+                                                            <template if:true={field.isNumber}>
+                                                                <template if:true={field.hasValue}>
+                                                                    <lightning-formatted-number 
+                                                                        value={field.numberValue} 
+                                                                        maximum-fraction-digits="2">
+                                                                    </lightning-formatted-number>
+                                                                </template>
+                                                                <template if:false={field.hasValue}>--</template>
+                                                            </template>
+                                                            <template if:false={field.isNumber}>
+                                                                <template if:true={field.hasValue}>
+                                                                    {field.value}
+                                                                </template>
+                                                                <template if:false={field.hasValue}>--</template>
+                                                            </template>
+                                                        </td>
+                                                    </template>
+                                                </tr>
                                             </template>
+                                        </tbody>
+                                    </table>
+                                </template>
+
+                                <template if:false={viewModeLocationRecords.length}>
+                                    <div class="no-location-data">
+                                        <div class="empty-state">
+                                            <div class="empty-state__content">
+                                                <div class="empty-state__icon">
+                                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 4.5 7.5 1 12 1S21 4.5 21 10Z" stroke="#0176D3" stroke-width="2"/>
+                                                        <circle cx="12" cy="10" r="3" stroke="#0176D3" stroke-width="2"/>
+                                                    </svg>
+                                                </div>
+                                                <div class="empty-state__message">No locations added</div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                </template>
+                            </template>
+
+                            <!-- Edit Mode - Show all locations with checkboxes -->
+                            <template if:false={isLocationViewMode}>
+                                <template if:true={locationDisplayRecords.length}>
+                                    <table class="custom-data-table location-table">
+                                        <thead class="table-header">
+                                            <tr>
+                                                <th class="header-cell center-trancate-head checkbox-column">
+                                                    <input type="checkbox" 
+                                                            checked={isAllLocationsSelected}
+                                                            onchange={handleSelectAllLocations}
+                                                            data-type="select-all-locations"
+                                                            title="Select All">
+                                                </th>
+                                                <template for:each={locationTableColumns} for:item="column">
+                                                    <th key={column.fieldName} class="header-cell center-trancate-head">
+                                                        {column.label}
+                                                    </th>
+                                                </template>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="table-body">
+                                            <template for:each={locationDisplayRecords} for:item="location">
+                                                <tr key={location.Id} class="location-row">
+                                                    <td class="center-trancate-text checkbox-column">
+                                                        <input type="checkbox" 
+                                                                data-location-id={location.Id}
+                                                                data-type="location-checkbox"
+                                                                checked={location.isSelected}
+                                                                onchange={handleLocationSelection}>
+                                                    </td>
+                                                    <template for:each={location.displayFields} for:item="field">
+                                                        <td key={field.key} class="center-trancate-text">
+                                                            <template if:true={field.isNumber}>
+                                                                <template if:true={field.hasValue}>
+                                                                    <lightning-formatted-number 
+                                                                        value={field.numberValue} 
+                                                                        maximum-fraction-digits="2">
+                                                                    </lightning-formatted-number>
+                                                                </template>
+                                                                <template if:false={field.hasValue}>--</template>
+                                                            </template>
+                                                            <template if:false={field.isNumber}>
+                                                                <template if:true={field.hasValue}>
+                                                                    {field.value}
+                                                                </template>
+                                                                <template if:false={field.hasValue}>--</template>
+                                                            </template>
+                                                        </td>
+                                                    </template>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </template>
+    
+                                <template if:false={locationDisplayRecords.length}>
+                                    <div class="no-location-data">
+                                        <div class="empty-state">
+                                            <div class="empty-state__content">
+                                                <div class="empty-state__icon">
+                                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 4.5 7.5 1 12 1S21 4.5 21 10Z" stroke="#0176D3" stroke-width="2"/>
+                                                        <circle cx="12" cy="10" r="3" stroke="#0176D3" stroke-width="2"/>
+                                                    </svg>
+                                                </div>
+                                                <div class="empty-state__message">No locations found</div>
+                                                <template if:true={locationSearchTerm}>
+                                                    <div class="empty-state__subtitle">Try adjusting your search criteria</div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
                             </template>
                         </div>
     
-                        <!-- Selected Count Display -->
-                        <template if:true={hasSelectedLocations}>
-                            <div class="selected-locations-count">
-                                <span class="count-text">{selectedLocationIds.length} locations selected</span>
-                            </div>
+                        <!-- Selected Count Display - Show only in edit mode -->
+                        <template if:false={isLocationViewMode}>
+                            <template if:true={hasSelectedLocations}>
+                                <div class="selected-locations-count">
+                                    <span class="count-text">{selectedLocationIds.length} locations selected</span>
+                                </div>
+                            </template>
                         </template>
                     </div>
                 </div>
 
+                <!-- Footer - Show save button only in edit mode, close button in view mode -->
                 <div class="popUpFooter">
-                    <button class="save-btn process-btn" 
-                            onclick={handleSaveLocations}
-                            disabled={isLocationSubmitting}>
-                        <template if:true={isLocationSubmitting}>Adding...</template>
-                        <template if:false={isLocationSubmitting}>Add Selected Locations</template>
-                    </button>
+                    <template if:true={isLocationViewMode}>
+                        <button class="save-btn process-btn" onclick={handleCloseLocationModal}>
+                            Close
+                        </button>
+                    </template>
+                    <template if:false={isLocationViewMode}>
+                        <button class="save-btn process-btn" 
+                                onclick={handleSaveLocations}
+                                disabled={isLocationSubmitting}>
+                            <template if:true={isLocationSubmitting}>Adding...</template>
+                            <template if:false={isLocationSubmitting}>Add Selected Locations</template>
+                        </button>
+                    </template>
                 </div>
             </div>
         </section>
