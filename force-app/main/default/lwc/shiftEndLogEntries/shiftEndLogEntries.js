@@ -70,7 +70,7 @@ export default class ShiftEndLogEntries extends LightningElement {
 
     @track isAccess = false;
 
-    acceptedFormats = '.jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.tiff,.pdf,.doc,.docx';
+    // acceptedFormats = '.jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.tiff,.pdf,.doc,.docx';
 
     get isDesktopDevice() {
         const userAgent = navigator.userAgent.toLowerCase();

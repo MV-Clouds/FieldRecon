@@ -60,7 +60,7 @@
                                         </div>
                                     </div>
                                     
-                                    <template if:true={isCurrentUserCrewLeader}>
+                                    <template if:true={canEditLog}>
                                         <div class="action-btns">
                                             <!-- Only show edit button if log can be edited (not approved) -->
                                             <template if:true={log.canEdit}>
@@ -147,7 +147,7 @@
                                     <div class="plan-content" data-is-changed={log.notesToOfficeChanged}>{log.displayNotesToOffice}</div>
                                 </div>
                                 
-                                <template if:true={isCurrentUserCrewLeader}>
+                                <template if:true={canEditLog}>
                                     <template if:true={log.hasLocationProcesses}>
                                         <div class="section-label">Location Processes:</div>
                                         <div class="location-processes-accordion">
@@ -521,7 +521,6 @@
                                         <!-- Upload New Files with Standard Lightning Component -->
                                         <div class="upload-button-wrapper">
                                             <lightning-file-upload 
-                                                accept={acceptedFormats} 
                                                 multiple
                                                 record-id={editLogId} 
                                                 onuploadfinished={handleUploadFinished}

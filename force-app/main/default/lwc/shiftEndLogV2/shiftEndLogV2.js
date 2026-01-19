@@ -89,7 +89,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
     subscription = {};
     channelName = '/event/wfrecon__General_Refresh_Event__e';
 
-    acceptedFormats = '.jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.tiff';
+    // acceptedFormats = '.jpg,.jpeg,.png,.gif,.bmp,.svg,.webp,.tiff';
 
     // Desktop only for camera (mobile file uploader has built-in camera)
     get isDesktopDevice() {
@@ -197,6 +197,10 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
             return 'No logs found matching your search criteria.';
         }
         return 'No shift end logs found for this job.';
+    }
+
+    get canEditLog(){
+        return this.isCurrentUserCrewLeader || this.isAdminUser;
     }
 
     @wire(CurrentPageReference)
