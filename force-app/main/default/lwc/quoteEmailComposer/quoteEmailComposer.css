@@ -480,6 +480,11 @@
     width: 100%;
 }
 
+.data-table-container{
+    border-radius: 8px;
+    overflow: hidden;
+}
+
 .prop-accordion-container{
     width: 100%;
 }

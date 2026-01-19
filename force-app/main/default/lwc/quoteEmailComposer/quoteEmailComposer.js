@@ -28,7 +28,7 @@ export default class QuoteEmailComposer extends LightningElement {
     @track isAllAlternateSelected = false;
 
     // Accordion Logic
-    @track activeSectionName = ['baseContractSection', 'alternateSection'];
+    @track activeSectionName = ['baseContractSection', 'alternateSection', 'bodyPreview', 'templatePreview'];
     @track accordionStyleApplied = false;
 
     // Dropdown Data
@@ -165,15 +165,15 @@ export default class QuoteEmailComposer extends LightningElement {
     }
 
     get baseContractLines() {
-        return this.proposalLines.filter(line => 
-            !line.wfrecon__Type__c || line.wfrecon__Type__c === 'Base Contract'
-        );
+        return this.proposalLines
+            .filter(line => !line.wfrecon__Type__c || line.wfrecon__Type__c === 'Base Contract')
+            .map((line, index) => ({ ...line, rowNumber: index + 1 }));
     }
 
     get alternateLines() {
-        return this.proposalLines.filter(line => 
-            line.wfrecon__Type__c === 'Alternate'
-        );
+        return this.proposalLines
+            .filter(line => line.wfrecon__Type__c === 'Alternate')
+            .map((line, index) => ({ ...line, rowNumber: index + 1 }));
     }
 
     get baseContractSectionLabel() {
@@ -296,6 +296,7 @@ export default class QuoteEmailComposer extends LightningElement {
                 .then(() => {
                     // 3. Move to Email Step
                     this.step = 2;
+                    this.activeSectionName = ['baseContractSection', 'alternateSection', 'bodyPreview', 'templatePreview'];
                     
                     // 4. Refresh Email Preview with new selections if template already selected
                     if(this.selectedTemplateId) {
@@ -315,6 +316,7 @@ export default class QuoteEmailComposer extends LightningElement {
 
     handleBack() {
         this.step = 1;
+        this.activeSectionName = ['baseContractSection', 'alternateSection', 'bodyPreview', 'templatePreview'];
     }
 
     // --- Step 2 Event Handlers (Email Composer) ---
