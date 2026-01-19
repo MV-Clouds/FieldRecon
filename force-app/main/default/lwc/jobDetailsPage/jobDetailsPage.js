@@ -1659,6 +1659,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 return;
             }
 
+            if(this.enteredManualTravelTime < 0) {
+                this.showToast('Error', 'Travel Time cannot be negative.', 'error');
+                return;
+            }
+
             const jobRecord = this.getCurrentJobRecord();
             const jobStartReference = jobRecord?.startDate || this.currentJobStartDateTime;
             const jobEndReference = jobRecord?.endDate || this.currentJobEndDateTime;
