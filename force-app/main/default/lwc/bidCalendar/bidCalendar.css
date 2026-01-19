@@ -397,3 +397,7 @@
     border-radius: 0.3rem;
   }
 }
+
+.edit-header:hover{
+    cursor: pointer;
+}

@@ -6,20 +6,20 @@ public with sharing class BidCalendarController {
     // Event Fetching for FullCalendar
     // ==============================
     @AuraEnabled
-    public static List<Map<String, Object>> getEvents(Id job, List<String> status) {
+    public static List<Map<String, Object>> getEvents(Id bidId, List<String> status) {
         try {
-            Map<String, Object> permissionMap = PermissionsUtility.checkPermissionSetsAssigned(new List<String>{'FR_Mobilization_Calendar'});
-            Boolean isAdmin = (Boolean) permissionMap.get('isAdmin');
-            Boolean isCalendarPS = (Boolean) permissionMap.get('all');
+            // Map<String, Object> permissionMap = PermissionsUtility.checkPermissionSetsAssigned(new List<String>{'FR_Mobilization_Calendar'});
+            // Boolean isAdmin = (Boolean) permissionMap.get('isAdmin');
+            // Boolean isCalendarPS = (Boolean) permissionMap.get('all');
 
             String baseQuery = 'SELECT Id, Name, wfrecon__AccountId__c, wfrecon__AccountId__r.Name, wfrecon__Status__c, wfrecon__Description__c, wfrecon__Amount__c, wfrecon__Bid_Due_Date__c, ' +
-                       'wfrecon__Contact__c, wfrecon__Contact__c.Name, wfrecon__Job__c, wfrecon__Job__r.Name, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.wfrecon__Address__c ' +
+                       'wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Job__c, wfrecon__Job__r.Name, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.wfrecon__Address__c ' +
                        'FROM wfrecon__Bid__c ';
 
             // List to hold dynamic filters
             List<String> filters = new List<String>();
-            if (job != null) {
-                filters.add('Id = :job');
+            if (bidId != null) {
+                filters.add('Id = :bidId');
             }
             if (status != null && status.size() > 0) {
                 filters.add('wfrecon__Status__c  IN :status');
@@ -34,13 +34,13 @@ public with sharing class BidCalendarController {
             List<wfrecon__Bid__c> bids = Database.query(baseQuery);
 
             // Fetch all custom setting records for status colors
-            Map<String, wfrecon__Mobilization_Status_Color__c> colorMap = wfrecon__Mobilization_Status_Color__c.getAll();
+            // Map<String, wfrecon__Mobilization_Status_Color__c> colorMap = wfrecon__Mobilization_Status_Color__c.getAll();
 
             List<Map<String, Object>> result = new List<Map<String, Object>>();
             for (wfrecon__Bid__c bid : bids) {
 
                 Map<String, Object> ev = new Map<String, Object>();
-                ev.put('bidId', bid.Id);
+                ev.put('id', bid.Id);
                 ev.put('title', bid.Name);
                 ev.put('start', bid.wfrecon__Bid_Due_Date__c);
                 ev.put('end', bid.wfrecon__Bid_Due_Date__c);

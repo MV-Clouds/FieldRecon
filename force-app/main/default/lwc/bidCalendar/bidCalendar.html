@@ -50,20 +50,25 @@
             </button>
                 <h2 class="slds-text-heading_medium" if:false={isEdit}>{Heading}</h2>
                 <div class="slds-text-heading_medium" if:true={isEdit}>
-                  Edit Bid
+                  <u><span data-id={bidId} class="edit-header" onclick={navigateToRecord}>Edit Bid</span></u>
                 </div>
             </header>
             <div class="slds-modal__content mob-popup-body">
             <lightning-record-edit-form class="mob-group-form" object-api-name="wfrecon__Bid__c" record-id={selectedEventId} onsuccess={handleSuccess} onsubmit={handleFormSubmitted}>
               <div class="main-mob-group-popup-form">
                 <div class="fields-input-div slds-grow slds-scrollable--y slds-grid slds-wrap slds-p-horizontal--medium">
-                  <div class="job-label-link slds-p-horizontal--xx-small slds-size--1-of-1" if:true={isEdit}> <span class="slds-form-element__label job-label">Bid: </span> <span data-id={bidId} class="record-nav-link" onclick={navigateToRecord}>{bidName}</span></div>
+                  <lightning-messages></lightning-messages>
+                  <lightning-input-field field-name="Name" required lwc:if={isEdit} read-only> </lightning-input-field>
+                  <lightning-input-field field-name="Name" required lwc:else> </lightning-input-field>
+                  <lightning-input-field field-name="wfrecon__Job__c" lwc:if={isEdit} read-only> </lightning-input-field>
+                  <lightning-input-field field-name="wfrecon__Job__c" lwc:else> </lightning-input-field>
                   <lightning-input-field field-name="wfrecon__Bid_Due_Date__c" value={dueDate}> </lightning-input-field>
                   <lightning-input-field field-name="wfrecon__Status__c"> </lightning-input-field>
+                  <lightning-input-field field-name="wfrecon__Amount__c"> </lightning-input-field>
                   <lightning-input-field field-name="wfrecon__Description__c" value={description}> </lightning-input-field>
                 </div>
                 <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
-                    <button class="slds-m-left--small delete-btn footer-btn" type="button" if:true={isEdit} onclick={handleDeleteMobilization}>Delete</button>
+                    <button class="slds-m-left--small delete-btn footer-btn" type="button" if:true={isEdit} onclick={handleDeleteBid}>Delete</button>
                     <button class="slds-m-left--small save-btn footer-btn" type="submit">Save</button>
                 </div>
               </div>

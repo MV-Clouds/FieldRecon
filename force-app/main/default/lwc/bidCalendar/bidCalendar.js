@@ -30,25 +30,17 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
     confirmationMessage;
     event;
     filterStatus = [];
-    filterBids;
-
+    filterBid;
     _oldEvent = {};
     revertFunc = new function() {};
-
     displayBids = {
         primaryField: 'Name',
     }
-
     matchingBids = {
         primaryField: { fieldPath: 'Name' }
     }
-
-    // Permissions Flags
     hasFullAccess = false;
-
-    get isEdit() {
-        return this.bidName.length ? true : false;
-    }
+    @track isEdit = false;
 
     get bidLink() {
         return '/' + this.bidId
@@ -69,11 +61,15 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
                 return getEvents();
             })
             .then(result => {
+                console.log('results vents:', result);
+                
                 if (result && Array.isArray(result)) {
                     this.events = result.map(ev => ({
                         ...ev,
-                        start: new Date(ev.start).toLocaleDateString('en-CA'),
-                        end: new Date(ev.end).toLocaleDateString('en-CA')
+                        id: ev.id,
+                        start: ev.start,
+                        end: ev.end,
+                        allDay: true
                     }));
                 } else {
                     this.events = [];
@@ -119,10 +115,8 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
 
     initialiseCalendarJs() {
         const ele = this.template.querySelector('div.fullcalendarjs');
-        const that = this;
         this.$cal = $(ele);
 
-    
         $(ele).fullCalendar({
             header: {
                 left: 'today',
@@ -188,15 +182,12 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
 
             // Replace title content
             element.find('.fc-list-item-title').html(rowHtml);
-
                     element.css({
                         'background-color': '#fff',
                         'color': event.textColor || '#000',
                         'border-left': `4px solid ${event.backgroundColor || '#000'}`
                     });
                 }
-    
-
             }
         });
         this.isSpinner = false;
@@ -204,8 +195,6 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
 
     getConfirmation(event, delta, revertFunc) {
         try{
-
-
             if(!event.start || !this._oldEvent.start){
                 this.showToast('Something Went Wrong!', 'Please refresh the tab and try again.', 'error');
                 return;
@@ -343,15 +332,17 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
 
     refreshCalendar() {
         this.isSpinner = true;
-        getEvents({job: this.filterBids, status: this.filterStatus})
+        getEvents({bidId: this.filterBid, status: this.filterStatus})
         .then((result) => {
             console.log('result :: ', result);
             
             if (result && Array.isArray(result)) {                
                 this.events = result.map(ev => ({
                     ...ev,
-                    start: new Date(ev.start).toLocaleDateString('en-CA'),
-                    end: new Date(ev.end).toLocaleDateString('en-CA')
+                    id: ev.id,
+                    start: ev.start,
+                    end: ev.end,
+                    allDay: true
                 }));
             } else {
                 this.events = [];
@@ -415,17 +406,21 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
                 this.showToast('Error', 'You do not have permission to create events.', 'error');
                 return;
             }
-            let startStr = JSON.stringify(start)?.replaceAll('"', '');
-            let endStr = JSON.stringify(end)?.replaceAll('"', '');
-
-            const endDate = new Date(end);
+            
+            // Format the selected start date for the dueDate field (YYYY-MM-DD)
+            const startDate = new Date(start);
+            const year = startDate.getUTCFullYear();
+            const month = String(startDate.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(startDate.getUTCDate()).padStart(2, '0');
+            this.dueDate = `${year}-${month}-${day}`;
             
             this.isSpinner = true;
             this.selectedEventId = '';
-            this.Heading = 'Create Mobilization Group';
-
-            const nowLocal = this.normalizeDate(new Date()).toLocaleDateString('en-CA');
-            endDate.setDate(endDate.getDate() - 1);
+            this.Heading = 'Create Bid';
+            this.isEdit = false;
+            this.openModal = true;
+            this.template.querySelector('.header').scrollIntoView({block: 'end'});
+            this.isSpinner = false;
         } catch (e) {
             this.isSpinner = false;
             console.error('Error in function BidCalendar.handleDateRangeSelect:::', e?.message);
@@ -447,6 +442,7 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
                 this.status = result.status;
                 this.description = result.description;
                 this.Heading = 'Edit Bid';
+                this.isEdit = true;
                 this.openModal = true;
                 this.template.querySelector('.header').scrollIntoView({block: 'end'});
                 this.selectedEventId = recordId;
@@ -469,24 +465,27 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
             this.isSpinner = true;
             event.preventDefault();
             let details = event.detail.fields;
-
-            const startLocal = this.removeOrgTimeZone(details.wfrecon__Bid_Due_Date__c);
-            const nowLocal = new Date();
-
-            let oldStartLocal = this.removeOrgTimeZone(this.startDateTime);
+            console.log('Details :: ', details);
             
-            if(this.isEdit && (startLocal.getTime() != oldStartLocal.getTime())){
-                if(oldStartLocal.getTime() < nowLocal.getTime()){
-                    this.showToast('Error', 'Only can change the due date for future bids', 'error');
-                    return;
-                }if(startLocal.getTime() < nowLocal.getTime()){
-                    this.showToast('Error', 'Due date can not be set in the past.', 'error');
-                    return;
-                }
+            const dueDateValue = details.wfrecon__Bid_Due_Date__c;
+            const dueDate = new Date(dueDateValue);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // Normalize dueDate to start of day for comparison
+            const dueDateNormalized = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+
+            // Validate due date is not in the past
+            if (dueDateNormalized < today) {
+                this.showToast('Error', 'Due date cannot be in the past. Please select today or a future date.', 'error');
+                this.isSpinner = false;
+                return;
             }
+
             this.template.querySelector('lightning-record-edit-form.mob-group-form').submit(details);
         } catch (e) {
             console.error('BidCalendar.handleFormSubmitted error:', e?.message);
+            this.isSpinner = false;
         }
     }
 
@@ -508,9 +507,11 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
         this.description = '';
         this.bidName = '';
         this.selectedEventId = '';
+        this.isEdit = false;
+        this.dueDate = null;
     }
 
-    handleDeleteMobilization() {
+    handleDeleteBid() {
         this.isSpinner = true;
         deleteBid({recordId: this.selectedEventId})
             .then(()=>{
@@ -518,6 +519,7 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
                 this.handleModalClose();
                 this.refreshCalendar();
                 this.isSpinner = false;
+                this.isEdit = false;
             })
             .catch((error)=>{
                 this.showToast('Error', 'Error Deleting Bid', 'error');
@@ -528,7 +530,7 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
     handleFilter(event){
         try {
             if(event.target.name === 'bidId') {
-                this.filterBids = event.detail.recordId;
+                this.filterBid = event.detail.recordId;
             } else {
                 let value = event.currentTarget.dataset.value;
                 let statusToUpdate = this.statusOptions.find(opt => opt.value == value);
@@ -554,6 +556,14 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
         this.confirmationBtnLabel = confirmLabel;
         this.confirmationBtnLabel2 = confirmLabel2 || null;
         this.showConfirmationPopup = true;
+    }
+
+    formatDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
     }
     
     handleConfirmationAction(event){
