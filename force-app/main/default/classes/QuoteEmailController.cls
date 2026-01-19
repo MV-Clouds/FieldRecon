@@ -298,16 +298,16 @@ public with sharing class QuoteEmailController {
         }
     }
 
-    // NEW METHOD: Get Base Contract Lines for the Wizard Step 1
+    // UPDATED METHOD: Get ALL Contract Lines (Base + Alternate) for the Wizard Step 1
     @AuraEnabled
-    public static List<wfrecon__Proposal_Line__c> getBaseContractLines(String recordId) {
+    public static List<wfrecon__Proposal_Line__c> getProposalLines(String recordId) {
         return [
             SELECT Id, Name, wfrecon__Description__c, wfrecon__Total_Cost__c, 
-                   wfrecon__Quantity__c, wfrecon__Sales_Price__c, 
-                   wfrecon__Selected__c, wfrecon__Sequence__c
+                   wfrecon__Quantity__c, wfrecon__Sales_Price__c, wfrecon__Type__c,
+                   wfrecon__Selected__c, wfrecon__Sequence__c,wfrecon__Unit_Price__c
             FROM wfrecon__Proposal_Line__c
             WHERE wfrecon__Proposal__c = :recordId
-            AND (wfrecon__Type__c = 'Base Contract' OR wfrecon__Type__c = NULL)
+            AND (wfrecon__Type__c = 'Base Contract' OR wfrecon__Type__c = 'Alternate' OR wfrecon__Type__c = NULL)
             ORDER BY wfrecon__Sequence__c ASC
         ];
     }
@@ -316,12 +316,11 @@ public with sharing class QuoteEmailController {
     @AuraEnabled
     public static void updateLineSelection(List<String> selectedIds, String recordId) {
         try {
-            // Fetch ALL Base Contract lines for this Proposal
+            // Fetch ALL lines for this Proposal
             List<wfrecon__Proposal_Line__c> allLines = [
                 SELECT Id, wfrecon__Selected__c 
                 FROM wfrecon__Proposal_Line__c 
                 WHERE wfrecon__Proposal__c = :recordId
-                AND (wfrecon__Type__c = 'Base Contract' OR wfrecon__Type__c = NULL)
                 WITH USER_MODE
             ];
 

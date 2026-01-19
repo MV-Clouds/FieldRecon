@@ -1,11 +1,13 @@
 public class ProposalEmailController {
     public Id proposalId { get; set; }
     
-    // Calculate total price of all proposal lines
+    // Calculate total price of ONLY Base Contract lines (Standard/Default lines)
     public Double getTotalPrice() {
         Double total = 0;
         for (wfrecon__Proposal_Line__c line : getSortedLines()) {
-            if (line.wfrecon__Sales_Price__c != null) {
+            // Only sum items that are Base Contract or have no type defined
+            if (line.wfrecon__Sales_Price__c != null && 
+               (line.wfrecon__Type__c == 'Base Contract' || line.wfrecon__Type__c == null)) {
                 total += line.wfrecon__Sales_Price__c;
             }
         }
@@ -17,8 +19,11 @@ public class ProposalEmailController {
         if (proposalId == null) return new List<wfrecon__Proposal_Line__c>();
         
         return [
-            SELECT Id, Name, wfrecon__Description__c, wfrecon__Quantity__c, wfrecon__Sales_Price__c, 
+            SELECT Id, Name, wfrecon__Description__c, wfrecon__Quantity__c, 
+                   wfrecon__Unit_Price__c, // <--- ADDED THIS FIELD
+                   wfrecon__Sales_Price__c, 
                    wfrecon__Total_Cost__c, wfrecon__Sequence__c, wfrecon__Selected__c,
+                   wfrecon__Type__c, 
                    
                    // Level 1: Budgets (Relationship: wfrecon__Budgets__r)
                    (SELECT Id, Name,
