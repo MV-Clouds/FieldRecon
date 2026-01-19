@@ -1,0 +1,115 @@
+<template>
+  <div class="spinner-container slds-is-fixed" if:true={isSpinner}>
+    <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+  </div>
+  <div class="slds-grid slds-grid--vertical slds-card main-calendar-div">
+    <div class="header">
+      <div class="title-text slds-text-heading--medium">
+        Bid Calendar
+      </div>
+      <div class="filters-and-search slds-grid">
+        <div class="status-filter-picklist">
+          <div class="status-picklist-label">
+            Status
+            <lightning-icon icon-name='utility:check' alternative-text='check' size='xx-small' variant="success" title='check' lwc:if={filterStatus.length}></lightning-icon>
+            <lightning-icon icon-name='utility:down' alternative-text='down' size='xx-small' title='down' lwc:else></lightning-icon>
+          </div>
+          <div class="status-options-selection-div slds-is-absolute">
+            <template for:each={statusOptions} for:item="opt">
+              <div class="status-options" key={opt.value} data-value={opt.value} data-selected={opt.isSelected} onclick={handleFilter}>{opt.label}</div>
+            </template>
+          </div>
+        </div>
+        <lightning-record-picker
+          variant="label-hidden"
+          label="Bids"
+          placeholder="Search Bids..."
+          object-api-name="wfrecon__Bid__c"
+          display-info={displayBids}
+          matching-info={matchingBids}
+          name="bidId"
+          value={filterBids}
+          onchange={handleFilter}>
+        </lightning-record-picker>
+      </div>
+    </div>
+    <div style="background:#ffffff;" class="slds-grid">
+      <div id="calendar" class="fullcalendarjs"></div>
+    </div>
+  </div>
+  <!-- <lightning-spinner class="slds-is-fixed" if:true={isSpinner} style="z-index: 9999;"></lightning-spinner> -->
+  <template if:true={openModal}>
+    <section role="dialog" class="slds-modal slds-fade-in-open">
+        <div class="slds-modal__container mob-popup">
+            <header class="slds-modal__header mob-popup-header">
+              <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close"
+              onclick={handleModalClose}>
+              <lightning-icon icon-name="utility:close" size="small" alternative-text="close"
+                class="slds-button__icon slds-button__icon_large"></lightning-icon>
+              <span class="slds-assistive-text">Close</span>
+            </button>
+                <h2 class="slds-text-heading_medium" if:false={isEdit}>{Heading}</h2>
+                <div class="slds-text-heading_medium" if:true={isEdit}>
+                  Edit Bid
+                </div>
+            </header>
+            <div class="slds-modal__content mob-popup-body">
+            <lightning-record-edit-form class="mob-group-form" object-api-name="wfrecon__Bid__c" record-id={selectedEventId} onsuccess={handleSuccess} onsubmit={handleFormSubmitted}>
+              <div class="main-mob-group-popup-form">
+                <div class="fields-input-div slds-grow slds-scrollable--y slds-grid slds-wrap slds-p-horizontal--medium">
+                  <div class="job-label-link slds-p-horizontal--xx-small slds-size--1-of-1" if:true={isEdit}> <span class="slds-form-element__label job-label">Bid: </span> <span data-id={bidId} class="record-nav-link" onclick={navigateToRecord}>{bidName}</span></div>
+                  <lightning-input-field field-name="wfrecon__Bid_Due_Date__c" value={dueDate}> </lightning-input-field>
+                  <lightning-input-field field-name="wfrecon__Status__c"> </lightning-input-field>
+                  <lightning-input-field field-name="wfrecon__Description__c" value={description}> </lightning-input-field>
+                </div>
+                <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
+                    <button class="slds-m-left--small delete-btn footer-btn" type="button" if:true={isEdit} onclick={handleDeleteMobilization}>Delete</button>
+                    <button class="slds-m-left--small save-btn footer-btn" type="submit">Save</button>
+                </div>
+              </div>
+            </lightning-record-edit-form>
+            </div>
+        </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open"></div>
+  </template>
+  <template if:true={showConfirmationPopup}>
+    <div class="slds-container_small confirm-popup">
+      <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+        <div class="slds-modal__container">
+          <header class="slds-modal__header confirm-popup-header">
+            <h2 class="slds-text-heading_medium slds-hyphenate">{confirmationTitle}</h2>
+          </header>
+          <div class="slds-modal__content slds-p-around_medium confirm-popup-body slds-text-align--center" >
+            <p>{confirmationMessage}</p>
+            <div class="slds-grid slds-grid--align-center slds-p-top--medium confirm-popup-btns">
+              <button class="save-btn confirmation-cancel-btn" name="cancel" onclick={handleClose}>Cancel</button>
+              <button class="save-btn" name="confirm" onclick={handleEventDrop}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div class="slds-backdrop slds-backdrop_open confirmation-backdrop"></div>
+    </div>
+  </template>
+
+  <template if:true={showConfirmationPopup}>
+    <div class="slds-container_small confirm-popup">
+      <section role="dialog" tabindex="-1" class="confirmation-popup-div slds-modal slds-fade-in-open">
+        <div class="slds-modal__container">
+          <header class="slds-modal__header confirm-popup-header">
+            <h2 class="slds-text-heading_medium slds-hyphenate">{confirmationTitle}</h2>
+          </header>
+          <div class="slds-modal__content slds-p-around_medium confirm-popup-body slds-text-align--center" >
+            <p class="slds-p-bottom--medium">{confirmationMessage}</p>
+            <div class="slds-grid slds-grid--align-center slds-p-vertical--medium confirm-popup-btns bottom-footer-btn">
+              <button class="save-btn confirmation-cancel-btn" name="cancel" onclick={handleConfirmationAction}>Cancel</button>
+              <button class="save-btn" name="confirm" onclick={handleConfirmationAction}>{confirmationBtnLabel}</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div class="slds-backdrop slds-backdrop_open confirmation-backdrop"></div>
+    </div>
+  </template>
+</template>
