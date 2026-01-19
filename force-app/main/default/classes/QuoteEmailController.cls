@@ -307,7 +307,6 @@ public with sharing class QuoteEmailController {
                    wfrecon__Selected__c, wfrecon__Sequence__c,wfrecon__Unit_Price__c
             FROM wfrecon__Proposal_Line__c
             WHERE wfrecon__Proposal__c = :recordId
-            AND (wfrecon__Type__c = 'Base Contract' OR wfrecon__Type__c = 'Alternate' OR wfrecon__Type__c = NULL)
             ORDER BY wfrecon__Sequence__c ASC
         ];
     }

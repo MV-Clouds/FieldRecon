@@ -7,7 +7,7 @@ public class ProposalEmailController {
         for (wfrecon__Proposal_Line__c line : getSortedLines()) {
             // Only sum items that are Base Contract or have no type defined
             if (line.wfrecon__Sales_Price__c != null && 
-               (line.wfrecon__Type__c == 'Base Contract' || line.wfrecon__Type__c == null)) {
+               (line.wfrecon__Type__c == 'Base Contract')) {
                 total += line.wfrecon__Sales_Price__c;
             }
         }
