@@ -1,236 +1,119 @@
 <apex:component controller="ProposalEmailController" access="global">
     <apex:attribute name="propId" type="Id" assignTo="{!proposalId}" description="Proposal Id"/>
 
-    <table style="width: 100%; border-collapse: collapse; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-        <thead>
-            <tr>
-                <th style="background-color: #5e5adb; color: white; padding: 10px; font-size: 13px; text-align: center; width:5%;">Sr</th>
-                <th style="background-color: #5e5adb; color: white; padding: 10px; font-size: 13px; text-align: left; width:25%;">Line Item</th>
-                <th style="background-color: #5e5adb; color: white; padding: 10px; font-size: 13px; text-align: left; width:35%;">Description</th>
-                <th style="background-color: #5e5adb; color: white; padding: 10px; font-size: 13px; text-align: center; width:10%;">Qty</th>
-                <th style="background-color: #5e5adb; color: white; padding: 10px; font-size: 13px; text-align: right; width:25%;">Price</th>
-            </tr>
-        </thead>
-        <tbody>
-            <apex:variable var="rowNum" value="{!0}"/>
-            
-            <apex:repeat var="line" value="{!SortedLines}">
-                <apex:variable var="rowNum" value="{!rowNum + 1}"/>
+    <div style="margin-bottom: 20px;">
+        <div style="background-color: #f0f4f8; color: #5e5adb; font-weight: bold; font-size: 14px; padding: 8px 10px; border-left: 4px solid #5e5adb; margin-bottom: 10px; text-transform: uppercase;">Base Contract</div>
+        <table style="width: 100%; border-collapse: collapse; table-layout: fixed; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+            <thead>
+                <tr>
+                    <th style="background-color: #5e5adb; color: white; padding: 10px; font-size: 13px; text-align: center; width:5%;">Sr</th>
+                    <th style="background-color: #5e5adb; color: white; padding: 10px; font-size: 13px; text-align: left; width:20%;">Service</th>
+                    <th style="background-color: #5e5adb; color: white; padding: 10px; font-size: 13px; text-align: left; width:30%;">Description</th>
+                    <th style="background-color: #5e5adb; color: white; padding: 10px; font-size: 13px; text-align: center; width:10%;">Qty</th>
+                    <th style="background-color: #5e5adb; color: white; padding: 10px; font-size: 13px; text-align: center; width:15%;">Unit Price</th>
+                    <th style="background-color: #5e5adb; color: white; padding: 10px; font-size: 13px; text-align: center; width:20%;">Sales Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                <apex:variable var="baseRowNum" value="{!0}"/>
                 
-                <tr style="background-color: #f4f4ff;">
-                    <td style="padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: center; vertical-align: middle;">
-                        <apex:outputText value="{0, number, ###}"><apex:param value="{!rowNum}"/></apex:outputText>
-                    </td>
-                    <td style="padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; color: #5e5adb; text-align: left; vertical-align: middle; font-weight:bold;">{!line.Name}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: left; vertical-align: middle;">{!line.Description__c}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: center; vertical-align: middle;">
-                        <apex:outputText value="{0, number, ###}"><apex:param value="{!line.Quantity__c}"/></apex:outputText>
-                    </td>
-                    <td style="padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: right; vertical-align: middle; font-weight:bold;">
-                        <apex:outputText value="{0, number, currency}"><apex:param value="{!line.Sales_Price__c}"/></apex:outputText>
+                <apex:repeat var="line" value="{!SortedLines}">
+                    <apex:outputPanel layout="none" rendered="{!OR(ISBLANK(line.wfrecon__Type__c), line.wfrecon__Type__c == 'Base Contract')}">
+                        <apex:variable var="baseRowNum" value="{!baseRowNum + 1}"/>
+                        
+                        <tr style="background-color: #f4f4ff;">
+                            <td style="padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: center; vertical-align: middle;">
+                                <apex:outputText value="{0, number, ###}"><apex:param value="{!baseRowNum}"/></apex:outputText>
+                            </td>
+                            <td style="padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; color: #5e5adb; text-align: left; vertical-align: middle; font-weight:bold; word-wrap: break-word; white-space: normal;">
+                                {!line.Name}
+                            </td>
+                            <td style="padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: left; vertical-align: middle; word-wrap: break-word; white-space: normal;">
+                                {!line.wfrecon__Description__c}
+                            </td>
+                            <td style="padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: center; vertical-align: middle;">
+                                <apex:outputText value="{0, number, ###}"><apex:param value="{!BLANKVALUE(line.wfrecon__Quantity__c, 0)}"/></apex:outputText>
+                            </td>
+                            <td style="padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: center; vertical-align: middle;">
+                                <apex:outputText value="{0, number, currency}">
+                                    <apex:param value="{!BLANKVALUE(line.wfrecon__Unit_Price__c, 0)}"/>
+                                </apex:outputText>
+                            </td>
+                            <td style="padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: center; vertical-align: middle; font-weight:bold;">
+                                <apex:outputText value="{0, number, currency}"><apex:param value="{!BLANKVALUE(line.wfrecon__Sales_Price__c, 0)}"/></apex:outputText>
+                            </td>
+                        </tr>
+                    </apex:outputPanel>
+                </apex:repeat>
+                
+                <tr style="background-color: #e8e8ff;">
+                    <td style="padding: 10px; border-bottom: 2px solid #5e5adb; font-size: 13px; color: #333; text-align: center; vertical-align: middle;"></td>
+                    <td style="padding: 10px; border-bottom: 2px solid #5e5adb; font-size: 13px; color: #333; text-align: left; vertical-align: middle; font-weight:bold;">Total</td>
+                    <td style="padding: 10px; border-bottom: 2px solid #5e5adb; font-size: 13px; color: #333; text-align: left; vertical-align: middle;"></td>
+                    <td style="padding: 10px; border-bottom: 2px solid #5e5adb; font-size: 13px; color: #333; text-align: center; vertical-align: middle;"></td>
+                    <td style="padding: 10px; border-bottom: 2px solid #5e5adb; font-size: 13px; color: #333; text-align: center; vertical-align: middle;"></td>
+                    <td style="padding: 10px; border-bottom: 2px solid #5e5adb; font-size: 13px; color: #333; text-align: center; vertical-align: middle; font-weight:bold;">
+                        <apex:outputText value="{0, number, currency}"><apex:param value="{!totalPrice}"/></apex:outputText>
                     </td>
                 </tr>
+            </tbody>
+        </table>
+    </div>
 
-                <!-- <tr>
-                    <td colspan="5" style="padding: 0; background-color: #ffffff;">
-                        <apex:repeat var="budget" value="{!line.wfrecon__Budgets__r}"> 
-                            <div style="padding: 10px 40px; background-color: #f9f9f9;">
-                                
-                                <apex:variable var="laborCount" value="{!0}"/>
-                                <apex:repeat var="chk" value="{!budget.wfrecon__Budget_Lines__r}">
-                                    <apex:outputPanel layout="none" rendered="{!chk.Cost_Type__c == 'Labor'}">
-                                        <apex:variable var="laborCount" value="{!laborCount + 1}"/>
-                                    </apex:outputPanel>
-                                </apex:repeat>
+    <apex:variable var="altCount" value="{!0}"/>
+    <apex:repeat var="chk" value="{!SortedLines}">
+        <apex:outputPanel layout="none" rendered="{!chk.wfrecon__Type__c == 'Alternate'}">
+            <apex:variable var="altCount" value="{!altCount + 1}"/>
+        </apex:outputPanel>
+    </apex:repeat>
 
-                                <apex:outputPanel layout="none" rendered="{!laborCount > 0}">
-                                    <div style="padding: 10px 20px; background-color: #fff; border: 1px solid #eee; margin-top: 5px; margin-bottom: 15px; border-radius: 4px;">
-                                        <div style="background-color: #f0f4f8; color: #5e5adb; font-weight: bold; font-size: 11px; padding: 5px 10px; border-left: 3px solid #5e5adb; margin-bottom: 5px; text-transform: uppercase;">Labor Details</div>
-                                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-                                            <thead>
-                                                <tr>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: center;">Crew</th>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: center;">Hrs/Day</th>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: center;">Days</th>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: right;">Rate</th>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: right;">Total</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <apex:repeat var="bLine" value="{!budget.wfrecon__Budget_Lines__r}">
-                                                    <apex:outputPanel layout="none" rendered="{!bLine.Cost_Type__c == 'Labor'}">
-                                                        <tr>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: center; color: #555;">{!bLine.No_Of_Crew_Members__c}</td>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: center; color: #555;">{!bLine.Hrs_day__c}</td>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: center; color: #555;">{!bLine.of_Days__c}</td>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: right; color: #555;"><apex:outputText value="{0, number, currency}"><apex:param value="{!bLine.Burden_Rate_Hour__c}"/></apex:outputText></td>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: right; color: #555;"><apex:outputText value="{0, number, currency}"><apex:param value="{!bLine.Labor_Cost__c}"/></apex:outputText></td>
-                                                        </tr>
-                                                    </apex:outputPanel>
-                                                </apex:repeat>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </apex:outputPanel>
-
-                                <apex:variable var="matCount" value="{!0}"/>
-                                <apex:repeat var="chk" value="{!budget.wfrecon__Budget_Lines__r}">
-                                    <apex:outputPanel layout="none" rendered="{!chk.Cost_Type__c == 'Materials'}">
-                                        <apex:variable var="matCount" value="{!matCount + 1}"/>
-                                    </apex:outputPanel>
-                                </apex:repeat>
-
-                                <apex:outputPanel layout="none" rendered="{!matCount > 0}">
-                                    <div style="padding: 10px 20px; background-color: #fff; border: 1px solid #eee; margin-top: 5px; margin-bottom: 15px; border-radius: 4px;">
-                                        <div style="background-color: #f0f4f8; color: #5e5adb; font-weight: bold; font-size: 11px; padding: 5px 10px; border-left: 3px solid #5e5adb; margin-bottom: 5px; text-transform: uppercase;">Materials</div>
-                                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-                                            <thead>
-                                                <tr>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: left;">Material</th>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: center;">Qty</th>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: right;">Cost Each</th>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: right;">Total</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <apex:repeat var="bLine" value="{!budget.wfrecon__Budget_Lines__r}">
-                                                    <apex:outputPanel layout="none" rendered="{!bLine.Cost_Type__c == 'Materials'}">
-                                                        <tr>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: left; color: #555;">{!bLine.Material__c}</td>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: center; color: #555;">{!bLine.QTY__c}</td>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: right; color: #555;"><apex:outputText value="{0, number, currency}"><apex:param value="{!bLine.Cost_Each__c}"/></apex:outputText></td>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: right; color: #555;"><apex:outputText value="{0, number, currency}"><apex:param value="{!bLine.Material_Cost__c}"/></apex:outputText></td>
-                                                        </tr>
-                                                    </apex:outputPanel>
-                                                </apex:repeat>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </apex:outputPanel>
-
-                                <apex:variable var="hotelCount" value="{!0}"/>
-                                <apex:repeat var="chk" value="{!budget.wfrecon__Budget_Lines__r}">
-                                    <apex:outputPanel layout="none" rendered="{!chk.Cost_Type__c == 'Hotel'}">
-                                        <apex:variable var="hotelCount" value="{!hotelCount + 1}"/>
-                                    </apex:outputPanel>
-                                </apex:repeat>
-
-                                <apex:outputPanel layout="none" rendered="{!hotelCount > 0}">
-                                    <div style="padding: 10px 20px; background-color: #fff; border: 1px solid #eee; margin-top: 5px; margin-bottom: 15px; border-radius: 4px;">
-                                        <div style="background-color: #f0f4f8; color: #5e5adb; font-weight: bold; font-size: 11px; padding: 5px 10px; border-left: 3px solid #5e5adb; margin-bottom: 5px; text-transform: uppercase;">Hotel</div>
-                                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-                                            <thead>
-                                                <tr>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: center;">Nights</th>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: center;">Rooms</th>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: right;">Cost/Night</th>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: right;">Total</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <apex:repeat var="bLine" value="{!budget.wfrecon__Budget_Lines__r}">
-                                                    <apex:outputPanel layout="none" rendered="{!bLine.Cost_Type__c == 'Hotel'}">
-                                                        <tr>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: center; color: #555;">{!bLine.Of_Nights__c}</td>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: center; color: #555;">{!bLine.Number_Of_Rooms__c}</td>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: right; color: #555;"><apex:outputText value="{0, number, currency}"><apex:param value="{!bLine.Costs_Per_Night__c}"/></apex:outputText></td>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: right; color: #555;"><apex:outputText value="{0, number, currency}"><apex:param value="{!bLine.Total_Hotel_Cost__c}"/></apex:outputText></td>
-                                                        </tr>
-                                                    </apex:outputPanel>
-                                                </apex:repeat>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </apex:outputPanel>
-
-                                <apex:variable var="mileCount" value="{!0}"/>
-                                <apex:repeat var="chk" value="{!budget.wfrecon__Budget_Lines__r}">
-                                    <apex:outputPanel layout="none" rendered="{!chk.Cost_Type__c == 'Mileage'}">
-                                        <apex:variable var="mileCount" value="{!mileCount + 1}"/>
-                                    </apex:outputPanel>
-                                </apex:repeat>
-
-                                <apex:outputPanel layout="none" rendered="{!mileCount > 0}">
-                                    <div style="padding: 10px 20px; background-color: #fff; border: 1px solid #eee; margin-top: 5px; margin-bottom: 15px; border-radius: 4px;">
-                                        <div style="background-color: #f0f4f8; color: #5e5adb; font-weight: bold; font-size: 11px; padding: 5px 10px; border-left: 3px solid #5e5adb; margin-bottom: 5px; text-transform: uppercase;">Mileage</div>
-                                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-                                            <thead>
-                                                <tr>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: center;">Trips</th>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: center;">Trucks</th>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: center;">Miles</th>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: right;">Rate</th>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: right;">Total</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <apex:repeat var="bLine" value="{!budget.wfrecon__Budget_Lines__r}">
-                                                    <apex:outputPanel layout="none" rendered="{!bLine.Cost_Type__c == 'Mileage'}">
-                                                        <tr>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: center; color: #555;">{!bLine.Of_Trips__c}</td>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: center; color: #555;">{!bLine.Of_Trucks__c}</td>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: center; color: #555;">{!bLine.Mileage__c}</td>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: right; color: #555;"><apex:outputText value="{0, number, currency}"><apex:param value="{!bLine.Mileage_Rate__c}"/></apex:outputText></td>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: right; color: #555;"><apex:outputText value="{0, number, currency}"><apex:param value="{!bLine.Total_Mileage__c}"/></apex:outputText></td>
-                                                        </tr>
-                                                    </apex:outputPanel>
-                                                </apex:repeat>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </apex:outputPanel>
-
-                                <apex:variable var="pdCount" value="{!0}"/>
-                                <apex:repeat var="chk" value="{!budget.wfrecon__Budget_Lines__r}">
-                                    <apex:outputPanel layout="none" rendered="{!chk.Cost_Type__c == 'Per Diem'}">
-                                        <apex:variable var="pdCount" value="{!pdCount + 1}"/>
-                                    </apex:outputPanel>
-                                </apex:repeat>
-
-                                <apex:outputPanel layout="none" rendered="{!pdCount > 0}">
-                                    <div style="padding: 10px 20px; background-color: #fff; border: 1px solid #eee; margin-top: 5px; margin-bottom: 15px; border-radius: 4px;">
-                                        <div style="background-color: #f0f4f8; color: #5e5adb; font-weight: bold; font-size: 11px; padding: 5px 10px; border-left: 3px solid #5e5adb; margin-bottom: 5px; text-transform: uppercase;">Per Diem</div>
-                                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-                                            <thead>
-                                                <tr>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: center;">Days</th>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: center;">Men</th>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: right;">Rate</th>
-                                                    <th style="background-color: #7f7ce6; color: white; padding: 5px; text-align: right;">Total</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <apex:repeat var="bLine" value="{!budget.wfrecon__Budget_Lines__r}">
-                                                    <apex:outputPanel layout="none" rendered="{!bLine.Cost_Type__c == 'Per Diem'}">
-                                                        <tr>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: center; color: #555;">{!bLine.Per_Diem_of_Days__c}</td>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: center; color: #555;">{!bLine.of_Men__c}</td>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: right; color: #555;"><apex:outputText value="{0, number, currency}"><apex:param value="{!bLine.Per_Diem_Rate__c}"/></apex:outputText></td>
-                                                            <td style="padding: 5px; border-bottom: 1px solid #eee; text-align: right; color: #555;"><apex:outputText value="{0, number, currency}"><apex:param value="{!bLine.Total_Per_Diem__c}"/></apex:outputText></td>
-                                                        </tr>
-                                                    </apex:outputPanel>
-                                                </apex:repeat>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </apex:outputPanel>
-
-                            </div>
-                        </apex:repeat>
-                    </td>
-                </tr> -->
-            </apex:repeat>
-            
-            <!-- Total Row -->
-            <tr style="background-color: #e8e8ff;">
-                <td style="padding: 10px; border-bottom: 2px solid #5e5adb; font-size: 13px; color: #333; text-align: center; vertical-align: middle;"></td>
-                <td style="padding: 10px; border-bottom: 2px solid #5e5adb; font-size: 13px; color: #333; text-align: left; vertical-align: middle; font-weight:bold;">Total</td>
-                <td style="padding: 10px; border-bottom: 2px solid #5e5adb; font-size: 13px; color: #333; text-align: left; vertical-align: middle;"></td>
-                <td style="padding: 10px; border-bottom: 2px solid #5e5adb; font-size: 13px; color: #333; text-align: center; vertical-align: middle;"></td>
-                <td style="padding: 10px; border-bottom: 2px solid #5e5adb; font-size: 13px; color: #333; text-align: right; vertical-align: middle; font-weight:bold;">
-                    <apex:outputText value="{0, number, currency}"><apex:param value="{!totalPrice}"/></apex:outputText>
-                </td>
-            </tr>
-        </tbody>
-    </table>
+    <apex:outputPanel rendered="{!altCount > 0}">
+        <div style="margin-bottom: 20px;">
+            <div style="background-color: #f0f4f8; color: #5e5adb; font-weight: bold; font-size: 14px; padding: 8px 10px; border-left: 4px solid #5e5adb; margin-bottom: 10px; text-transform: uppercase;">Alternate</div>
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                <thead>
+                    <tr>
+                        <th style="background-color: #5e5adb; color: white; padding: 10px; font-size: 13px; text-align: center; width:5%;">Sr</th>
+                        <th style="background-color: #5e5adb; color: white; padding: 10px; font-size: 13px; text-align: left; width:20%;">Service</th>
+                        <th style="background-color: #5e5adb; color: white; padding: 10px; font-size: 13px; text-align: left; width:30%;">Description</th>
+                        <th style="background-color: #5e5adb; color: white; padding: 10px; font-size: 13px; text-align: center; width:10%;">Qty</th>
+                        <th style="background-color: #5e5adb; color: white; padding: 10px; font-size: 13px; text-align: center; width:15%;">Unit Price</th>
+                        <th style="background-color: #5e5adb; color: white; padding: 10px; font-size: 13px; text-align: center; width:20%;">Sales Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <apex:variable var="altRowNum" value="{!0}"/>
+                    
+                    <apex:repeat var="line" value="{!SortedLines}">
+                        <apex:outputPanel layout="none" rendered="{!line.wfrecon__Type__c == 'Alternate'}">
+                            <apex:variable var="altRowNum" value="{!altRowNum + 1}"/>
+                            
+                            <tr style="background-color: #f4f4ff;">
+                                <td style="padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: center; vertical-align: middle;">
+                                    <apex:outputText value="{0, number, ###}"><apex:param value="{!altRowNum}"/></apex:outputText>
+                                </td>
+                                <td style="padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; color: #5e5adb; text-align: left; vertical-align: middle; font-weight:bold; word-wrap: break-word; white-space: normal;">
+                                    {!line.Name}
+                                </td>
+                                <td style="padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: left; vertical-align: middle; word-wrap: break-word; white-space: normal;">
+                                    {!line.wfrecon__Description__c}
+                                </td>
+                                <td style="padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: center; vertical-align: middle;">
+                                    <apex:outputText value="{0, number, ###}"><apex:param value="{!BLANKVALUE(line.wfrecon__Quantity__c, 0)}"/></apex:outputText>
+                                </td>
+                                <td style="padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: center; vertical-align: middle;">
+                                    <apex:outputText value="{0, number, currency}">
+                                        <apex:param value="{!BLANKVALUE(line.wfrecon__Unit_Price__c, 0)}"/>
+                                    </apex:outputText>
+                                </td>
+                                <td style="padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: center; vertical-align: middle; font-weight:bold;">
+                                    <apex:outputText value="{0, number, currency}"><apex:param value="{!BLANKVALUE(line.wfrecon__Sales_Price__c, 0)}"/></apex:outputText>
+                                </td>
+                            </tr>
+                        </apex:outputPanel>
+                    </apex:repeat>
+                </tbody>
+            </table>
+        </div>
+    </apex:outputPanel>
 </apex:component>

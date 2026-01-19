@@ -6,7 +6,7 @@ import getRecordFiles from '@salesforce/apex/QuoteEmailController.getRecordFiles
 import getUploadedFileDetails from '@salesforce/apex/QuoteEmailController.getUploadedFileDetails';
 import getContactName from '@salesforce/apex/QuoteEmailController.getContactName';
 import deleteContentDocuments from '@salesforce/apex/QuoteEmailController.deleteContentDocuments';
-import getBaseContractLines from '@salesforce/apex/QuoteEmailController.getBaseContractLines';
+import getProposalLines from '@salesforce/apex/QuoteEmailController.getProposalLines'; // Renamed import
 import updateLineSelection from '@salesforce/apex/QuoteEmailController.updateLineSelection';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { gql, graphql } from 'lightning/uiGraphQLApi';
@@ -24,10 +24,11 @@ export default class QuoteEmailComposer extends LightningElement {
 
     // Step 1 Data (Proposal Lines)
     @track proposalLines = [];
-    @track isAllSelected = false;
+    @track isAllBaseSelected = false;
+    @track isAllAlternateSelected = false;
 
     // Accordion Logic
-    @track activeSectionName = ['bodyPreview', 'templatePreview'];
+    @track activeSectionName = ['baseContractSection', 'alternateSection', 'bodyPreview', 'templatePreview'];
     @track accordionStyleApplied = false;
 
     // Dropdown Data
@@ -163,19 +164,47 @@ export default class QuoteEmailComposer extends LightningElement {
         return this.uploadedFiles.length > 0;
     }
 
+    get baseContractLines() {
+        return this.proposalLines
+            .filter(line => !line.wfrecon__Type__c || line.wfrecon__Type__c === 'Base Contract')
+            .map((line, index) => ({ ...line, rowNumber: index + 1 }));
+    }
+
+    get alternateLines() {
+        return this.proposalLines
+            .filter(line => line.wfrecon__Type__c === 'Alternate')
+            .map((line, index) => ({ ...line, rowNumber: index + 1 }));
+    }
+
+    get baseContractSectionLabel() {
+        return `Base Contract (${this.baseContractLines.length})`;
+    }
+
+    get alternateSectionLabel() {
+        return `Alternate (${this.alternateLines.length})`;
+    }
+
     // --- Step 1 Handlers (Selection Wizard) ---
 
     fetchProposalLines() {
         try{
             this.isLoading = true;
-            getBaseContractLines({ recordId: this.recordId })
+            getProposalLines({ recordId: this.recordId })
                 .then(result => {
-                    this.proposalLines = result.map(line => ({
-                        ...line,
-                        // Ensure boolean for checkbox
-                        // Selected__c: line.wfrecon__Selected__c || false
-                    }));
-                    this.checkAllSelected();
+                    this.proposalLines = result.map(line => {
+                        // Calculate Unit Price safely
+                        // const salesPrice = line.wfrecon__Sales_Price__c || 0;
+                        // const qty = line.wfrecon__Quantity__c || 0;
+                        const unitPrice = line.wfrecon__Unit_Price__c || 0;
+
+                        return {
+                            ...line,
+                            unitPrice: unitPrice
+                            // Selected__c is handled by Apex result usually, unless undefined
+                        };
+                    });
+                    this.checkAllBaseSelected();
+                    this.checkAllAlternateSelected();
                 })
                 .catch(error => {
                     this.showToast('Error', 'Error fetching proposal lines', 'error');
@@ -201,31 +230,56 @@ export default class QuoteEmailComposer extends LightningElement {
                 return line;
             });
             
-            this.checkAllSelected();
+            this.checkAllBaseSelected();
+            this.checkAllAlternateSelected();
         }catch(err){
             console.error('Unexpected error in handleLineSelect:', err.stack);
             this.showToast('Error', 'An unexpected error occurred while selecting a line.', 'error');
         }
     }
 
-    handleSelectAll(event) {
+    handleSelectAllBase(event) {
         try{
             const checked = event.target.checked;
-            this.isAllSelected = checked;
+            this.isAllBaseSelected = checked;
             
-            this.proposalLines = this.proposalLines.map(line => ({
-                ...line,
-                Selected__c: checked
-            }));
+            this.proposalLines = this.proposalLines.map(line => {
+                if (!line.wfrecon__Type__c || line.wfrecon__Type__c === 'Base Contract') {
+                    return { ...line, Selected__c: checked };
+                }
+                return line;
+            });
         }catch(err){
-            console.error('Unexpected error in handleSelectAll:', err.stack);
-            this.showToast('Error', 'An unexpected error occurred while selecting all lines.', 'error');
+            console.error('Unexpected error in handleSelectAllBase:', err.stack);
+            this.showToast('Error', 'An unexpected error occurred.', 'error');
         }
     }
 
-    checkAllSelected() {
-        const allSelected = this.proposalLines.length > 0 && this.proposalLines.every(line => line.Selected__c);
-        this.isAllSelected = allSelected;
+    handleSelectAllAlternate(event) {
+        try{
+            const checked = event.target.checked;
+            this.isAllAlternateSelected = checked;
+            
+            this.proposalLines = this.proposalLines.map(line => {
+                if (line.wfrecon__Type__c === 'Alternate') {
+                    return { ...line, Selected__c: checked };
+                }
+                return line;
+            });
+        }catch(err){
+            console.error('Unexpected error in handleSelectAllAlternate:', err.stack);
+            this.showToast('Error', 'An unexpected error occurred.', 'error');
+        }
+    }
+
+    checkAllBaseSelected() {
+        const baseLines = this.baseContractLines;
+        this.isAllBaseSelected = baseLines.length > 0 && baseLines.every(line => line.Selected__c);
+    }
+
+    checkAllAlternateSelected() {
+        const altLines = this.alternateLines;
+        this.isAllAlternateSelected = altLines.length > 0 && altLines.every(line => line.Selected__c);
     }
 
     handleNext() {
@@ -242,6 +296,7 @@ export default class QuoteEmailComposer extends LightningElement {
                 .then(() => {
                     // 3. Move to Email Step
                     this.step = 2;
+                    this.activeSectionName = ['baseContractSection', 'alternateSection', 'bodyPreview', 'templatePreview'];
                     
                     // 4. Refresh Email Preview with new selections if template already selected
                     if(this.selectedTemplateId) {
@@ -261,8 +316,7 @@ export default class QuoteEmailComposer extends LightningElement {
 
     handleBack() {
         this.step = 1;
-        // Re-fetch to ensure we have latest state if needed, or just switch view
-        // this.fetchProposalLines();
+        this.activeSectionName = ['baseContractSection', 'alternateSection', 'bodyPreview', 'templatePreview'];
     }
 
     // --- Step 2 Event Handlers (Email Composer) ---
@@ -682,6 +736,18 @@ export default class QuoteEmailComposer extends LightningElement {
             // Create style element if it doesn't exist
             const style = document.createElement('style');
             style.textContent = `
+                .prop-accordion-container .section-control {
+                    background: rgba(94, 90, 219, 0.9) !important;
+                    color: white !important;
+                    margin-bottom: 4px;
+                    --slds-c-icon-color-foreground-default: #ffffff !important;
+                    font-weight: 600 !important;
+                    border-radius: 4px;
+                    padding: 6px;
+                }
+                .prop-accordion-container .slds-accordion__summary-content{
+                    font-size: medium;
+                }
                 .accordion-container .section-control {
                     background: rgba(94, 90, 219, 0.9) !important;
                     color: white !important;
@@ -695,9 +761,10 @@ export default class QuoteEmailComposer extends LightningElement {
                     font-size: medium;
                 }
             `;
-            const accordionContainer = this.template.querySelector('.accordion-container');
+            const accordionContainer = this.template.querySelector('.prop-accordion-container') || this.template.querySelector('.accordion-container');
             if (accordionContainer) {
-                accordionContainer.appendChild(style);
+                // Append directly to host or ensure parent container class exists in one place
+                this.template.host.appendChild(style);
                 this.accordionStyleApplied = true;
             }
 
