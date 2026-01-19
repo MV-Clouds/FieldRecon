@@ -29,6 +29,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     @track originalProposalLineValues = new Map();
     @track modifiedBudgetLineFields = new Map();
     @track manuallyEditedSalesPrices = new Map(); // Track manually edited sales prices
+    @track manuallyEditedUnitPrices = new Map(); // Track manually edited unit prices
     @track editingFieldValues = new Map(); // Store raw string values during editing
     @track showConfirmModal = false;
     @track confirmModalTitle = '';
@@ -343,11 +344,15 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 isOddRow: (index % 2 === 0),
                 isModified: modifiedFields.size > 0,
                 isEditingQuantity: this.editingProposalLines.has(`${line.Id}_wfrecon__Quantity__c`),
+                isEditingUnitPrice: this.editingProposalLines.has(`${line.Id}_wfrecon__Unit_Price__c`),
                 isEditingDescription: this.editingProposalLines.has(`${line.Id}_wfrecon__Description__c`),
                 isEditingProfit: this.editingProposalLines.has(`${line.Id}_wfrecon__Profit_Per__c`),
                 isEditingSalesPrice: isEditingSalesPrice,
                 // CSS classes for each field
                 quantityCellClass: modifiedFields.has('wfrecon__Quantity__c')
+                    ? 'center-trancate-text editable-cell modified-cell'
+                    : 'center-trancate-text editable-cell',
+                unitPriceCellClass: modifiedFields.has('wfrecon__Unit_Price__c')
                     ? 'center-trancate-text editable-cell modified-cell'
                     : 'center-trancate-text editable-cell',
                 descriptionCellClass: modifiedFields.has('wfrecon__Description__c')
@@ -364,16 +369,18 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                     : 'center-trancate-text editable-cell',
                 // Safe values for display - use editing value if currently editing
                 displayQuantity: this.safeNumber(line.wfrecon__Quantity__c, 0),
+                displayUnitPrice: this.editingFieldValues.get(`${line.Id}_wfrecon__Unit_Price__c`) || this.safeNumber(line.wfrecon__Unit_Price__c, 0),
+                formattedUnitPrice: this.formatCurrency(line.wfrecon__Unit_Price__c),
                 displayDescription: this.safeValue(line.wfrecon__Description__c, ''),
                 displayOH: this.safeNumber(line.wfrecon__OH_Per__c, 0),
                 displayWarranty: this.safeNumber(line.wfrecon__Warranty_Per__c, 0),
-                displayProfit: this.safeNumber(line.wfrecon__Profit_Per__c, 0),
+                displayProfit: this.editingFieldValues.get(`${line.Id}_wfrecon__Profit_Per__c`) || this.safeNumber(line.wfrecon__Profit_Per__c, 0),
                 displayOHAmount: this.formatCurrency(line.wfrecon__OH_Amount__c),
                 displayWarrantyAmount: this.formatCurrency(line.wfrecon__Warranty_Amount__c),
                 displayProfitAmount: this.formatCurrency(line.wfrecon__Profit_Amount__c),
                 displayTotalCost: this.formatCurrency(line.wfrecon__Total_Cost__c),
                 displayRecommendedPrice: this.safeNumber(line.wfrecon__Recommended_Price__c, 0),
-                displaySalesPrice: this.safeNumber(line.wfrecon__Sales_Price__c, 0),
+                displaySalesPrice: this.editingFieldValues.get(`${line.Id}_wfrecon__Sales_Price__c`) || this.safeNumber(line.wfrecon__Sales_Price__c, 0),
                 formattedRecommendedPrice: this.formatCurrency(line.wfrecon__Recommended_Price__c),
                 formattedSalesPrice: this.formatCurrency(line.wfrecon__Sales_Price__c),
                 displayLaborCost: this.formatCurrency(line.wfrecon__Labor_Cost__c),
@@ -851,6 +858,21 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         const fieldName = event.currentTarget.dataset.field;
         let value = event.target.value;
 
+        // Validate and limit decimal places to 2 for decimal fields
+        const decimalFields = ['wfrecon__Unit_Price__c', 'wfrecon__Sales_Price__c', 'wfrecon__Profit_Per__c'];
+        if (decimalFields.includes(fieldName) && value.includes('.')) {
+            const parts = value.split('.');
+            if (parts[1] && parts[1].length > 2) {
+                // Limit to 2 decimal places
+                value = parts[0] + '.' + parts[1].substring(0, 2);
+                event.target.value = value;
+            }
+        }
+
+        // Store raw string value for editing (preserves decimal points)
+        const editKey = `${proposalLineId}_${fieldName}`;
+        this.editingFieldValues.set(editKey, value);
+
         // Handle field value
         this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
             if (line.Id === proposalLineId) {
@@ -864,6 +886,11 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 // Track manually edited sales prices
                 if (fieldName === 'wfrecon__Sales_Price__c') {
                     this.manuallyEditedSalesPrices.set(proposalLineId, fieldValue);
+                }
+                
+                // Track manually edited unit prices
+                if (fieldName === 'wfrecon__Unit_Price__c') {
+                    this.manuallyEditedUnitPrices.set(proposalLineId, fieldValue);
                 }
                 
                 return {
@@ -880,9 +907,10 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         }
         this.modifiedProposalLines.get(proposalLineId).add(fieldName);
 
-        // Recalculate totals if Quantity or Profit percentage changed
+        // Recalculate totals if Quantity, Profit percentage, or Unit Price changed
         if (fieldName === 'wfrecon__Quantity__c' ||
-            fieldName === 'wfrecon__Profit_Per__c') {
+            fieldName === 'wfrecon__Profit_Per__c' ||
+            fieldName === 'wfrecon__Unit_Price__c') {
             this.recalculateProposalLineTotals(proposalLineId);
         }
     }
@@ -917,6 +945,51 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                         return l;
                     });
                     this.showToast('Info', 'Quantity has been rounded to a whole number', 'info');
+                    this.recalculateProposalLineTotals(proposalLineId);
+                }
+            }
+        }
+
+        // Validate Profit % on blur
+        if (fieldName === 'wfrecon__Profit_Per__c') {
+            const line = this.proposalLinesRaw.find(l => l.Id === proposalLineId);
+            if (line) {
+                let profit = parseFloat(line.wfrecon__Profit_Per__c);
+                const oh = parseFloat(event.currentTarget.dataset.oh) || 0;
+                const warranty = parseFloat(event.currentTarget.dataset.warranty) || 0;
+                const maxAllowed = 100 - oh - warranty;
+                
+                // Round to 2 decimal places
+                profit = Math.round(profit * 100) / 100;
+                
+                // Validate: Profit must be less than (100 - OH% - Warranty%)
+                if (isNaN(profit) || profit <= 0) {
+                    profit = 1.00;
+                } else if (profit >= maxAllowed) {
+                    // Reset to a safe value and show error
+                    profit = Math.max(0.01, maxAllowed - 0.01);
+                    this.proposalLinesRaw = this.proposalLinesRaw.map(l => {
+                        if (l.Id === proposalLineId) {
+                            return {
+                                ...l,
+                                wfrecon__Profit_Per__c: profit
+                            };
+                        }
+                        return l;
+                    });
+                    this.showToast('Error', `Profit % must be less than ${maxAllowed.toFixed(2)}% (100% - OH% - Warranty%). Value has been adjusted to ${profit.toFixed(2)}%.`, 'error');
+                    this.recalculateProposalLineTotals(proposalLineId);
+                } else {
+                    // Update to the valid rounded value
+                    this.proposalLinesRaw = this.proposalLinesRaw.map(l => {
+                        if (l.Id === proposalLineId) {
+                            return {
+                                ...l,
+                                wfrecon__Profit_Per__c: profit
+                            };
+                        }
+                        return l;
+                    });
                     this.recalculateProposalLineTotals(proposalLineId);
                 }
             }
@@ -964,6 +1037,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         }
 
         this.editingProposalLines.delete(editKey);
+        this.editingFieldValues.delete(editKey);
         this.proposalLinesRaw = [...this.proposalLinesRaw];
     }
 
@@ -1395,9 +1469,16 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             const perDiemLines = line.budget.budgetLinesByCostType.perdiem || [];
             perDiemCost = perDiemLines.reduce((sum, bl) => sum + parseNum(bl.wfrecon__Total_Per_Diem__c), 0);
 
-            // Calculate total cost (sum of all costs multiplied by quantity)
+            // Calculate unit cost (sum of all budget line costs WITHOUT quantity)
+            const unitCostFromBudget = laborCost + materialCost + hotelCost + mileageCost + perDiemCost;
+            
+            // Check if Unit Price was manually edited
+            const manuallyEditedUnitPrice = this.manuallyEditedUnitPrices?.get(line.Id);
+            const unitPrice = manuallyEditedUnitPrice !== undefined ? manuallyEditedUnitPrice : unitCostFromBudget;
+            
+            // Calculate total cost (unit price multiplied by quantity)
             const quantity = parseNum(line.wfrecon__Quantity__c) || 1;
-            const totalCost = (laborCost + materialCost + hotelCost + mileageCost + perDiemCost) * quantity;
+            const totalCost = unitPrice * quantity;
 
             // Calculate sales price using the formula: Total_Cost / (1 - (OH% + Profit% + Warranty%))
             const ohPer = parseNum(line.wfrecon__OH_Per__c) / 100; // Convert percentage to decimal
@@ -1452,6 +1533,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 wfrecon__Total_Cost__c: roundTo2(totalCost),
                 wfrecon__Recommended_Price__c: roundTo2(recommendedPrice),
                 wfrecon__Sales_Price__c: roundTo2(salesPrice),
+                wfrecon__Unit_Price__c: roundTo2(unitPrice),
                 wfrecon__OH_Amount__c: roundTo2(ohAmount),
                 wfrecon__Profit_Amount__c: roundTo2(profitAmount),
                 wfrecon__Warranty_Amount__c: roundTo2(warrantyAmount)
@@ -1716,6 +1798,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                     wfrecon__Warranty_Per__c: roundTo2(line.wfrecon__Warranty_Per__c),
                     wfrecon__Profit_Per__c: Math.round(parseFloat(line.wfrecon__Profit_Per__c) || 0),
                     wfrecon__Sales_Price__c: roundTo2(line.wfrecon__Sales_Price__c),
+                    wfrecon__Unit_Price__c: roundTo2(line.wfrecon__Unit_Price__c),
                     wfrecon__Type__c: line.wfrecon__Type__c || 'Base Contract'
                 };
                 
@@ -1801,6 +1884,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                     this.originalProposalLineValues.clear();
                     this.modifiedBudgetLineFields.clear();
                     this.manuallyEditedSalesPrices.clear();
+                    this.manuallyEditedUnitPrices.clear();
                     this.hasSequenceChanges = false;
                 } else {
                     this.showToast('Error', result.message, 'error');
@@ -1830,6 +1914,8 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         this.editingBudgetLines.clear();
         this.hasModificationsBySection.clear();
         this.modifiedBudgetLineFields.clear();
+        this.manuallyEditedSalesPrices.clear();
+        this.manuallyEditedUnitPrices.clear();
         this.hasSequenceChanges = false;
         this.showToast('Success', 'All changes have been discarded', 'success');
     }
