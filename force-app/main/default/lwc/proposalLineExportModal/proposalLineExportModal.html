@@ -1,0 +1,98 @@
+<template>
+    <lightning-card>
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        </template>
+
+        <template if:true={isErrorState}>
+            <div class="slds-p-around_large status-message-container">
+                <div class="slds-align_absolute-center slds-text-align_center">
+                    <div class="status-icon-container">
+                        <lightning-icon icon-name="utility:warning" size="large"
+                            class="slds-text-color_error slds-m-bottom_medium">
+                        </lightning-icon>
+                    </div>
+                    <div class="status-text-container">
+                        <h2 class="slds-text-heading_medium slds-m-bottom_x-small">Cannot Export Lines</h2>
+                        <p class="slds-text-body_regular">{errorMessage}</p>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <template if:false={isErrorState}>
+            <div class="slds-p-around_medium component-wrapper">
+                <div class="main-div">
+                    
+                    <div class="slds-grid slds-wrap slds-gutters modal-scrollable">
+                        <div class="slds-col slds-size_1-of-1">
+                            <div class="slds-text-heading_small slds-text-align_center">
+                                Select Proposal Lines to Export to Job
+                            </div>
+                            
+                            <div class="data-table-container">
+                                <template if:true={proposalLines.length}>
+                                    <table class="custom-data-table">
+                                        <thead class="table-header">
+                                            <tr>
+                                                <th class="header-cell center-trancate-head" style="width: 50px;">
+                                                    <lightning-input type="checkbox" 
+                                                        checked={allLinesSelected}
+                                                        onchange={handleSelectAll}
+                                                        variant="label-hidden">
+                                                    </lightning-input>
+                                                </th>
+                                                <th class="header-cell center-trancate-head">Name</th>
+                                                <th class="header-cell center-trancate-head">Description</th>
+                                                <th class="header-cell center-trancate-head">Sales Price</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="table-body">
+                                            <template for:each={proposalLines} for:item="line">
+                                                <tr key={line.Id}>
+                                                    <td class="center-trancate-text">
+                                                        <lightning-input type="checkbox"
+                                                            data-id={line.Id}
+                                                            checked={line.selected}
+                                                            onchange={handleRowSelection}
+                                                            variant="label-hidden">
+                                                        </lightning-input>
+                                                    </td>
+                                                    <td class="center-trancate-text">
+                                                        <div class="text-truncate" title={line.Name}>{line.Name}</div>
+                                                    </td>
+                                                    <td class="center-trancate-text">
+                                                        <div class="text-truncate" title={line.wfrecon__Description__c}>{line.wfrecon__Description__c}</div>
+                                                    </td>
+                                                    <td class="center-trancate-text">
+                                                        <lightning-formatted-number value={line.wfrecon__Sales_Price__c}
+                                                            format-style="currency" currency-code="USD">
+                                                        </lightning-formatted-number>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </template>
+                                <template if:false={proposalLines.length}>
+                                    <div class="empty-state">
+                                        No Proposal Lines found.
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="footer-div">
+                        <button class="slds-button slds-button_neutral back-btn" onclick={handleCancel}>
+                            Cancel
+                        </button>
+                        <button class="save-btn" onclick={handleExport} disabled={disableExport}>
+                            Export Lines
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </lightning-card>
+</template>
