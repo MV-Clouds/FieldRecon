@@ -36,7 +36,7 @@ public with sharing class ProposalLinesContainerController {
             // Fetch Proposal Lines with Budget information
             List<wfrecon__Proposal_Line__c> proposalLines = [
                 SELECT Id, Name, wfrecon__Product__c, wfrecon__Total_Cost__c, wfrecon__Description__c,
-                    wfrecon__Quantity__c, wfrecon__OH_Per__c, wfrecon__Warranty_Per__c, wfrecon__Profit_Per__c,
+                    wfrecon__Quantity__c, wfrecon__Unit_Price__c, wfrecon__OH_Per__c, wfrecon__Warranty_Per__c, wfrecon__Profit_Per__c,
                     wfrecon__OH_Amount__c, wfrecon__Profit_Amount__c, wfrecon__Warranty_Amount__c, 
                     wfrecon__Recommended_Price__c, wfrecon__Sales_Price__c, wfrecon__Sequence__c,
                     wfrecon__Hotel_Cost__c, wfrecon__Labor_Cost__c, wfrecon__Material_Cost__c, 
@@ -504,6 +504,9 @@ public with sharing class ProposalLinesContainerController {
                     }
                     if (lineData.containsKey('wfrecon__Sales_Price__c')) {
                         proposalLine.wfrecon__Sales_Price__c = (Decimal) lineData.get('wfrecon__Sales_Price__c');
+                    }
+                    if (lineData.containsKey('wfrecon__Unit_Price__c')) {
+                        proposalLine.wfrecon__Unit_Price__c = (Decimal) lineData.get('wfrecon__Unit_Price__c');
                     }
                     if (lineData.containsKey('wfrecon__Sequence__c')) {
                         Object seqValue = lineData.get('wfrecon__Sequence__c');
