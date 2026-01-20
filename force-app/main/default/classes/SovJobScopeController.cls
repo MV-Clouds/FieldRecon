@@ -1290,23 +1290,41 @@ public with sharing class SovJobScopeController {
     }
 
       @AuraEnabled(cacheable=true)
-    public static Map<String, Object> getBidsWithProposals(String jobId) {
+    public static Map<String, Object> getBidsWithProposals(String jobId, String bidId) {
         Map<String, Object> result = new Map<String, Object>();
         List<Map<String, Object>> bidsWithData = new List<Map<String, Object>>();
         
         try {
-            // Query bids with Status = 'Closed Won' related to the job
-            List<Bid__c> bids = [
-                SELECT Id, Name, Status__c, 
-                       (SELECT Id, Name, Type__c, Total_Sales_Price__c, Margin__c, Status__c 
-                        FROM Proposals__r 
-                        WHERE Status__c = 'Approved'
-                        ORDER BY CreatedDate DESC)
-                FROM Bid__c 
-                WHERE Job__c = :jobId 
-                AND Status__c = 'Closed Won'
-                ORDER BY CreatedDate DESC
-            ];
+            List<Bid__c> bids = new List<Bid__c>();
+            
+            // If bidId is provided, query that specific bid
+            if (String.isNotBlank(bidId)) {
+                bids = [
+                    SELECT Id, Name, Status__c, 
+                           (SELECT Id, Name, Type__c, Total_Sales_Price__c, Margin__c, Status__c 
+                            FROM Proposals__r 
+                            WHERE Status__c = 'Closed Won'
+                            ORDER BY CreatedDate DESC)
+                    FROM Bid__c 
+                    WHERE Id = :bidId
+                     AND Status__c = 'Closed Won'
+                    ORDER BY CreatedDate DESC
+                ];
+            }
+            // If jobId is provided, query bids with Status = 'Closed Won' related to the job
+            else if (String.isNotBlank(jobId)) {
+                bids = [
+                    SELECT Id, Name, Status__c, 
+                           (SELECT Id, Name, Type__c, Total_Sales_Price__c, Margin__c, Status__c 
+                            FROM Proposals__r 
+                            WHERE Status__c = 'Approved'
+                            ORDER BY CreatedDate DESC)
+                    FROM Bid__c 
+                    WHERE Job__c = :jobId 
+                    AND Status__c = 'Closed Won'
+                    ORDER BY CreatedDate DESC
+                ];
+            }
             
             for (Bid__c bid : bids) {
                 Map<String, Object> bidData = new Map<String, Object>();
@@ -1357,7 +1375,10 @@ public with sharing class SovJobScopeController {
             result.put('bids', bidsWithData);
             
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getBidsWithProposals','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error fetching bids with proposals for job ID: ' + jobId,'apiResponse' => null});
+            String errorDetails = String.isNotBlank(bidId) 
+                ? 'Error fetching bids with proposals for bid ID: ' + bidId
+                : 'Error fetching bids with proposals for job ID: ' + jobId;
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getBidsWithProposals','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => errorDetails,'apiResponse' => null});
             result.put('success', false);
             result.put('error', e.getMessage());
         }
