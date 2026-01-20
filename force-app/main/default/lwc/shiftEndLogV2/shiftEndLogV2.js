@@ -486,7 +486,7 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
                         workPerformedDateChanged: changedFieldsToday.has('Work_Performed_Date'),
                         images: images.map(img => {
                             const ext = img.FileExtension ? img.FileExtension.toLowerCase() : '';
-                            const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'tiff'].includes(ext);
+                            const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'tiff', 'heic', 'heif'].includes(ext);
                             const isVideo = ['mp4', 'mov', 'avi', 'wmv', 'flv', 'webm'].includes(ext);
                             const isPdf = ext === 'pdf';
                             const isDoc = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext);
@@ -2278,6 +2278,9 @@ export default class ShiftEndLogV2 extends NavigationMixin(LightningElement) {
         // Media types
         if (['mp4', 'mov', 'avi', 'wmv', 'flv', 'webm'].includes(ext)) return 'doctype:video';
         if (['mp3', 'wav', 'ogg', 'aac'].includes(ext)) return 'doctype:audio';
+
+        // Images
+        if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'tiff', 'heic', 'heif'].includes(ext)) return 'doctype:image';
 
         // Code/data
         if (['csv'].includes(ext)) return 'doctype:csv';
