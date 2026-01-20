@@ -39,8 +39,10 @@
                         <template if:true={isLinkMode}>
                             <div class="slds-grid slds-wrap slds-gutters modal-scrollable">
                                 <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
-                                    <lightning-record-picker label="Select Job" placeholder="Search Jobs..."
-                                        object-api-name="wfrecon__Job__c" onchange={handleJobSelection} required>
+                                    <lightning-record-picker data-id="jobPicker" label="Select Job" placeholder="Search Jobs..."
+                                        object-api-name="wfrecon__Job__c" onchange={handleJobSelection}
+                                        value={selectedJobId} display-info={displayInfo} matching-info={matchingInfo}
+                                        required>
                                     </lightning-record-picker>
                                 </div>
                             </div>

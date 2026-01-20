@@ -39,7 +39,7 @@ export default class BidProposalModal extends LightningElement {
     // Track if we need to fetch contact
     currentContactId = null;
 
-       // Wire to get custom setting values
+    // Wire to get custom setting values
     @wire(getProposalConfig)
     wiredProposalConfig({ error, data }) {
         if (data) {
@@ -47,7 +47,7 @@ export default class BidProposalModal extends LightningElement {
             this.ohValue = data.wfrecon__OH__c || 0;
             this.warrantyValue = data.wfrecon__Warranty__c || 0;
             this.profitValue = data.wfrecon__Profit__c || 0;
-            
+
             // Update display values
             this.ohDisplay = `${this.ohValue}%`;
             this.warrantyDisplay = `${this.warrantyValue}%`;
@@ -61,16 +61,16 @@ export default class BidProposalModal extends LightningElement {
     @wire(getRecord, { recordId: '$recordId', fields: BID_FIELDS })
     wiredBid({ error, data }) {
         if (data) {
-            this.isLoading= true;
+            this.isLoading = true;
             this.bidId = this.recordId;
             this.accountId = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__AccountId__c');
             this.contactId = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Contact__c');
             this.currentContactId = this.contactId;
-            
-               // Get bid status and check eligibility in one step
-        const bidStatus = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Status__c');
-        this.isBidValid = bidStatus && bidStatus.toLowerCase() === 'bidding';
-        
+
+            // Get bid status and check eligibility in one step
+            const bidStatus = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Status__c');
+            this.isBidValid = bidStatus && bidStatus.toLowerCase() === 'bidding';
+
 
             // Autopopulate expiration date with bid due date
             const bidDueDate = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Bid_Due_Date__c');
@@ -83,7 +83,7 @@ export default class BidProposalModal extends LightningElement {
                 this.fetchContactDetails(this.contactId);
             }
 
-              setTimeout(() => {
+            setTimeout(() => {
                 this.isLoading = false;
             }, 1000);
         } else if (error) {
@@ -98,11 +98,11 @@ export default class BidProposalModal extends LightningElement {
         this.overrideSLDS();
     }
 
-     /** 
-    * Method Name: overrideSLDS
-    * @description: Overrides default SLDS styles for modal customization
-    */
-    overrideSLDS(){
+    /** 
+   * Method Name: overrideSLDS
+   * @description: Overrides default SLDS styles for modal customization
+   */
+    overrideSLDS() {
         let style = document.createElement('style');
         style.innerText = `
                 .uiModal--medium .modal-container {
@@ -192,31 +192,31 @@ export default class BidProposalModal extends LightningElement {
     }
 
     handleContactChange(event) {
-    // Extract the value properly from the lightning-input-field
-    const newContactId = event.detail.value ? event.detail.value[0] : null;
-    console.log(event.detail.value, 'newContactId');
-    
-    // Only update if contact actually changed
-    if (newContactId !== this.currentContactId) {
-        this.contactId = newContactId;
-        this.currentContactId = newContactId;
-        
-        if (newContactId) {
-            this.fetchContactDetails(newContactId);
-        } else {
-            this.contactEmail = '';
-            this.contactPhone = '';
+        // Extract the value properly from the lightning-input-field
+        const newContactId = event.detail.value ? event.detail.value[0] : null;
+        console.log(event.detail.value, 'newContactId');
+
+        // Only update if contact actually changed
+        if (newContactId !== this.currentContactId) {
+            this.contactId = newContactId;
+            this.currentContactId = newContactId;
+
+            if (newContactId) {
+                this.fetchContactDetails(newContactId);
+            } else {
+                this.contactEmail = '';
+                this.contactPhone = '';
+            }
         }
     }
-}
 
     handlePercentageInput(event) {
         const fieldName = event.target.name;
         let value = event.target.value;
-        
+
         // Remove any non-numeric characters except decimal point
         value = value.replace(/[^\d.]/g, '');
-        
+
         // Update the display value (without % during typing)
         if (fieldName === 'wfrecon__OH__c') {
             this.ohDisplay = value;
@@ -233,26 +233,23 @@ export default class BidProposalModal extends LightningElement {
     handlePercentageBlur(event) {
         const fieldName = event.target.name;
         let value = event.target.value;
-        
-        // Remove any non-numeric characters except decimal point
+
+        // Remove any non-numeric characters
         value = value.replace(/[^\d.]/g, '');
         const numValue = parseFloat(value) || 0;
-        
-        // Update display with % symbol on blur
-        if (fieldName === 'wfrecon__OH__c') {
-            this.ohDisplay = numValue + '%';
-            this.ohValue = numValue;
-        } else if (fieldName === 'wfrecon__Warranty__c') {
-            this.warrantyDisplay = numValue + '%';
-            this.warrantyValue = numValue;
-        } else if (fieldName === 'wfrecon__Profit__c') {
-            this.profitDisplay = numValue + '%';
-            this.profitValue = numValue;
-        }
-    }
 
-    handleExpirationDateChange(event) {
-        this.expirationDate = event.target.value;
+        // Update the values
+        if (fieldName === 'wfrecon__OH__c') {
+            this.ohValue = numValue;
+            this.ohDisplay = numValue + '%';
+        } else if (fieldName === 'wfrecon__Warranty__c') {
+            this.warrantyValue = numValue;
+            this.warrantyDisplay = numValue + '%';
+        } else if (fieldName === 'wfrecon__Profit__c') {
+            this.profitValue = numValue;
+            this.profitDisplay = numValue + '%';
+        }
+
     }
 
     handleCancel() {
@@ -262,7 +259,15 @@ export default class BidProposalModal extends LightningElement {
 
     async handleSave(event) {
         event.preventDefault();
-        
+        event.stopPropagation();
+
+           // First validate profit - this is the key fix
+    const maxAllowed = 100 - this.ohValue - this.warrantyValue;
+    if (this.profitValue > maxAllowed) {
+        this.showToast('Invalid Profit', `Profit cannot exceed ${maxAllowed}%`, 'error');
+        return; // Make sure to return early
+    }
+
         const inputFields = this.template.querySelectorAll('lightning-input-field');
         const customInputs = this.template.querySelectorAll('lightning-input');
         let isValid = true;
@@ -314,7 +319,7 @@ export default class BidProposalModal extends LightningElement {
         this.isLoading = false;
         const proposalId = event.detail.id;
         this.showToast('Success', 'Proposal created successfully', 'success');
-        
+
         // Close the quick action screen and pass the created Proposal Id to parent (Aura wrapper will navigate)
         this.dispatchEvent(new CustomEvent('close', { detail: { id: proposalId } }));
     }
@@ -322,13 +327,13 @@ export default class BidProposalModal extends LightningElement {
     handleError(event) {
         this.isLoading = false;
         let errorMessage = 'An error occurred while saving the Proposal.';
-        
+
         if (event.detail && event.detail.detail) {
             errorMessage = event.detail.detail;
         } else if (event.detail && event.detail.message) {
             errorMessage = event.detail.message;
         }
-        
+
         console.error('Proposal Save Error:', JSON.stringify(event.detail));
         this.showToast('Error', errorMessage, 'error');
     }

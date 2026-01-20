@@ -12,7 +12,8 @@ const BID_FIELDS = [
     'wfrecon__Bid__c.wfrecon__AccountId__c',
     'wfrecon__Bid__c.wfrecon__Amount__c',
     'wfrecon__Bid__c.wfrecon__Description__c',
-    'wfrecon__Bid__c.wfrecon__Status__c'
+    'wfrecon__Bid__c.wfrecon__Status__c',
+    'wfrecon__Bid__c.wfrecon__Job__c'
 ];
 
 export default class BidJobModal extends LightningElement {
@@ -33,7 +34,7 @@ export default class BidJobModal extends LightningElement {
     @track createLinkMode = 'create'; // 'create' or 'link'
 
     // Selected job for linking
-    @track selectedJobId;
+    @track selectedJobId = '';
 
     // Bid/Proposal/Proposal Line properties
     @track displayedProposals = [];
@@ -44,6 +45,17 @@ export default class BidJobModal extends LightningElement {
     @track hasBidError = false;
     @track bidErrorMessage = '';
 
+    displayInfo = {
+        primaryField: 'Name',
+        additionalFields: ['wfrecon__Job_Name__c']
+    };
+
+    matchingInfo = {
+        primaryField: { fieldPath: 'Name' },
+        additionalFields: [{ fieldPath: 'wfrecon__Job_Name__c' }]
+    };
+
+
     @wire(getRecord, { recordId: '$recordId', fields: BID_FIELDS })
     wiredBid({ error, data }) {
         this.isLoading = true;
@@ -52,8 +64,11 @@ export default class BidJobModal extends LightningElement {
             this.bidName = getFieldValue(data, 'wfrecon__Bid__c.Name') || this.recordId;
             this.accountId = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__AccountId__c');
             this.defaultJobName = this.bidName;
+            this.selectedJobId = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Job__c');
             this.defaultAmount = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Amount__c');
             this.defaultDescription = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Description__c') || '';
+
+            console.log('bidjobname ', this.selectedJobId);
 
             const bidStatus = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Status__c');
             this.isClosedWonBid = bidStatus && bidStatus.toLowerCase() === 'closed won';
@@ -213,15 +228,27 @@ export default class BidJobModal extends LightningElement {
     }
 
     handleCreateNewJob() {
+        // Clear any existing validation
+        const recordPicker = this.template.querySelector('lightning-record-picker');
+        if (recordPicker) {
+            recordPicker.setCustomValidity('');
+            recordPicker.reportValidity();
+        }
+
         // Set mode for create new job
         this.createLinkMode = 'create';
         this.selectedJobId = null;
     }
 
     handleLinkExistingJob() {
+        // Clear any existing validation
+        const recordPicker = this.template.querySelector('lightning-record-picker');
+        if (recordPicker) {
+            recordPicker.setCustomValidity('');
+            recordPicker.reportValidity();
+        }
         // Set mode for link existing job
         this.createLinkMode = 'link';
-        this.selectedJobId = null;
     }
 
     handleJobSelection(event) {
@@ -291,11 +318,18 @@ export default class BidJobModal extends LightningElement {
      * @description: Navigate to proposals page after configuring create/link job
      */
     handleNextToProposals() {
+        let inputFields = [];
+
+        // Get input fields if they exist (only in create mode)
+        if (this.createLinkMode === 'create') {
+            inputFields = this.template.querySelectorAll('lightning-input-field');
+        }
+
         // If in create mode, validate form and sync values before navigating
         if (this.createLinkMode === 'create') {
-            const inputFields = this.template.querySelectorAll('lightning-input-field');
             let isValid = true;
 
+            // Validate input fields
             inputFields.forEach(field => {
                 if (!field.reportValidity()) {
                     isValid = false;
@@ -306,8 +340,35 @@ export default class BidJobModal extends LightningElement {
                 this.showToast('Error', 'Please fix the errors in the form before proceeding.', 'error');
                 return;
             }
+        }
+        // If in link mode, validate job selection
+        else if (this.createLinkMode === 'link') {
+            const recordPicker = this.template.querySelector('lightning-record-picker');
 
-            // Sync form field values to reactive properties for the hidden form on proposals page
+            // First check if selectedJobId is set
+            if (!this.selectedJobId) {
+                if (recordPicker) {
+                    recordPicker.setCustomValidity('Please select a Job');
+                    recordPicker.reportValidity();
+                }
+                this.showToast('Error', 'Please select a Job before proceeding.', 'error');
+                return;
+            }
+
+            // Also validate the picker itself
+            if (recordPicker && !recordPicker.value) {
+                recordPicker.setCustomValidity('Please select a Job');
+                recordPicker.reportValidity();
+                this.showToast('Error', 'Please select a Job before proceeding.', 'error');
+                return;
+            } else if (recordPicker) {
+                recordPicker.setCustomValidity('');
+            }
+        }
+
+        // Sync form field values to reactive properties for the hidden form on proposals page
+        // Only do this in create mode
+        if (this.createLinkMode === 'create' && inputFields.length > 0) {
             inputFields.forEach(field => {
                 const fieldName = field.fieldName;
                 const value = field.value;
@@ -321,7 +382,6 @@ export default class BidJobModal extends LightningElement {
                 } else if (fieldName === 'wfrecon__Account__c') {
                     this.accountId = value;
                 }
-                // Status and Bid are already set, so no need to sync
             });
         }
 
