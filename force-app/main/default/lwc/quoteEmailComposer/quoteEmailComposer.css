@@ -472,7 +472,7 @@
 .no-records-message {
     padding: 2rem;
     text-align: center;
-    color: #6c757d;
+    color: rgba(94, 90, 219, 1);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -487,6 +487,10 @@
 
 .prop-accordion-container{
     width: 100%;
+}
+
+.header-color{
+    color: rgba(94, 90, 219, 1);
 }
 
 /* Utilities */

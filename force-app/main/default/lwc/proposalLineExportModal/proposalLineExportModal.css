@@ -121,11 +121,15 @@
     max-width: 200px;
 }
 
+.header-color{
+    color: rgba(94, 90, 219, 1);
+}
+
 .empty-state {
     padding: 2rem;
     text-align: center;
-    color: #706e6b;
-    font-size: 1.5rem;
+    color: rgba(94, 90, 219, 1);
+    font-size: 25px;
     font-weight: 500;
 }
 
