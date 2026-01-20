@@ -4,6 +4,7 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { updateRecord } from 'lightning/uiRecordApi';
 import getBidsWithProposals from '@salesforce/apex/SovJobScopeController.getBidsWithProposals';
 import createScopeEntriesFromProposalLines from '@salesforce/apex/SovJobScopeController.createScopeEntriesFromProposalLines';
+import { NavigationMixin } from 'lightning/navigation';
 
 // Bid fields to fetch
 const BID_FIELDS = [
@@ -16,7 +17,7 @@ const BID_FIELDS = [
     'wfrecon__Bid__c.wfrecon__Job__c'
 ];
 
-export default class BidJobModal extends LightningElement {
+export default class BidJobModal extends NavigationMixin(LightningElement) {
     @api recordId; // Bid Record ID from Quick Action
     @track isClosedWonBid = false;
     @track isLoading = false;
@@ -807,6 +808,14 @@ export default class BidJobModal extends LightningElement {
             setTimeout(() => {
                 this.dispatchEvent(new CustomEvent('close'));
             }, 1000);
+
+            this[NavigationMixin.Navigate]({
+                type: 'standard__recordPage',
+                attributes: {
+                    recordId: jobId,
+                    actionName: 'view',
+                },
+            });
 
         } catch (error) {
             console.error('Error in handleSuccess:', error);
