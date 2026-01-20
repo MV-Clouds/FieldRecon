@@ -611,14 +611,11 @@ export default class QuoteEmailComposer extends LightningElement {
     // --- Send Email ---
     handleSendEmail() {
         try{
-            console.log('Send Email Clicked');
             
             if (this.isSendDisabled) {
                 this.showToast('Error', 'Please fill all required fields', 'error');
                 return;
             }
-    
-            console.log('Validating fields...');
             
             const allValid = [
                     ...this.template.querySelectorAll('.validate-field'),
@@ -635,7 +632,6 @@ export default class QuoteEmailComposer extends LightningElement {
                 return;
             }
     
-            console.log('Fields Validated, Sending Email...');
             this.isLoading = true;
             const fileIds = this.uploadedFiles.map(f => f.id);
             

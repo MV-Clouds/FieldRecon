@@ -456,6 +456,25 @@
             return !!(canvas.getContext && canvas.getContext('2d'));
         }
 
+        function updateLocalTimes() {
+            var spans = document.querySelectorAll('.local-datetime');
+            spans.forEach(function(span) {
+                var ts = parseInt(span.getAttribute('data-timestamp'));
+                if (ts) {
+                    // Force 12-hour AM/PM format
+                    span.innerText = new Date(ts).toLocaleString(undefined, {
+                        year: 'numeric',
+                        month: 'numeric',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                        second: 'numeric',
+                        hour12: true
+                    });
+                }
+            });
+        }
+
         window.addEventListener('load', function() {
             setTimeout(function() {
                 if (document.getElementById('loadingContainer').style.display !== 'none') {
@@ -473,6 +492,7 @@
                 document.body.appendChild(testDiv);
                 document.body.removeChild(testDiv);
             });
+            updateLocalTimes();
         });
 
         function showTab(tabName) {
@@ -742,6 +762,7 @@
                     hasSignature = false;
                     updateButtonState();
                 }, 1000);
+                updateLocalTimes();
             }
         }
     </script>

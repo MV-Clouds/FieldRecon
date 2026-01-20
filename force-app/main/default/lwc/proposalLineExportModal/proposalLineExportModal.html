@@ -26,9 +26,11 @@
                     
                     <div class="slds-grid slds-wrap slds-gutters modal-scrollable">
                         <div class="slds-col slds-size_1-of-1">
-                            <div class="slds-text-heading_small slds-text-align_center">
-                                Select Proposal Lines to Export to Job
-                            </div>
+                            <template if:true={proposalLines.length}>
+                                <div class="slds-text-heading_small slds-text-align_center">
+                                    Select proposal lines to export in job as SOV lines
+                                </div>
+                            </template>
                             
                             <div class="data-table-container">
                                 <template if:true={proposalLines.length}>
@@ -76,7 +78,7 @@
                                 </template>
                                 <template if:false={proposalLines.length}>
                                     <div class="empty-state">
-                                        No Proposal Lines found.
+                                        No proposal lines found.
                                     </div>
                                 </template>
                             </div>

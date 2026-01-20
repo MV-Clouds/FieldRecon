@@ -198,6 +198,14 @@ public with sharing class QuoteEmailController {
 
             Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{mail});
 
+            // Update status of proposal to "Submitted"
+            if (String.isNotBlank(relatedToId)) {
+                wfrecon__Proposal__c proposalToUpdate = new wfrecon__Proposal__c();
+                proposalToUpdate.Id = relatedToId;
+                proposalToUpdate.wfrecon__Status__c = 'Submitted';
+                update as user proposalToUpdate;
+            }
+
         } catch (Exception e) {
             System.debug('Exception in sendQuoteEmail: ' + e.getMessage());
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'QuoteEmailController', 'methodName' => 'sendQuoteEmail', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
