@@ -40,12 +40,12 @@
             <div class="custom-date-filter">
                 <div class="date-container">
                     <div class="date-label">Start Date:</div>
-                    <input type="date" class="slds-input date-input" value={customStartDate} onchange={handleCustomStartDateChange}></input>
+                    <input type="date" class="slds-input date-input" value={customStartDate} max="9999-12-31" onchange={handleCustomStartDateChange}></input>
                 </div>
                 
                 <div class="date-container">
                     <div class="date-label">End Date:</div>
-                    <input type="date" class="slds-input date-input" value={customEndDate} min={customStartDate} onchange={handleCustomEndDateChange}></input>
+                    <input type="date" class="slds-input date-input" value={customEndDate} min={customStartDate} max="9999-12-31" onchange={handleCustomEndDateChange}></input>
                 </div>
             </div>
         </div>
