@@ -147,10 +147,10 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
             eventResizeStart: function(event) {
                 this._oldEvent = $.extend(true, {}, event);
             }.bind(this),
-            businessHours: true,
-            draggable: true,
-            eventResizableFromStart: true,
-            eventDurationEditable:true,
+            businessHours: false,
+            draggable: false,
+            eventResizableFromStart: false,
+            eventDurationEditable:false,
             eventOrder: '-status',
             eventRender: function(event, element, view) {
                 // Format start and end times
@@ -256,15 +256,11 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
                 const year = dateObj.getUTCFullYear();
                 const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
                 const day = String(dateObj.getUTCDate()).padStart(2, '0');
-                const hours = String(timeObj.getHours()).padStart(2, '0');
-                const minutes = String(timeObj.getMinutes()).padStart(2, '0');
-                const seconds = String(timeObj.getSeconds() || 0).padStart(2, '0');
     
-                return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}Z`;
+                return `${year}-${month}-${day}`;
             };
 
             const eventStartDate = new Date(event.start);
-            eventEndDate.setDate(eventEndDate.getDate() - 1);
 
             const bidMap = {
                 id: event.id || null,

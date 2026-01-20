@@ -41,7 +41,7 @@ public with sharing class BidCalendarController {
 
                 Map<String, Object> ev = new Map<String, Object>();
                 ev.put('id', bid.Id);
-                ev.put('title', bid.Name);
+                ev.put('title', bid.Name + ' - ' + bid.wfrecon__Status__c);
                 ev.put('start', bid.wfrecon__Bid_Due_Date__c);
                 ev.put('end', bid.wfrecon__Bid_Due_Date__c);
                 ev.put('jobId', bid.wfrecon__Job__c);
@@ -54,12 +54,39 @@ public with sharing class BidCalendarController {
 
                 if (bid.wfrecon__Status__c != null) {
                     ev.put('status', bid.wfrecon__Status__c);
-                    // wfrecon__Mobilization_Status_Color__c colorConfig = colorMap.get(bid.wfrecon__Mobilization_Status__c);
-                    // if (colorConfig != null) {
-                    // }
-                    ev.put('backgroundColor', '#9b9bff');
-                    ev.put('textColor', '#020203');
+
+                    String bgColor = '#9b9bff'; // default
+                    String textColor = '#020203';
+
+                    switch on bid.wfrecon__Status__c {
+                        when 'Prospecting' {
+                            bgColor = '#7B8CFF';
+                        }
+                        when 'Qualification' {
+                            bgColor = '#4FC3F7';
+                        }
+                        when 'No Bid' {
+                            bgColor = '#B0BEC5';
+                        }
+                        when 'Bidding' {
+                            bgColor = '#FFB74D';
+                        }
+                        when 'Closed Won' {
+                            bgColor = '#66BB6A';
+                        }
+                        when 'Closed Lost' {
+                            bgColor = '#EF5350';
+                        }
+                        when else {
+                            bgColor = '#9b9bff'; // fallback
+                        }
+                    }
+
+                    ev.put('backgroundColor', bgColor);
+                    ev.put('textColor', textColor);
                 }
+
+
                 result.add(ev);
             }
             return result;

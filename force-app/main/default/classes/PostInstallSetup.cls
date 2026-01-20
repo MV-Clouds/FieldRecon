@@ -34,13 +34,8 @@ global class PostInstallSetup implements InstallHandler {
             List<PermissionSetTabSetting> tabVisibilities = [
                 SELECT Id, Name, Visibility, Parent.Profile.Name 
                 FROM PermissionSetTabSetting 
-                WHERE Name IN ('wfrecon__NewMobilizationCalendar', 
-                               'wfrecon__Mobilization_Scheduler', 
-                               'wfrecon__Time_Log_Manager', 
-                               'wfrecon__Management', 
-                               'wfrecon__Time_Card',
-                               'wfrecon__Shift_End_Log_Dashboard',
-                               'wfrecon__WIP_Report')
+                WHERE Name IN ('wfrecon__NewMobilizationCalendar', 'wfrecon__Mobilization_Scheduler', 'wfrecon__Time_Log_Manager', 'wfrecon__Management', 
+                               'wfrecon__Time_Card', 'wfrecon__Shift_End_Log_Dashboard', 'wfrecon__WIP_Report', 'wfrecon__Bid_Calendar')
                 AND Parent.Profile.Name != null
             ];
 
