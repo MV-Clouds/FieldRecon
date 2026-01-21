@@ -36,14 +36,20 @@ export default class ProposalLineExportModal extends LightningElement {
 
                     console.log('Fetched Proposal:', JSON.stringify(prop), prop);
                     
-                    // Access Validation removed as per request.
+                    // 1. Check Visibility Criteria
+                    const isChangeOrder = prop.wfrecon__Type__c === 'Change Order';
+                    const isClosedWon = prop.wfrecon__Status__c === 'Closed Won';
                     
-                    // 1. Check Job Relationship
-                    if (!result.jobId) {
+                    if (!isChangeOrder || !isClosedWon) {
+                        this.isErrorState = true;
+                        this.errorMessage = 'This action is only available for Proposals with Type "Change Order" and Status "Closed Won".';
+                    } 
+                    // 2. Check Job Relationship
+                    else if (!result.jobId) {
                         this.isErrorState = true;
                         this.errorMessage = 'No related Job found in the Proposal Job lookup.';
                     } 
-                    // 2. Load Data
+                    // 3. Load Data
                     else {
                         this.jobId = result.jobId;
                         this.proposalName = prop.Name;

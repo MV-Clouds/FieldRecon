@@ -5,6 +5,7 @@ public with sharing class QuoteEmailController {
         @AuraEnabled public List<EmailTemplate> emailTemplates;
         @AuraEnabled public String baseUrl;
         @AuraEnabled public String defaultContactId;
+        @AuraEnabled public String proposalStatus; // Added field for status
     }
 
     @AuraEnabled(cacheable=true)
@@ -36,18 +37,19 @@ public with sharing class QuoteEmailController {
                 try {
                     // Query wfrecon__Contact__c directly from the Proposal
                     List<wfrecon__Proposal__c> proposal = [
-                        SELECT wfrecon__Contact__c 
+                        SELECT wfrecon__Contact__c, wfrecon__Status__c
                         FROM wfrecon__Proposal__c 
                         WHERE Id = :recordId 
                         WITH USER_MODE
                         LIMIT 1
                     ];
 
-                    if (proposal[0].wfrecon__Contact__c != null) {
+                    if (!proposal.isEmpty()) {
                         data.defaultContactId = proposal[0].wfrecon__Contact__c;
+                        data.proposalStatus = proposal[0].wfrecon__Status__c;
                     }
                 } catch (Exception e) {
-                    System.debug('Error fetching default contact: ' + e.getMessage());
+                    System.debug('Error fetching default contact/status: ' + e.getMessage());
                 }
             }
             

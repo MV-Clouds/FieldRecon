@@ -35,6 +35,7 @@ export default class QuoteEmailComposer extends LightningElement {
     @track templateOptions = [];
     @track fromOptions = [];
     @track baseUrl = '';
+    @track proposalStatus = '';
 
     // Form Selections
     @track selectedTemplateId;
@@ -103,6 +104,7 @@ export default class QuoteEmailComposer extends LightningElement {
             this.baseUrl = data.baseUrl;
             this.templateOptions = data.emailTemplates.map(t => ({ label: t.Name, value: t.Id }));
             this.fromOptions = data.orgWideAddresses.map(addr => ({ label: addr.DisplayName + ' <' + addr.Address + '>', value: addr.Id }));
+            this.proposalStatus = data.proposalStatus;
             
             if(this.fromOptions.length > 0) this.selectedFromAddress = this.fromOptions[0].value;
             if(this.templateOptions.length > 0) {
@@ -130,8 +132,20 @@ export default class QuoteEmailComposer extends LightningElement {
 
     // --- Computed Properties ---
     
-    get isStepOne() {
-        return this.step === 1;
+    get isReadyForReview() {
+        return this.proposalStatus === 'Ready for Review';
+    }
+
+    get showInvalidStatusState() {
+        return !this.isLoading && this.proposalStatus && !this.isReadyForReview;
+    }
+
+    get showNoLinesState() {
+        return !this.isLoading && this.isReadyForReview && this.proposalLines.length === 0;
+    }
+
+    get showStepOneContent() {
+        return !this.isLoading && this.isReadyForReview && this.proposalLines.length > 0 && this.step === 1;
     }
 
     get isStepTwo() {

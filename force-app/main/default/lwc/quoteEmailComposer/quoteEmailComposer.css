@@ -493,6 +493,27 @@
     color: rgba(94, 90, 219, 1);
 }
 
+.empty-state {
+    padding: 3rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.empty-state__content {
+    text-align: center;
+}
+.empty-state__icon img {
+    width: 250px;
+    height: auto;
+    margin-bottom: 1.5rem;
+}
+.empty-state__message {
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: rgba(94, 90, 219, 1);
+    margin-bottom: 1.5rem;
+}
+
 /* Utilities */
 .mr-1 { margin-right: 0.25rem; }
 .mt-2 { margin-top: 0.5rem; }
