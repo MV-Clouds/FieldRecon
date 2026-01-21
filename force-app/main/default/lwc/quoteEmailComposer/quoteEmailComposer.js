@@ -73,6 +73,7 @@ export default class QuoteEmailComposer extends LightningElement {
         this.overrideSLDS();
         // Load Step 1 Data immediately
         this.fetchProposalLines();
+        this.fetchInitialData();
     }
 
     renderedCallback() {
@@ -98,36 +99,38 @@ export default class QuoteEmailComposer extends LightningElement {
     }
 
     // --- Init ---
-    @wire(getInitialData, { recordId: '$recordId' })
-    wiredInitData({ error, data }) {
-        if (data) {
-            this.baseUrl = data.baseUrl;
-            this.templateOptions = data.emailTemplates.map(t => ({ label: t.Name, value: t.Id }));
-            this.fromOptions = data.orgWideAddresses.map(addr => ({ label: addr.DisplayName + ' <' + addr.Address + '>', value: addr.Id }));
-            this.proposalStatus = data.proposalStatus;
-            
-            if(this.fromOptions.length > 0) this.selectedFromAddress = this.fromOptions[0].value;
-            if(this.templateOptions.length > 0) {
-                this.selectedTemplateId = this.templateOptions[0].value;
-            }
-
-            // Auto-populate To address if a contact is found on the Bid
-            if(data.defaultContactId) {
-                this.selectedToId = data.defaultContactId;
-            }
-
-            console.log('Initial Data Loaded:', JSON.stringify(data));
-            
-
-            // Only trigger default body generation if we have the necessary data
-            if(this.selectedTemplateId) {
-                this.fetchAndRenderTemplate(); 
-                this.generateDefaultBody();
-            }
-
-        } else if (error) {
-            this.showToast('Error', 'Error loading initial data', 'error');
-        }
+    fetchInitialData() {
+        getInitialData({ recordId: this.recordId })
+            .then(data => {
+                if (data) {
+                    this.baseUrl = data.baseUrl;
+                    this.templateOptions = data.emailTemplates.map(t => ({ label: t.Name, value: t.Id }));
+                    this.fromOptions = data.orgWideAddresses.map(addr => ({ label: addr.DisplayName + ' <' + addr.Address + '>', value: addr.Id }));
+                    this.proposalStatus = data.proposalStatus;
+                    
+                    if(this.fromOptions.length > 0) this.selectedFromAddress = this.fromOptions[0].value;
+                    if(this.templateOptions.length > 0) {
+                        this.selectedTemplateId = this.templateOptions[0].value;
+                    }
+        
+                    // Auto-populate To address if a contact is found on the Bid
+                    if(data.defaultContactId) {
+                        this.selectedToId = data.defaultContactId;
+                    }
+        
+                    console.log('Initial Data Loaded:', JSON.stringify(data));
+                    
+        
+                    // Only trigger default body generation if we have the necessary data
+                    if(this.selectedTemplateId) {
+                        this.fetchAndRenderTemplate(); 
+                        this.generateDefaultBody();
+                    }
+                }
+            })
+            .catch(error => {
+                this.showToast('Error', 'Error loading initial data', 'error');
+            });
     }
 
     // --- Computed Properties ---

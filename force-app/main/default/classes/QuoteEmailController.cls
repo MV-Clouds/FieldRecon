@@ -8,7 +8,7 @@ public with sharing class QuoteEmailController {
         @AuraEnabled public String proposalStatus; // Added field for status
     }
 
-    @AuraEnabled(cacheable=true)
+    @AuraEnabled
     public static InitData getInitialData(String recordId) {
         try {
             InitData data = new InitData();
