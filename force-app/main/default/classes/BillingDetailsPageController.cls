@@ -55,6 +55,7 @@ public with sharing class BillingDetailsPageController {
             // Query Billing Line Items directly
             List<wfrecon__Billing_Line_Item__c> billLineItems = [
                 SELECT Id, wfrecon__Billing__c, wfrecon__Scope_Entry__c, wfrecon__Scope_Entry__r.Name, wfrecon__Scope_Entry_Type__c, wfrecon__Scope_Contract_Amount__c,
+                       wfrecon__Scope_Entry__r.wfrecon__Change_Order_Type__c,
                        Previous_Billed_Value__c, Previous_Billed_Percent__c, wfrecon__This_Billing_Percent__c, wfrecon__Total_Retainage_Amount__c,
                        Scope_Complete__c, wfrecon__Total_Billing_Value_Retainage__c, This_Billing_Value__c, wfrecon__This_Retainage_Amount__c,
                        wfrecon__Due_This_Billing__c, wfrecon__Retainage_Percent_on_Bill_Line_Item__c, wfrecon__Previous_Bill_Line_Item__r.wfrecon__Total_Billed_Amount__c
@@ -190,6 +191,7 @@ public with sharing class BillingDetailsPageController {
                        wfrecon__Remaining_Billing_Amount__c,
                        wfrecon__Billing__r.wfrecon__Job__r.wfrecon__Retainage__c,
                        wfrecon__Scope_Entry__r.wfrecon__Contract_Value__c,
+                       wfrecon__Scope_Entry__r.wfrecon__Change_Order_Type__c,
                        wfrecon__Scope_Entry_Type__c
                 FROM wfrecon__Billing_Line_Item__c
                 WHERE Id IN :recordIds
@@ -228,6 +230,8 @@ public with sharing class BillingDetailsPageController {
                 Boolean hasPercentUpdate = updates.containsKey('wfrecon__This_Billing_Percent__c');
                 Boolean hasRetainageUpdate = updates.containsKey('wfrecon__Retainage_Percent_on_Bill_Line_Item__c');
                 Boolean isChangeOrder = item.wfrecon__Scope_Entry_Type__c == 'Change Order';
+                Boolean isDeduction = isChangeOrder && item.wfrecon__Scope_Entry__r != null && 
+                    item.wfrecon__Scope_Entry__r.wfrecon__Change_Order_Type__c == 'Deduction';
 
                 if (!hasAmountUpdate && !hasPercentUpdate && !hasRetainageUpdate) {
                     continue;
@@ -296,11 +300,24 @@ public with sharing class BillingDetailsPageController {
 
                 Decimal previousGross = previousTotalBilled + previousTotalRetainage;
 
-                Boolean enforceLimits = contractAmount > 0;
+                // For deductions, contract amount is negative, so we need different logic
+                Boolean enforceLimits = contractAmount > 0 || isDeduction;
                 Decimal maxAmount = 0;
                 Decimal minAmount = 0;
 
-                if (enforceLimits) {
+                if (isDeduction && contractAmount < 0) {
+                    // For deduction change orders with negative contract value
+                    Decimal retainageFactor = retainagePercent > 0 ? (retainagePercent / 100) : 0;
+                    
+                    // Available gross billing for deductions (will be negative)
+                    Decimal availableGross = contractAmount - previousGross;
+                    
+                    // Min net amount for deduction (most negative allowed)
+                    minAmount = availableGross * (1 - retainageFactor);
+                    maxAmount = 0; // Deduction billing amount cannot be positive
+                    
+                    minAmount = minAmount.setScale(2, roundingMode);
+                } else if (contractAmount > 0) {
                     // Available gross billing for this period
                     Decimal availableGross = contractAmount - previousGross;
                     if (availableGross < 0) {
@@ -336,20 +353,36 @@ public with sharing class BillingDetailsPageController {
                 Decimal grossToDate;
 
                 if (hasAmountUpdate) {
-                    if (thisBillingAmount < 0 && !isChangeOrder) {
-                        result.put('status', 'ERROR');
-                        result.put('message', 'This Billing Amount cannot be negative.');
-                        return result;
-                    }
-                    if (enforceLimits && thisBillingAmount > maxAmount + tolerance) {
-                        result.put('status', 'ERROR');
-                        result.put('message', 'This Billing Amount plus retainage exceeds the contract value. Adjust the amount or retainage percentage.');
-                        return result;
-                    }
-                    if (enforceLimits && thisBillingAmount < minAmount - tolerance) {
-                        result.put('status', 'ERROR');
-                        result.put('message', 'This Billing Amount results in completion below the required minimum. Increase the amount or review retainage.');
-                        return result;
+                    // Validate amount based on type
+                    if (isDeduction) {
+                        // For deductions, amount must be <= 0
+                        if (thisBillingAmount > 0) {
+                            result.put('status', 'ERROR');
+                            result.put('message', 'Deduction Change Order billing amount cannot be positive.');
+                            return result;
+                        }
+                        // Check against negative bounds (minAmount is most negative allowed)
+                        if (contractAmount < 0 && thisBillingAmount < minAmount - tolerance) {
+                            result.put('status', 'ERROR');
+                            result.put('message', 'This Billing Amount exceeds the deduction contract value.');
+                            return result;
+                        }
+                    } else {
+                        if (thisBillingAmount < 0 && !isChangeOrder) {
+                            result.put('status', 'ERROR');
+                            result.put('message', 'This Billing Amount cannot be negative.');
+                            return result;
+                        }
+                        if (enforceLimits && thisBillingAmount > maxAmount + tolerance) {
+                            result.put('status', 'ERROR');
+                            result.put('message', 'This Billing Amount plus retainage exceeds the contract value. Adjust the amount or retainage percentage.');
+                            return result;
+                        }
+                        if (enforceLimits && thisBillingAmount < minAmount - tolerance) {
+                            result.put('status', 'ERROR');
+                            result.put('message', 'This Billing Amount results in completion below the required minimum. Increase the amount or review retainage.');
+                            return result;
+                        }
                     }
 
                     // thisBillingAmount is the NET amount (after retainage)
@@ -372,13 +405,19 @@ public with sharing class BillingDetailsPageController {
                     totalBilledAmount = previousTotalBilled + verifiedNetAmount;
                     grossToDate = totalBilledAmount + totalRetainageAmount;
 
-                    if (enforceLimits && grossToDate > contractAmount + tolerance) {
+                    if (!isDeduction && enforceLimits && grossToDate > contractAmount + tolerance) {
                         result.put('status', 'ERROR');
                         result.put('message', 'This Billing Amount and retainage exceed the contract value.');
                         return result;
                     }
 
-                    thisBillingPercent = enforceLimits ? (grossToDate / contractAmount) * 100 : 0;
+                    // Calculate percent - works for both positive and negative contract amounts
+                    if (contractAmount != 0) {
+                        thisBillingPercent = (grossToDate / contractAmount) * 100;
+                    } else {
+                        thisBillingPercent = 0;
+                    }
+                    
                     if (thisBillingPercent > 100 + tolerance) {
                         result.put('status', 'ERROR');
                         result.put('message', 'This Billing Complete % cannot exceed 100%.');
@@ -404,54 +443,90 @@ public with sharing class BillingDetailsPageController {
                         return result;
                     }
 
-                    // Total gross amount to date (including all retainage)
-                    grossToDate = enforceLimits ? (contractAmount * thisBillingPercent) / 100 : 0;
-                    grossToDate = grossToDate.setScale(2, roundingMode);
-                    
-                    // Gross billing for THIS period
-                    Decimal grossBillingAmount = grossToDate - previousGross;
-                    if (grossBillingAmount < 0) {
-                        grossBillingAmount = 0;
-                    }
-                    grossBillingAmount = grossBillingAmount.setScale(2, roundingMode);
+                    // Handle deduction type change orders
+                    if (isDeduction && contractAmount < 0) {
+                        // Total gross amount to date for deductions (will be negative)
+                        grossToDate = (contractAmount * thisBillingPercent) / 100;
+                        grossToDate = grossToDate.setScale(2, roundingMode);
+                        
+                        // Gross billing for THIS period (will be negative for deductions)
+                        Decimal grossBillingAmount = grossToDate - previousGross;
+                        if (grossBillingAmount > 0) {
+                            grossBillingAmount = 0; // Deduction cannot have positive gross billing
+                        }
+                        grossBillingAmount = grossBillingAmount.setScale(2, roundingMode);
 
-                    // Calculate retainage on GROSS billing amount for this period
-                    thisRetainageAmount = (grossBillingAmount * retainagePercent) / 100;
-                    thisRetainageAmount = thisRetainageAmount.setScale(2, roundingMode);
-                    
-                    // Net billing amount = Gross - Retainage
-                    thisBillingAmount = grossBillingAmount - thisRetainageAmount;
-                    thisBillingAmount = thisBillingAmount.setScale(2, roundingMode);
+                        // Calculate retainage on GROSS billing amount for this period (will be negative)
+                        thisRetainageAmount = (grossBillingAmount * retainagePercent) / 100;
+                        thisRetainageAmount = thisRetainageAmount.setScale(2, roundingMode);
+                        
+                        // Net billing amount = Gross - Retainage (both negative)
+                        thisBillingAmount = grossBillingAmount - thisRetainageAmount;
+                        thisBillingAmount = thisBillingAmount.setScale(2, roundingMode);
 
-                    if (enforceLimits && thisBillingAmount > maxAmount + tolerance) {
-                        result.put('status', 'ERROR');
-                        result.put('message', 'The requested Billing % would exceed the contract value. Reduce the percentage or adjust retainage.');
-                        return result;
-                    }
-                    if (enforceLimits && thisBillingAmount < minAmount - tolerance) {
-                        result.put('status', 'ERROR');
-                        result.put('message', 'The requested Billing % results in completion below the required minimum. Increase the percentage.');
-                        return result;
-                    }
+                        totalRetainageAmount = previousTotalRetainage + thisRetainageAmount;
+                        totalBilledAmount = previousTotalBilled + thisBillingAmount;
+                        grossToDate = totalBilledAmount + totalRetainageAmount;
+                    } else {
+                        // Total gross amount to date (including all retainage)
+                        grossToDate = enforceLimits ? (contractAmount * thisBillingPercent) / 100 : 0;
+                        grossToDate = grossToDate.setScale(2, roundingMode);
+                        
+                        // Gross billing for THIS period
+                        Decimal grossBillingAmount = grossToDate - previousGross;
+                        if (grossBillingAmount < 0) {
+                            grossBillingAmount = 0;
+                        }
+                        grossBillingAmount = grossBillingAmount.setScale(2, roundingMode);
 
-                    totalRetainageAmount = previousTotalRetainage + thisRetainageAmount;
-                    totalBilledAmount = previousTotalBilled + thisBillingAmount;
-                    grossToDate = totalBilledAmount + totalRetainageAmount;
+                        // Calculate retainage on GROSS billing amount for this period
+                        thisRetainageAmount = (grossBillingAmount * retainagePercent) / 100;
+                        thisRetainageAmount = thisRetainageAmount.setScale(2, roundingMode);
+                        
+                        // Net billing amount = Gross - Retainage
+                        thisBillingAmount = grossBillingAmount - thisRetainageAmount;
+                        thisBillingAmount = thisBillingAmount.setScale(2, roundingMode);
+
+                        if (enforceLimits && thisBillingAmount > maxAmount + tolerance) {
+                            result.put('status', 'ERROR');
+                            result.put('message', 'The requested Billing % would exceed the contract value. Reduce the percentage or adjust retainage.');
+                            return result;
+                        }
+                        if (enforceLimits && thisBillingAmount < minAmount - tolerance) {
+                            result.put('status', 'ERROR');
+                            result.put('message', 'The requested Billing % results in completion below the required minimum. Increase the percentage.');
+                            return result;
+                        }
+
+                        totalRetainageAmount = previousTotalRetainage + thisRetainageAmount;
+                        totalBilledAmount = previousTotalBilled + thisBillingAmount;
+                        grossToDate = totalBilledAmount + totalRetainageAmount;
+                    }
                 } else {
-                    if (thisBillingAmount < 0 && !isChangeOrder) {
-                        result.put('status', 'ERROR');
-                        result.put('message', 'This Billing Amount cannot be negative.');
-                        return result;
-                    }
-                    if (enforceLimits && thisBillingAmount > maxAmount + tolerance) {
-                        result.put('status', 'ERROR');
-                        result.put('message', 'Retainage % change makes the current Billing Amount exceed the contract value. Adjust the amount before saving.');
-                        return result;
-                    }
-                    if (enforceLimits && thisBillingAmount < minAmount - tolerance) {
-                        result.put('status', 'ERROR');
-                        result.put('message', 'Retainage % change causes the current Billing Amount to fall below completion minimums. Adjust the amount before saving.');
-                        return result;
+                    // Retainage update only
+                    if (isDeduction) {
+                        // For deductions, amount must be <= 0
+                        if (thisBillingAmount > 0) {
+                            result.put('status', 'ERROR');
+                            result.put('message', 'Deduction Change Order billing amount cannot be positive.');
+                            return result;
+                        }
+                    } else {
+                        if (thisBillingAmount < 0 && !isChangeOrder) {
+                            result.put('status', 'ERROR');
+                            result.put('message', 'This Billing Amount cannot be negative.');
+                            return result;
+                        }
+                        if (enforceLimits && thisBillingAmount > maxAmount + tolerance) {
+                            result.put('status', 'ERROR');
+                            result.put('message', 'Retainage % change makes the current Billing Amount exceed the contract value. Adjust the amount before saving.');
+                            return result;
+                        }
+                        if (enforceLimits && thisBillingAmount < minAmount - tolerance) {
+                            result.put('status', 'ERROR');
+                            result.put('message', 'Retainage % change causes the current Billing Amount to fall below completion minimums. Adjust the amount before saving.');
+                            return result;
+                        }
                     }
 
                     // thisBillingAmount is NET - recalculate with new retainage %
@@ -473,7 +548,11 @@ public with sharing class BillingDetailsPageController {
                     totalRetainageAmount = previousTotalRetainage + thisRetainageAmount;
                     totalBilledAmount = previousTotalBilled + verifiedNetAmount;
                     grossToDate = totalBilledAmount + totalRetainageAmount;
-                    thisBillingPercent = enforceLimits ? (grossToDate / contractAmount) * 100 : thisBillingPercent;
+                    
+                    // Calculate percent - works for both positive and negative contract amounts
+                    if (contractAmount != 0) {
+                        thisBillingPercent = (grossToDate / contractAmount) * 100;
+                    }
                     
                     // Use verified net amount
                     thisBillingAmount = verifiedNetAmount;
@@ -484,7 +563,14 @@ public with sharing class BillingDetailsPageController {
                 Decimal roundedTotalRetainage = totalRetainageAmount.setScale(2, roundingMode);
                 Decimal roundedTotalBilled = totalBilledAmount.setScale(2, roundingMode);
                 Decimal roundedGross = roundedTotalBilled + roundedTotalRetainage;
-                Decimal roundedPercent = enforceLimits ? (roundedGross / contractAmount) * 100 : thisBillingPercent;
+                
+                // Calculate percent - works for both positive and negative contract amounts
+                Decimal roundedPercent;
+                if (contractAmount != 0) {
+                    roundedPercent = (roundedGross / contractAmount) * 100;
+                } else {
+                    roundedPercent = thisBillingPercent;
+                }
                 roundedPercent = roundedPercent.setScale(2, roundingMode);
 
                 if (roundedPercent > 100 + tolerance) {
@@ -493,8 +579,9 @@ public with sharing class BillingDetailsPageController {
                     return result;
                 }
 
+                // For deductions, dueThisBilling can be negative
                 Decimal dueThisBilling = roundedAmount - roundedRetainage;
-                if (dueThisBilling < 0) {
+                if (!isDeduction && dueThisBilling < 0) {
                     dueThisBilling = 0;
                 }
                 dueThisBilling = dueThisBilling.setScale(2, roundingMode);

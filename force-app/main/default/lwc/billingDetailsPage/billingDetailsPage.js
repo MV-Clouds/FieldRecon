@@ -280,13 +280,28 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         const retainagePercentValue = item.wfrecon__Retainage_Percent_on_Bill_Line_Item__c || 0;
         const thisRetainageAmountValue = item.wfrecon__This_Retainage_Amount__c || 0;
         const totalRetainageAmountValue = item.wfrecon__Total_Retainage_Amount__c || 0;
-        const previousRetainageAmount = Math.max(0, totalRetainageAmountValue - thisRetainageAmountValue);
         const isChangeOrder = item.wfrecon__Scope_Entry_Type__c === 'Change Order';
+        const isDeduction = isChangeOrder && item.wfrecon__Scope_Entry__r?.wfrecon__Change_Order_Type__c === 'Deduction';
+        
+        // For deductions, values can be negative, so don't use Math.max(0, ...)
+        const previousRetainageAmount = isDeduction 
+            ? (totalRetainageAmountValue - thisRetainageAmountValue)
+            : Math.max(0, totalRetainageAmountValue - thisRetainageAmountValue);
 
         const totalBilledWithRetainage = previousBilledAmount + thisBillingAmountValue + previousRetainageAmount + thisRetainageAmountValue;
-        const billingPercentValue = item.wfrecon__This_Billing_Percent__c != null
-            ? item.wfrecon__This_Billing_Percent__c
-            : (contractValue > 0 ? (totalBilledWithRetainage / contractValue) * 100 : 0);
+        
+        // For deductions (negative contract value), calculate percent correctly
+        let billingPercentValue;
+        if (item.wfrecon__This_Billing_Percent__c != null) {
+            billingPercentValue = item.wfrecon__This_Billing_Percent__c;
+        } else if (isDeduction && contractValue < 0) {
+            billingPercentValue = (totalBilledWithRetainage / contractValue) * 100;
+        } else if (contractValue > 0) {
+            billingPercentValue = (totalBilledWithRetainage / contractValue) * 100;
+        } else {
+            billingPercentValue = 0;
+        }
+        
         const totalCompleteAmountValue = totalBilledWithRetainage;
         const dueThisBillingValue = item.wfrecon__Due_This_Billing__c != null
             ? item.wfrecon__Due_This_Billing__c
@@ -329,7 +344,8 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             rawPreviousBilledPercent: item.wfrecon__Previous_Billed_Percent__c || 0,
             rawCurrentCompletePercent: item.wfrecon__Scope_Complete__c || 0,
             baseRetainageBeforeCurrent: previousRetainageAmount,
-            isChangeOrder: isChangeOrder
+            isChangeOrder: isChangeOrder,
+            isDeduction: isDeduction
         };
     }
 
@@ -632,33 +648,51 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         const baseline = this.getItemBaseline(context.item);
         const retainagePercent = context.item.rawRetainagePercent || 0;
         const isChangeOrder = context.item.isChangeOrder || false;
+        const isDeduction = context.item.isDeduction || false;
 
         let amount = newValue;
-        if (amount < 0 && !isChangeOrder) {
+        
+        // Handle deduction type change orders - values must be negative or zero
+        if (isDeduction) {
+            if (amount > 0) {
+                amount = 0;
+                inputElement.value = amount;
+                this.showToast('Warning', 'Deduction Change Order billing amount cannot be positive.', 'warning');
+            }
+        } else if (amount < 0 && !isChangeOrder) {
             amount = 0;
             inputElement.value = amount;
             this.showToast('Warning', 'This Billing Amount cannot be negative.', 'warning');
         }
 
-        const bounds = this.calculateAmountBounds(baseline, retainagePercent);
+        const bounds = this.calculateAmountBounds(baseline, retainagePercent, isDeduction);
 
-        if (baseline.contractValue > 0 && bounds.maxAmount !== Number.POSITIVE_INFINITY && amount > bounds.maxAmount) {
-            amount = bounds.maxAmount;
-            inputElement.value = amount;
-            this.showToast('Warning', 'This Billing Amount adjusted to stay within contract value.', 'warning');
-        }
+        if (isDeduction) {
+            // For deductions, check against negative bounds (minAmount is the most negative allowed)
+            if (baseline.contractValue < 0 && amount < bounds.minAmount) {
+                amount = bounds.minAmount;
+                inputElement.value = amount;
+                this.showToast('Warning', 'This Billing Amount adjusted to stay within deduction contract value.', 'warning');
+            }
+        } else {
+            if (baseline.contractValue > 0 && bounds.maxAmount !== Number.POSITIVE_INFINITY && amount > bounds.maxAmount) {
+                amount = bounds.maxAmount;
+                inputElement.value = amount;
+                this.showToast('Warning', 'This Billing Amount adjusted to stay within contract value.', 'warning');
+            }
 
-        if (baseline.contractValue > 0 && amount < bounds.minAmount) {
-            amount = bounds.minAmount;
-            inputElement.value = amount;
-            if (baseline.minPercent > 0) {
-                this.showToast('Warning', `This Billing Amount adjusted to meet minimum completion of ${baseline.minPercent.toFixed(2)}%.`, 'warning');
-            } else {
-                this.showToast('Warning', 'This Billing Amount adjusted to meet minimum completion requirements.', 'warning');
+            if (baseline.contractValue > 0 && amount < bounds.minAmount) {
+                amount = bounds.minAmount;
+                inputElement.value = amount;
+                if (baseline.minPercent > 0) {
+                    this.showToast('Warning', `This Billing Amount adjusted to meet minimum completion of ${baseline.minPercent.toFixed(2)}%.`, 'warning');
+                } else {
+                    this.showToast('Warning', 'This Billing Amount adjusted to meet minimum completion requirements.', 'warning');
+                }
             }
         }
 
-        const result = this.computeValuesFromAmount(baseline, amount, retainagePercent);
+        const result = this.computeValuesFromAmount(baseline, amount, retainagePercent, isDeduction);
         this.applyComputedValues(context, baseline, result, retainagePercent);
 
         inputElement.value = result.amount;
@@ -681,6 +715,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
 
         const baseline = this.getItemBaseline(context.item);
         const retainagePercent = context.item.rawRetainagePercent || 0;
+        const isDeduction = context.item.isDeduction || false;
 
         let percent = newValue;
         if (percent < 0) {
@@ -697,23 +732,34 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
             this.showToast('Warning', `This Billing Complete % must be at least ${baseline.minPercent.toFixed(2)}%.`, 'warning');
         }
 
-        let result = this.computeValuesFromPercent(baseline, percent, retainagePercent);
+        let result = this.computeValuesFromPercent(baseline, percent, retainagePercent, isDeduction);
 
         // Ensure the derived amount also respects contract bounds
-        const bounds = this.calculateAmountBounds(baseline, retainagePercent);
-        if (baseline.contractValue > 0 && bounds.maxAmount !== Number.POSITIVE_INFINITY && result.amount > bounds.maxAmount) {
-            const cappedResult = this.computeValuesFromAmount(baseline, bounds.maxAmount, retainagePercent);
-            result = cappedResult;
-            percent = cappedResult.percent;
-            this.showToast('Warning', 'This Billing Complete % adjusted to stay within contract value.', 'warning');
-        }
+        const bounds = this.calculateAmountBounds(baseline, retainagePercent, isDeduction);
+        
+        if (isDeduction) {
+            // For deductions, check against negative bounds
+            if (baseline.contractValue < 0 && result.amount < bounds.minAmount) {
+                const cappedResult = this.computeValuesFromAmount(baseline, bounds.minAmount, retainagePercent, isDeduction);
+                result = cappedResult;
+                percent = cappedResult.percent;
+                this.showToast('Warning', 'This Billing Complete % adjusted to stay within deduction contract value.', 'warning');
+            }
+        } else {
+            if (baseline.contractValue > 0 && bounds.maxAmount !== Number.POSITIVE_INFINITY && result.amount > bounds.maxAmount) {
+                const cappedResult = this.computeValuesFromAmount(baseline, bounds.maxAmount, retainagePercent, isDeduction);
+                result = cappedResult;
+                percent = cappedResult.percent;
+                this.showToast('Warning', 'This Billing Complete % adjusted to stay within contract value.', 'warning');
+            }
 
-        if (baseline.contractValue > 0 && result.amount < bounds.minAmount) {
-            const raisedResult = this.computeValuesFromAmount(baseline, bounds.minAmount, retainagePercent);
-            result = raisedResult;
-            percent = raisedResult.percent;
-            if (baseline.minPercent > 0) {
-                this.showToast('Warning', `This Billing Complete % adjusted to meet minimum completion of ${baseline.minPercent.toFixed(2)}%.`, 'warning');
+            if (baseline.contractValue > 0 && result.amount < bounds.minAmount) {
+                const raisedResult = this.computeValuesFromAmount(baseline, bounds.minAmount, retainagePercent, isDeduction);
+                result = raisedResult;
+                percent = raisedResult.percent;
+                if (baseline.minPercent > 0) {
+                    this.showToast('Warning', `This Billing Complete % adjusted to meet minimum completion of ${baseline.minPercent.toFixed(2)}%.`, 'warning');
+                }
             }
         }
 
@@ -751,19 +797,28 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
 
         const baseline = this.getItemBaseline(context.item);
         const existingPercent = this.roundPercent(context.item.rawThisBillingPercent || 0);
-        const bounds = this.calculateAmountBounds(baseline, retainagePercent);
+        const isDeduction = context.item.isDeduction || false;
+        const bounds = this.calculateAmountBounds(baseline, retainagePercent, isDeduction);
 
-        let result = this.computeValuesFromPercent(baseline, existingPercent, retainagePercent);
+        let result = this.computeValuesFromPercent(baseline, existingPercent, retainagePercent, isDeduction);
         let adjustmentApplied = false;
 
-        if (baseline.contractValue > 0 && bounds.maxAmount !== Number.POSITIVE_INFINITY && result.amount > bounds.maxAmount) {
-            result = this.computeValuesFromAmount(baseline, bounds.maxAmount, retainagePercent);
-            adjustmentApplied = true;
-        }
+        if (isDeduction) {
+            // For deductions, check against negative bounds
+            if (baseline.contractValue < 0 && result.amount < bounds.minAmount) {
+                result = this.computeValuesFromAmount(baseline, bounds.minAmount, retainagePercent, isDeduction);
+                adjustmentApplied = true;
+            }
+        } else {
+            if (baseline.contractValue > 0 && bounds.maxAmount !== Number.POSITIVE_INFINITY && result.amount > bounds.maxAmount) {
+                result = this.computeValuesFromAmount(baseline, bounds.maxAmount, retainagePercent, isDeduction);
+                adjustmentApplied = true;
+            }
 
-        if (baseline.contractValue > 0 && result.amount < bounds.minAmount) {
-            result = this.computeValuesFromAmount(baseline, bounds.minAmount, retainagePercent);
-            adjustmentApplied = true;
+            if (baseline.contractValue > 0 && result.amount < bounds.minAmount) {
+                result = this.computeValuesFromAmount(baseline, bounds.minAmount, retainagePercent, isDeduction);
+                adjustmentApplied = true;
+            }
         }
 
         this.applyComputedValues(context, baseline, result, retainagePercent);
@@ -830,9 +885,17 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         const contractValue = item.rawScopeContractValue || 0;
         const previousBilledAmount = item.rawPreviousBilledAmount || 0;
         const previousBilledAmountWithRetainage = item.rawPreviousBilledAmountWithRetainage || 0;
-        const previousRetainage = item.baseRetainageBeforeCurrent != null
-            ? item.baseRetainageBeforeCurrent
-            : Math.max(0, (item.rawThisBillRetainageAmount || 0) - (item.rawRetainageAmount || 0));
+        const isDeduction = item.isDeduction || false;
+        
+        // For deductions, previous retainage can be negative
+        let previousRetainage;
+        if (item.baseRetainageBeforeCurrent != null) {
+            previousRetainage = item.baseRetainageBeforeCurrent;
+        } else if (isDeduction) {
+            previousRetainage = (item.rawThisBillRetainageAmount || 0) - (item.rawRetainageAmount || 0);
+        } else {
+            previousRetainage = Math.max(0, (item.rawThisBillRetainageAmount || 0) - (item.rawRetainageAmount || 0));
+        }
 
         if (item.baseRetainageBeforeCurrent == null) {
             item.baseRetainageBeforeCurrent = previousRetainage;
@@ -851,16 +914,30 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
      * Method Name: calculateAmountBounds
      * @description: Calculates minimum and maximum allowable amounts for a line item.
      */
-    calculateAmountBounds(baseline, retainagePercent) {
+    calculateAmountBounds(baseline, retainagePercent, isDeduction = false) {
         let maxAmount = Number.POSITIVE_INFINITY;
         let minAmount = 0;
 
-        if (baseline.contractValue > 0) {
+        const retainageFactor = retainagePercent > 0 ? (retainagePercent / 100) : 0;
+
+        if (isDeduction && baseline.contractValue < 0) {
+            // For deductions, contract value is negative
+            // Available gross billing for this period (will be negative)
+            const availableGross = baseline.contractValue - baseline.previousBilledAmount - baseline.previousRetainage;
+            
+            // Min net amount for deduction (most negative allowed)
+            minAmount = availableGross < 0 ? availableGross * (1 - retainageFactor) : 0;
+            maxAmount = 0; // Deduction billing amount cannot be positive
+
+            return {
+                minAmount: this.roundCurrency(minAmount),
+                maxAmount: 0
+            };
+        } else if (baseline.contractValue > 0) {
             // Available gross billing for this period
             const availableGross = baseline.contractValue - baseline.previousBilledAmount - baseline.previousRetainage;
             
             // Max net amount = Gross - (Gross × Retainage%) = Gross × (1 - Retainage%/100)
-            const retainageFactor = retainagePercent > 0 ? (retainagePercent / 100) : 0;
             maxAmount = availableGross > 0 ? availableGross * (1 - retainageFactor) : 0;
 
             // Minimum required gross to date
@@ -881,7 +958,7 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
      * Method Name: computeValuesFromAmount
      * @description: Computes derived values when using This Billing Amount as source of truth.
      */
-    computeValuesFromAmount(baseline, amount, retainagePercent) {
+    computeValuesFromAmount(baseline, amount, retainagePercent, isDeduction = false) {
         // This Billing Amount is the net amount (after retainage deduction)
         // To find the gross billing for this period: Gross = Net / (1 - Retainage%/100)
         const roundedAmount = this.roundCurrency(amount);
@@ -901,7 +978,16 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         const totalRetainage = this.roundCurrency(baseline.previousRetainage + retainageValue);
         const totalBilled = this.roundCurrency(baseline.previousBilledAmount + verifiedNetAmount);
         const grossToDate = this.roundCurrency(totalBilled + totalRetainage);
-        const percent = baseline.contractValue > 0 ? this.roundPercent((grossToDate / baseline.contractValue) * 100) : 0;
+        
+        // For deductions, contract value is negative, so percent calculation needs absolute value
+        let percent;
+        if (isDeduction && baseline.contractValue < 0) {
+            percent = this.roundPercent((grossToDate / baseline.contractValue) * 100);
+        } else if (baseline.contractValue > 0) {
+            percent = this.roundPercent((grossToDate / baseline.contractValue) * 100);
+        } else {
+            percent = 0;
+        }
 
         return {
             amount: verifiedNetAmount,
@@ -917,11 +1003,43 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
      * Method Name: computeValuesFromPercent
      * @description: Computes derived values when using This Billing Complete % as source of truth.
      */
-    computeValuesFromPercent(baseline, percent, retainagePercent) {
+    computeValuesFromPercent(baseline, percent, retainagePercent, isDeduction = false) {
         const safePercent = this.roundPercent(percent);
 
+        // Handle deduction type change orders (negative contract value)
+        if (isDeduction && baseline.contractValue < 0) {
+            // Total gross amount to date (including all retainage) - will be negative
+            const grossToDate = this.roundCurrency((baseline.contractValue * safePercent) / 100);
+            const previousGross = this.roundCurrency(baseline.previousBilledAmount + baseline.previousRetainage);
+            
+            // Gross billing for this period (will be negative for deductions)
+            let grossBillingAmount = this.roundCurrency(grossToDate - previousGross);
+            if (grossBillingAmount > 0) {
+                grossBillingAmount = 0; // Deduction cannot have positive gross billing
+            }
+
+            // Calculate retainage on the gross billing amount for this period (will be negative)
+            const retainageValue = this.roundCurrency(grossBillingAmount * (retainagePercent / 100));
+            
+            // Net billing amount = Gross billing - Retainage (both negative, so net is more negative than gross)
+            const netBillingAmount = this.roundCurrency(grossBillingAmount - retainageValue);
+            
+            // Calculate all other values
+            const totalRetainage = this.roundCurrency(baseline.previousRetainage + retainageValue);
+            const totalBilled = this.roundCurrency(baseline.previousBilledAmount + netBillingAmount);
+
+            return {
+                amount: netBillingAmount,
+                retainageValue,
+                totalRetainage,
+                totalBilled,
+                grossToDate,
+                percent: safePercent
+            };
+        }
+
         if (baseline.contractValue <= 0) {
-            return this.computeValuesFromAmount(baseline, 0, retainagePercent);
+            return this.computeValuesFromAmount(baseline, 0, retainagePercent, isDeduction);
         }
 
         // Total gross amount to date (including all retainage)

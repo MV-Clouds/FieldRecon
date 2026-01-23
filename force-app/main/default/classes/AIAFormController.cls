@@ -63,7 +63,8 @@ public with sharing class AIAFormController {
                            wfrecon__Total_Retainage_Amount__c,
                            wfrecon__Previous_Bill_Line_Item__r.wfrecon__Total_Billed_Amount__c,
                            wfrecon__Previous_Bill_Line_Item__r.wfrecon__Total_Retainage_Amount__c,
-                           wfrecon__Previous_Bill_Line_Item__r.wfrecon__Retainage_Percent_on_Bill_Line_Item__c
+                           wfrecon__Previous_Bill_Line_Item__r.wfrecon__Retainage_Percent_on_Bill_Line_Item__c,
+                           wfrecon__Previous_Bill_Line_Item__r.wfrecon__This_Billing_Value__c
                     FROM wfrecon__Billing_Line_Items__r)
             FROM wfrecon__Billing__c 
             WHERE Id =: recordId
@@ -155,12 +156,13 @@ public with sharing class AIAFormController {
                 
                 Decimal contractAmt = line.wfrecon__Scope_Contract_Amount__c != null ? line.wfrecon__Scope_Contract_Amount__c : 0.00;
                 Decimal prevBilledValue = line.wfrecon__Previous_Bill_Line_Item__r != null ? line.wfrecon__Previous_Bill_Line_Item__r.wfrecon__Total_Billed_Amount__c : 0.00;
+                // Decimal prevBilledValue = line.wfrecon__Previous_Bill_Line_Item__r != null ? (billType == 'Regular') ? line.wfrecon__Previous_Bill_Line_Item__r.wfrecon__Total_Billed_Amount__c : line.wfrecon__Previous_Billed_Value__c : 0.00;
                 Decimal retainagePercent = line.wfrecon__Retainage_Percent_on_Bill_Line_Item__c != null ? line.wfrecon__Retainage_Percent_on_Bill_Line_Item__c : 0.00;
                 Decimal thisRetainageAmount = line.wfrecon__This_Retainage_Amount__c != null ? line.wfrecon__This_Retainage_Amount__c : 0.00;
                 Decimal totalRetainageAmount = line.wfrecon__Total_Retainage_Amount__c != null ? line.wfrecon__Total_Retainage_Amount__c : 0.00;
                 Decimal prevTotalRetainageAmount = line.wfrecon__Previous_Bill_Line_Item__r != null ? line.wfrecon__Previous_Bill_Line_Item__r.wfrecon__Total_Retainage_Amount__c : 0.00;
-                Decimal thisBillingValueDecimal = (billType == 'Regular') ? line.wfrecon__This_Billing_Value__c : prevTotalRetainageAmount;
-                Decimal thisBillingValueWithRetainageDecimal = (billType == 'Regular') ? (thisBillingValueDecimal + thisRetainageAmount) : prevTotalRetainageAmount;
+                Decimal thisBillingValueDecimal = (billType == 'Regular') ? line.wfrecon__This_Billing_Value__c : 0.00;
+                Decimal thisBillingValueWithRetainageDecimal = (billType == 'Regular') ? (thisBillingValueDecimal + thisRetainageAmount) : 0.00;
 
                 // Safely compute value of G
                 Decimal valueOfG = 0.00;

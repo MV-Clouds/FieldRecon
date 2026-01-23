@@ -309,16 +309,17 @@ public with sharing class BillingAndPaymentTabController {
                     if (grossContribution < 0) {
                         grossContribution = 0;
                     }
+                    grossContribution = grossContribution.setScale(2, System.RoundingMode.HALF_UP);
 
-                    Decimal factor = 1 + (lineRetainagePercent / 100);
-                    Decimal thisBillingAmount = factor != 0 ? grossContribution / factor : grossContribution;
-                    Decimal thisRetainageAmount = (thisBillingAmount * lineRetainagePercent) / 100;
+                    // Retainage is calculated on GROSS billing amount, then net = gross - retainage
+                    Decimal thisRetainageAmount = (grossContribution * lineRetainagePercent) / 100;
+                    thisRetainageAmount = thisRetainageAmount.setScale(2, System.RoundingMode.HALF_UP);
+                    Decimal thisBillingAmount = grossContribution - thisRetainageAmount;
 
                     Decimal totalRetainageAmount = previousTotalRetainage + thisRetainageAmount;
                     Decimal totalBilledAmount = previousTotalBilled + thisBillingAmount;
 
                     thisBillingAmount = thisBillingAmount.setScale(2, System.RoundingMode.HALF_UP);
-                    thisRetainageAmount = thisRetainageAmount.setScale(2, System.RoundingMode.HALF_UP);
                     totalRetainageAmount = totalRetainageAmount.setScale(2, System.RoundingMode.HALF_UP);
                     totalBilledAmount = totalBilledAmount.setScale(2, System.RoundingMode.HALF_UP);
 
@@ -334,12 +335,13 @@ public with sharing class BillingAndPaymentTabController {
 
                     Decimal contractValue = se.Contract_Value__c != null ? se.Contract_Value__c : 0;
                     Decimal grossToDate = (contractValue * appliedPercent) / 100;
-                    Decimal factor = 1 + (lineRetainagePercent / 100);
-                    Decimal thisBillingAmount = factor != 0 ? grossToDate / factor : grossToDate;
-                    Decimal thisRetainageAmount = (thisBillingAmount * lineRetainagePercent) / 100;
-
-                    thisBillingAmount = thisBillingAmount.setScale(2, System.RoundingMode.HALF_UP);
+                    grossToDate = grossToDate.setScale(2, System.RoundingMode.HALF_UP);
+                    
+                    // Retainage is calculated on GROSS billing amount, then net = gross - retainage
+                    Decimal thisRetainageAmount = (grossToDate * lineRetainagePercent) / 100;
                     thisRetainageAmount = thisRetainageAmount.setScale(2, System.RoundingMode.HALF_UP);
+                    Decimal thisBillingAmount = grossToDate - thisRetainageAmount;
+                    thisBillingAmount = thisBillingAmount.setScale(2, System.RoundingMode.HALF_UP);
 
                     newItem.This_Billing_Value__c = thisBillingAmount;
                     newItem.This_Retainage_Amount__c = thisRetainageAmount;
