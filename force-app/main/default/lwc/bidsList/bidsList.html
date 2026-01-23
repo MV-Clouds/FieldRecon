@@ -1,0 +1,433 @@
+<template>
+    <template if:true={isLoading}>
+        <div class="spinner-container">
+            <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+        </div>
+    </template>
+
+    <div class="table-section">
+        <div class="table-header-section">
+            <h3 class="table-title">Bids List</h3>
+            <button class="action-button add-btn" onclick={handleOpenBidModal} title="Create New Bid">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                New Bid
+            </button>
+        </div>
+
+        <div class="filters-contain">
+            <div class="filters-container">
+                <!-- Search Box -->
+                <div class="filter-group">
+                    <lightning-input type="search" placeholder="Search by bid name..." value={searchTerm}  onchange={handleSearchInput} variant="label-hidden"></lightning-input>
+                </div>
+
+                <div class="filter-group">
+                    <div class="custom-multiselect">
+                        <div class="multiselect-header" onclick={toggleStatusDropdown}>
+                            <span class="selected-text">{selectedStatusText}</span>
+                            <lightning-icon icon-name="utility:down" size="x-small"></lightning-icon>
+                        </div>
+                        <template if:true={showStatusDropdown}>
+                            <div class="multiselect-dropdown">
+                                <div class="dropdown-search">
+                                    <lightning-input type="search" placeholder="Search..." variant="label-hidden" value={statusSearchTerm} onchange={handleStatusSearch} onclick={handleDropdownClick}></lightning-input>
+                                </div>
+                                <div class="dropdown-options">
+                                    <template if:true={filteredStatusOptions.length}>
+                                        <template for:each={filteredStatusOptions} for:item="option">
+                                            <div key={option.value} class="option-item" onclick={handleStatusToggle} data-value={option.value}>
+                                                <lightning-input type="checkbox" label={option.label} checked={option.selected} data-value={option.value} onclick={handleStatusToggle}></lightning-input>
+                                            </div>
+                                        </template>
+                                    </template>
+                                    <template if:false={filteredStatusOptions.length}>
+                                        <div class="no-options-found">
+                                            No options found
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Clear Filters Button -->
+                <div class="filter-group">
+                    <button class="clear-filters-btn" onclick={clearFilters}>
+                        Reset Filters
+                    </button>
+                </div>
+            </div>
+
+            <!-- Recently Viewed Button -->
+            <div class="filter-group">
+                <button class="recently-viewed-btn" onclick={toggleRecentlyViewed} title="Show recently viewed bids">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C13.9 3 15.64 3.57 17.05 4.55" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    {recentlyViewedButtonLabel}
+                </button>
+            </div>
+        </div>
+
+        <div class="data-table-container">
+            <template if:true={isBidDataAvailable}>
+                <table class="custom-data-table">
+                    <thead class="table-header">
+                        <tr>
+                            <th class="header-cell">Sr No</th>
+                            <th class="header-cell">Actions</th>
+                            <th class="header-cell">Name</th>
+                            <th class="header-cell">Description</th>
+                            <th class="header-cell">Status</th>
+                            <th class="header-cell">Account</th>
+                            <th class="header-cell">Amount</th>
+                            <th class="header-cell">Due Date</th>
+                        </tr>
+                    </thead>
+                    <tbody class="table-body">
+                        <template for:each={paginatedBidData} for:item="bid" for:index="index">
+                            <tr key={bid.bidId} class="bid-row">
+                                <td class="data-cell center-trancate-text">{bid.srNo}</td>
+                                <td class="data-cell center-trancate-text">
+                                    <div class="action-button-container">
+                                        <button class="icon-button child-records-btn" data-bid-id={bid.bidId} data-expanded={bid.isExpanded} onclick={toggleProposalExpansion} title="View Proposals">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <template if:true={bid.isExpanded}>
+                                                    <path d="M18 15L12 9L6 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                </template>
+                                                <template if:false={bid.isExpanded}>
+                                                    <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                </template>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td class="data-cell">
+                                    <span class="clickable-job-name" data-id={bid.bidId} onclick={navigateToRecord}>
+                                        {bid.name}
+                                    </span>
+                                </td>
+                                <td class="data-cell center-trancate-text" title={bid.description}>{bid.description}</td>
+                                <td class="data-cell center-trancate-text">{bid.status}</td>
+                                <td class="data-cell">
+                                    <span class="clickable-job-name" data-id={bid.accountId} onclick={navigateToRecord}>
+                                        {bid.accountName}
+                                    </span>
+                                </td>
+                                <td class="data-cell center-trancate-text">
+                                    <lightning-formatted-number value={bid.amount} format-style="currency" currency-code="USD"></lightning-formatted-number>
+                                </td>
+                                <td class="data-cell center-trancate-text">
+                                    <lightning-formatted-date-time value={bid.dueDate} year="numeric" month="2-digit" day="2-digit"></lightning-formatted-date-time>
+                                </td>
+                            </tr>
+                            <template if:true={bid.isExpanded}>
+                                <tr key={bid.proposalRowKey} class="nested-row">
+                                    <td colspan="8" style="padding: 0; background-color: transparent;">
+                                        <div class="nested-table-container">
+                                            <div class="nested-table-wrapper">
+                                                <div class="nested-table-header">
+                                                    <div class="nested-table-title-row">
+                                                        <h4 class="nested-table-title">{bid.name} related Proposals</h4>
+                                                        <div class="action-buttons">
+                                                            <button class="action-button add-btn" data-bid-id={bid.bidId} onclick={handleOpenProposalModal} title="Create New Proposal">
+                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                    <path d="M12 5V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                    <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                                </svg>
+                                                                Create New Proposal
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <template if:true={bid.isLoadingProposals}>
+                                                    <div class="nested-spinner">
+                                                        <lightning-spinner alternative-text="Loading proposals..." size="small"></lightning-spinner>
+                                                    </div>
+                                                </template>
+                                                
+                                                <template if:false={bid.isLoadingProposals}>
+                                                    <template if:true={bid.hasProposals}>
+                                                        <table class="nested-table">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th scope="col" class="header-cell">
+                                                                        <div class="center-trancate-head" title="Name">Name</div>
+                                                                    </th>
+                                                                    <th scope="col" class="header-cell">
+                                                                        <div class="center-trancate-head" title="Status">Status</div>
+                                                                    </th>
+                                                                    <th scope="col" class="header-cell">
+                                                                        <div class="center-trancate-head" title="Account">Account</div>
+                                                                    </th>
+                                                                    <th scope="col" class="header-cell">
+                                                                        <div class="center-trancate-head" title="Sales Person">Sales Person</div>
+                                                                    </th>
+                                                                    <th scope="col" class="header-cell">
+                                                                        <div class="center-trancate-head" title="Total Price">Total Price</div>
+                                                                    </th>
+                                                                    <th scope="col" class="header-cell">
+                                                                        <div class="center-trancate-head" title="Total Sales Price">Total Sales Price</div>
+                                                                    </th>
+                                                                    <th scope="col" class="header-cell">
+                                                                        <div class="center-trancate-head" title="Expiration Date">Expiration Date</div>
+                                                                    </th>
+                                                                    <th scope="col" class="header-cell">
+                                                                        <div class="center-trancate-head" title="Type">Type</div>
+                                                                    </th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <template for:each={bid.proposals} for:item="proposal">
+                                                                    <tr key={proposal.proposalId} class="nested-table-row">
+                                                                        <td class="center-trancate-text">
+                                                                            <span class="clickable-job-name" data-id={proposal.proposalId} onclick={navigateToRecord}>{proposal.name}</span>
+                                                                        </td>
+                                                                        <td class="center-trancate-text">{proposal.status}</td>
+                                                                        <td class="center-trancate-text">
+                                                                            <span class="clickable-job-name" data-id={proposal.accountId} onclick={navigateToRecord}>{proposal.accountName}</span>
+                                                                        </td>
+                                                                        <td class="center-trancate-text">
+                                                                            <span class="clickable-job-name" data-id={proposal.salesPersonId} onclick={navigateToRecord}>{proposal.salesPersonName}</span>
+                                                                        </td>
+                                                                        <td class="center-trancate-text">
+                                                                            <lightning-formatted-number value={proposal.totalPrice} format-style="currency" currency-code="USD"></lightning-formatted-number>
+                                                                        </td>
+                                                                        <td class="center-trancate-text">
+                                                                            <lightning-formatted-number value={proposal.totalSalesPrice} format-style="currency" currency-code="USD"></lightning-formatted-number>
+                                                                        </td>
+                                                                        <td class="center-trancate-text">
+                                                                            <lightning-formatted-date-time value={proposal.expirationDate} year="numeric" month="short" day="2-digit"></lightning-formatted-date-time>
+                                                                        </td>
+                                                                        <td class="center-trancate-text">{proposal.proposalType}</td>
+                                                                    </tr>
+                                                                </template>
+                                                            </tbody>
+                                                        </table>
+                                                    </template>
+                                                    
+                                                    <template if:false={bid.hasProposals}>
+                                                        <div class="no-process-data">
+                                                            <div class="empty-state">
+                                                                <div class="empty-state__content">
+                                                                    <div class="empty-state__icon">
+                                                                        <img src="/resource/wfrecon__emptyState" alt="No Data" />
+                                                                    </div>
+                                                                    <div class="empty-state__message">No proposals found</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+                    </tbody>
+                </table>
+            </template>
+
+            <template if:false={isBidDataAvailable}>
+                <div class="no-records-message">
+                    <div class="empty-state">
+                        <div class="empty-state__content">
+                            <div class="empty-state__icon">
+                                <img src="/resource/wfrecon__emptyState" alt="No Data" />
+                            </div>
+                            <div class="empty-state__message">No bids found</div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <template if:true={isBidDataAvailable}>
+            <div class="pagination-section">
+                <div class="pagination-container">
+                    <button class="pagination-button" onclick={handlePrevious} disabled={isFirstPage}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                        Previous
+                    </button>
+                    
+                    <template for:each={pageNumbers} for:item="page">
+                        <template if:false={page.isEllipsis}>
+                            <button key={page.number} class={page.cssClass} data-page={page.number} onclick={handlePageChange}>
+                                {page.number}
+                            </button>
+                        </template>
+                        <template if:true={page.isEllipsis}>
+                            <span key={page.number} class="pagination-ellipsis">...</span>
+                        </template>
+                    </template>
+                    
+                    <button class="pagination-button" onclick={handleNext} disabled={isLastPage}>
+                        Next
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </template>
+    </div>
+    
+    <!-- Proposal Creation Modal -->
+    <template if:true={showProposalModal}>
+        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-proposal" aria-modal="true" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <!-- Heading -->
+                <div class="pop-heading">
+                    Create New Proposal
+                </div>
+
+                <!-- Body -->
+                <div class="slds-modal__content pop-up" id="modal-content-proposal">
+                    <div class="popUpBody">
+                        <lightning-record-edit-form object-api-name="wfrecon__Proposal__c" density="comfy">
+                            
+                            <div class="slds-grid slds-wrap slds-gutters modal-scrollable">
+                                <!-- Bid Field - Half Width -->
+                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                    <lightning-input-field field-name="wfrecon__Bid__c" value={selectedBidData.bidId} disabled required></lightning-input-field>
+                                </div>
+                                
+                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                    <lightning-input-field field-name="wfrecon__Type__c" required></lightning-input-field>
+                                </div>
+
+                                <!-- Account & Contact -->
+                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                    <lightning-input-field field-name="wfrecon__Account__c" value={selectedBidData.accountId} required></lightning-input-field>
+                                </div>
+                                
+                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                    <lightning-input-field field-name="wfrecon__Contact__c" value={contactId} onchange={handleContactChange} required></lightning-input-field>
+                                </div>
+
+                                <!-- Contact Email & Phone -->
+                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                    <lightning-input type="email" label="Sales Person Email" value={contactEmail} disabled variant="label-stacked"></lightning-input>
+                                </div>
+                                
+                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                    <lightning-input type="tel" label="Sales Person Phone" value={contactPhone} disabled variant="label-stacked"></lightning-input>
+                                </div>
+
+                                <!-- Status & OH -->
+                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                    <lightning-input-field field-name="wfrecon__Status__c" required></lightning-input-field>
+                                </div>
+                                
+                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                    <lightning-input type="text" label="OH %" name="wfrecon__OH__c" value={ohDisplay} oninput={handlePercentageInput} onblur={handlePercentageBlur} variant="label-stacked" disabled></lightning-input>
+                                </div>
+
+                                <!-- Warranty & Profit -->
+                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                    <lightning-input type="text" label="Warranty %" name="wfrecon__Warranty__c" value={warrantyDisplay} oninput={handlePercentageInput} onblur={handlePercentageBlur} variant="label-stacked" disabled></lightning-input>
+                                </div>
+                                
+                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                    <lightning-input type="text" label="Profit %" name="wfrecon__Profit__c" value={profitDisplay} oninput={handlePercentageInput} onblur={handlePercentageBlur} variant="label-stacked" required></lightning-input>
+                                </div>
+
+                                <!-- Expiration Date -->
+                                <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                                    <lightning-input type="date" label="Expiration Date" name="expirationDate" value={expirationDate} variant="label-stacked" required></lightning-input>
+                                </div>
+
+                                <!-- Hidden percentage fields -->
+                                <div style="display: none;">
+                                    <lightning-input-field class="hidden-percentage-field" field-name="wfrecon__OH__c" value={ohValue}></lightning-input-field>
+                                    <lightning-input-field class="hidden-percentage-field" field-name="wfrecon__Warranty__c" value={warrantyValue}></lightning-input-field>
+                                    <lightning-input-field class="hidden-percentage-field" field-name="wfrecon__Profit__c" value={profitValue}></lightning-input-field>
+                                </div>
+                            </div>
+
+                        </lightning-record-edit-form>
+                    </div>
+                </div>
+                <!-- Footer -->
+                <div class="popUpFooter slds-modal__footer">
+                    <button  type="button" class="close-btn"  onclick={handleCloseProposalModal}>
+                        Close
+                    </button>
+                    <button  type="button" class="save-button"  onclick={handleSaveProposal} disabled={isSavingProposal}>
+                        {saveButtonLabel}
+                    </button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+    
+    <!-- Bid Creation Modal -->
+    <template if:true={showBidModal}>
+        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-bid" aria-modal="true" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <!-- Heading -->
+                <div class="pop-heading">
+                    Create New Bid
+                </div>
+
+                <!-- Body -->
+                <div class="slds-modal__content pop-up" id="modal-content-bid">
+                    <div class="popUpBody">
+                        <lightning-record-edit-form object-api-name="wfrecon__Bid__c" density="comfy">
+                            
+                            <div class="slds-grid slds-wrap slds-gutters modal-scrollable">
+                                <!-- Bid Name & Status -->
+                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                    <lightning-input-field field-name="Name" required></lightning-input-field>
+                                </div>
+                                
+                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                    <lightning-input-field field-name="wfrecon__Status__c" value={defaultBidStatus} required></lightning-input-field>
+                                </div>
+
+                                <!-- Bid Due Date & Account -->
+                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                    <lightning-input-field field-name="wfrecon__Bid_Due_Date__c" required></lightning-input-field>
+                                </div>
+                                
+                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                    <lightning-input-field field-name="wfrecon__AccountId__c"></lightning-input-field>
+                                </div>
+
+                                <!-- Sales Person & Description -->
+                                <div class="slds-col slds-size_1-of-2 slds-m-bottom_small">
+                                    <lightning-input-field field-name="wfrecon__Contact__c"></lightning-input-field>
+                                </div>
+                                
+                                <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                                    <lightning-input-field field-name="wfrecon__Description__c"></lightning-input-field>
+                                </div>
+                            </div>
+
+                        </lightning-record-edit-form>
+                    </div>
+                </div>
+                <!-- Footer -->
+                <div class="popUpFooter slds-modal__footer">
+                    <button  type="button" class="close-btn"  onclick={handleCloseBidModal}>
+                        Close
+                    </button>
+                    <button type="button" class="save-button" onclick={handleSaveBid} disabled={isSavingBid}>
+                        {saveBidButtonLabel}
+                    </button>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+</template>
