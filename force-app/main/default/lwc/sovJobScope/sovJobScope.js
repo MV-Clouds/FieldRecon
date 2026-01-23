@@ -182,6 +182,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     @track showAddLocationModal = false;
     @track isLocationSubmitting = false;
+    @track isLocationViewMode = false; // View-only mode for approved entries
     @track locationRecords = [];
     @track locationDisplayRecords = [];
     @track selectedLocationIds = [];
@@ -258,30 +259,20 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: get isAllContractSelected
-     * @description: Check if all non-approved contract entries are selected
+     * @description: Check if all contract entries are selected
      */
     get isAllContractSelected() {
-        const nonApprovedContractEntries = this.filteredContractEntries.filter(entry =>
-            entry.wfrecon__Scope_Entry_Status__c !== 'Approved'
-        );
-
-        if (nonApprovedContractEntries.length === 0) return false;
-
-        return nonApprovedContractEntries.every(entry => this.selectedRows.includes(entry.Id));
+        if (!this.filteredContractEntries || this.filteredContractEntries.length === 0) return false;
+        return this.filteredContractEntries.every(entry => this.selectedRows.includes(entry.Id));
     }
 
     /**
      * Method Name: get isAllChangeOrderSelected
-     * @description: Check if all non-approved change order entries are selected
+     * @description: Check if all change order entries are selected
      */
     get isAllChangeOrderSelected() {
-        const nonApprovedChangeOrderEntries = this.filteredChangeOrderEntries.filter(entry =>
-            entry.wfrecon__Scope_Entry_Status__c !== 'Approved'
-        );
-
-        if (nonApprovedChangeOrderEntries.length === 0) return false;
-
-        return nonApprovedChangeOrderEntries.every(entry => this.selectedRows.includes(entry.Id));
+        if (!this.filteredChangeOrderEntries || this.filteredChangeOrderEntries.length === 0) return false;
+        return this.filteredChangeOrderEntries.every(entry => this.selectedRows.includes(entry.Id));
     }    /**
      * Method Name: get tableColumns
      * @description: Get table columns configuration
@@ -463,6 +454,14 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
     }
 
     /**
+     * Method Name: get viewModeLocationRecords
+     * @description: Get only selected/added locations for view mode (approved entries)
+     */
+    get viewModeLocationRecords() {
+        return this.locationDisplayRecords.filter(location => location.isSelected);
+    }
+
+    /**
      * Method Name: get isApproveAllDisabled
      * @description: Check if approve all button should be disabled
      */
@@ -486,10 +485,10 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: get shouldHideContractHeaderCheckbox
-     * @description: Check if contract header checkbox should be hidden (all entries are approved)
+     * @description: Check if contract header checkbox should be hidden - always show now for unapprove functionality
      */
     get shouldHideContractHeaderCheckbox() {
-        return this.areAllContractEntriesApproved;
+        return !this.filteredContractEntries || this.filteredContractEntries.length === 0;
     }
 
     /**
@@ -504,10 +503,54 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: get shouldHideChangeOrderHeaderCheckbox
-     * @description: Check if change order header checkbox should be hidden (all entries are approved)
+     * @description: Check if change order header checkbox should be hidden - always show now for unapprove functionality
      */
     get shouldHideChangeOrderHeaderCheckbox() {
-        return this.areAllChangeOrderEntriesApproved;
+        return !this.filteredChangeOrderEntries || this.filteredChangeOrderEntries.length === 0;
+    }
+
+    /**
+     * Method Name: get isUnapproveContractDisabled
+     * @description: Check if unapprove contract button should be disabled
+     */
+    get isUnapproveContractDisabled() {
+        // Get selected approved contract entries
+        const selectedApprovedContracts = this.filteredContractEntries.filter(entry =>
+            this.selectedRows.includes(entry.Id) && entry.wfrecon__Scope_Entry_Status__c === 'Approved'
+        );
+        return selectedApprovedContracts.length === 0 || this.isLoading || this.isSavingScopeEntries;
+    }
+
+    /**
+     * Method Name: get isUnapproveChangeOrderDisabled
+     * @description: Check if unapprove change order button should be disabled
+     */
+    get isUnapproveChangeOrderDisabled() {
+        // Get selected approved change order entries
+        const selectedApprovedChangeOrders = this.filteredChangeOrderEntries.filter(entry =>
+            this.selectedRows.includes(entry.Id) && entry.wfrecon__Scope_Entry_Status__c === 'Approved'
+        );
+        return selectedApprovedChangeOrders.length === 0 || this.isLoading || this.isSavingScopeEntries;
+    }
+
+    /**
+     * Method Name: get selectedApprovedContractCount
+     * @description: Get count of selected approved contract entries
+     */
+    get selectedApprovedContractCount() {
+        return this.filteredContractEntries.filter(entry =>
+            this.selectedRows.includes(entry.Id) && entry.wfrecon__Scope_Entry_Status__c === 'Approved'
+        ).length;
+    }
+
+    /**
+     * Method Name: get selectedApprovedChangeOrderCount
+     * @description: Get count of selected approved change order entries
+     */
+    get selectedApprovedChangeOrderCount() {
+        return this.filteredChangeOrderEntries.filter(entry =>
+            this.selectedRows.includes(entry.Id) && entry.wfrecon__Scope_Entry_Status__c === 'Approved'
+        ).length;
     }
 
     /**
@@ -1638,6 +1681,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
             case 'location':
                 this.selectedLocationScopeEntryId = options.scopeEntryId;
                 this.selectedScopeEntryName = options.scopeEntryName;
+                this.isLocationViewMode = options.isViewMode || false;
                 this.showAddLocationModal = true;
                 this.loadLocationData();
                 break;
@@ -1690,6 +1734,7 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 this.locationSearchTerm = '';
                 this.selectedLocationScopeEntryId = '';
                 this.selectedScopeEntryName = '';
+                this.isLocationViewMode = false;
                 this.locationDisplayRecords = this.locationDisplayRecords.map(location => ({
                     ...location,
                     isSelected: false
@@ -1883,11 +1928,11 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         const entry = allEntries.find(e => e.Id === rowId);
 
         // Prevent selection of approved entries
-        if (entry && entry.wfrecon__Scope_Entry_Status__c === 'Approved') {
-            event.target.checked = false;
-            this.showToast('Warning', 'Approved entries cannot be selected for deletion.', 'warning');
-            return;
-        }
+        // if (entry && entry.wfrecon__Scope_Entry_Status__c === 'Approved') {
+        //     event.target.checked = false;
+        //     this.showToast('Warning', 'Approved entries cannot be selected for deletion.', 'warning');
+        //     return;
+        // }
 
         if (isChecked) {
             this.selectedRows = [...this.selectedRows, rowId];
@@ -2168,19 +2213,137 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
         }
     }
 
+    /**
+     * Method Name: handleUnapproveSelectedContracts
+     * @description: Handle unapproving selected contract entries (only approved ones)
+     */
+    handleUnapproveSelectedContracts() {
+        // Prevent double-click by checking if already processing
+        if (this.isLoading || this.isSavingScopeEntries) {
+            return;
+        }
+
+        // Get selected approved contract entries only
+        const selectedApprovedContracts = this.filteredContractEntries.filter(entry =>
+            this.selectedRows.includes(entry.Id) && entry.wfrecon__Scope_Entry_Status__c === 'Approved'
+        );
+
+        if (selectedApprovedContracts.length === 0) {
+            this.showToast('Warning', 'No approved contract entries selected to unapprove', 'warning');
+            return;
+        }
+
+        // Show confirmation modal
+        this.confirmationTitle = 'Unapprove Contract Entries';
+        this.confirmationMessage = `Are you sure you want to unapprove ${selectedApprovedContracts.length} contract ${selectedApprovedContracts.length === 1 ? 'entry' : 'entries'}?`;
+        this.confirmationButtonLabel = 'Unapprove';
+        this.confirmationButtonVariant = 'destructive';
+        this.confirmationIcon = 'utility:warning';
+        this.confirmationIconVariant = 'warning';
+        this.confirmationAction = 'unapproveContractEntries';
+        this.confirmationData = selectedApprovedContracts;
+        this.showConfirmationModal = true;
+    }
+
+    /**
+     * Method Name: proceedWithContractUnapproval
+     * @description: Proceed with unapproving contract entries
+     */
+    proceedWithContractUnapproval(approvedEntries) {
+        this.isSavingScopeEntries = true;
+        const updatedEntries = approvedEntries.map(entry => ({
+            Id: entry.Id,
+            wfrecon__Scope_Entry_Status__c: 'Draft',
+            wfrecon__Approved_Date__c: null
+        }));
+
+        saveScopeEntryInlineEdits({ updatedScopeEntriesJson: JSON.stringify(updatedEntries) })
+            .then(result => {
+                if (result.includes('Success')) {
+                    this.showToast('Success', `${approvedEntries.length} contract ${approvedEntries.length === 1 ? 'entry' : 'entries'} unapproved successfully`, 'success');
+                    this.selectedRows = [];
+                    this.performCompleteRefresh();
+                }
+            })
+            .catch(() => {
+                this.showToast('Error', 'Failed to unapprove contract entries', 'error');
+            })
+            .finally(() => {
+                this.isSavingScopeEntries = false;
+            });
+    }
+
+    /**
+     * Method Name: handleUnapproveSelectedChangeOrders
+     * @description: Handle unapproving selected change order entries (only approved ones)
+     */
+    handleUnapproveSelectedChangeOrders() {
+        // Prevent double-click by checking if already processing
+        if (this.isLoading || this.isSavingScopeEntries) {
+            return;
+        }
+
+        // Get selected approved change order entries only
+        const selectedApprovedChangeOrders = this.filteredChangeOrderEntries.filter(entry =>
+            this.selectedRows.includes(entry.Id) && entry.wfrecon__Scope_Entry_Status__c === 'Approved'
+        );
+
+        if (selectedApprovedChangeOrders.length === 0) {
+            this.showToast('Warning', 'No approved change order entries selected to unapprove', 'warning');
+            return;
+        }
+
+        // Show confirmation modal
+        this.confirmationTitle = 'Unapprove Change Order Entries';
+        this.confirmationMessage = `Are you sure you want to unapprove ${selectedApprovedChangeOrders.length} change order ${selectedApprovedChangeOrders.length === 1 ? 'entry' : 'entries'}?`;
+        this.confirmationButtonLabel = 'Unapprove';
+        this.confirmationButtonVariant = 'destructive';
+        this.confirmationIcon = 'utility:warning';
+        this.confirmationIconVariant = 'warning';
+        this.confirmationAction = 'unapproveChangeOrderEntries';
+        this.confirmationData = selectedApprovedChangeOrders;
+        this.showConfirmationModal = true;
+    }
+
+    /**
+     * Method Name: proceedWithChangeOrderUnapproval
+     * @description: Proceed with unapproving change order entries
+     */
+    proceedWithChangeOrderUnapproval(approvedEntries) {
+        this.isSavingScopeEntries = true;
+        const updatedEntries = approvedEntries.map(entry => ({
+            Id: entry.Id,
+            wfrecon__Scope_Entry_Status__c: 'Draft',
+            wfrecon__Approved_Date__c: null
+        }));
+
+        saveScopeEntryInlineEdits({ updatedScopeEntriesJson: JSON.stringify(updatedEntries) })
+            .then(result => {
+                if (result.includes('Success')) {
+                    this.showToast('Success', `${approvedEntries.length} change order ${approvedEntries.length === 1 ? 'entry' : 'entries'} unapproved successfully`, 'success');
+                    this.selectedRows = [];
+                    this.performCompleteRefresh();
+                }
+            })
+            .catch(() => {
+                this.showToast('Error', 'Failed to unapprove change order entries', 'error');
+            })
+            .finally(() => {
+                this.isSavingScopeEntries = false;
+            });
+    }
+
     handleAddLocation(event) {
         const scopeEntryId = event.currentTarget.dataset.recordId;
         const entry = this.getEntryById(scopeEntryId);
 
-        // Check if scope entry is approved
-        if (entry && entry.wfrecon__Scope_Entry_Status__c === 'Approved') {
-            this.showToast('Warning', 'Cannot add locations to approved scope entries.', 'warning');
-            return;
-        }
+        // Check if scope entry is approved - open in view-only mode
+        const isApproved = entry && entry.wfrecon__Scope_Entry_Status__c === 'Approved';
 
         this.openModal('location', {
             scopeEntryId: scopeEntryId,
-            scopeEntryName: entry ? entry.Name : ''
+            scopeEntryName: entry ? entry.Name : '',
+            isViewMode: isApproved
         });
     }
 
@@ -2208,6 +2371,9 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
             // Check if this specific scope entry is approved
             row.isScopeEntryApproved = entry.wfrecon__Scope_Entry_Status__c === 'Approved';
+
+            // Add location button title based on approval status
+            row.locationButtonTitle = row.isScopeEntryApproved ? 'View Locations' : 'Add Location';
 
             // Calculate if all processes are selected for this entry
             row.isAllProcessesSelected = this.areAllProcessesSelectedForEntry(entry.Id);
@@ -2573,21 +2739,16 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleSelectAllContract
-     * @description: Handle select all for non-approved contract entries only
+     * @description: Handle select all for all contract entries (both approved and unapproved)
      */
     handleSelectAllContract(event) {
         const isChecked = event.target.checked;
 
-        // Filter to only non-approved contract entries
-        const nonApprovedContractEntries = this.filteredContractEntries.filter(entry =>
-            entry.wfrecon__Scope_Entry_Status__c !== 'Approved'
-        );
-
         if (isChecked) {
-            const contractIds = nonApprovedContractEntries.map(entry => entry.Id);
+            const contractIds = this.filteredContractEntries.map(entry => entry.Id);
             this.selectedRows = [...new Set([...this.selectedRows, ...contractIds])];
         } else {
-            const contractIds = nonApprovedContractEntries.map(entry => entry.Id);
+            const contractIds = this.filteredContractEntries.map(entry => entry.Id);
             this.selectedRows = this.selectedRows.filter(id => !contractIds.includes(id));
         }
 
@@ -2596,21 +2757,16 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
 
     /**
      * Method Name: handleSelectAllChangeOrder
-     * @description: Handle select all for non-approved change order entries only
+     * @description: Handle select all for all change order entries (both approved and unapproved)
      */
     handleSelectAllChangeOrder(event) {
         const isChecked = event.target.checked;
 
-        // Filter to only non-approved change order entries
-        const nonApprovedChangeOrderEntries = this.filteredChangeOrderEntries.filter(entry =>
-            entry.wfrecon__Scope_Entry_Status__c !== 'Approved'
-        );
-
         if (isChecked) {
-            const changeOrderIds = nonApprovedChangeOrderEntries.map(entry => entry.Id);
+            const changeOrderIds = this.filteredChangeOrderEntries.map(entry => entry.Id);
             this.selectedRows = [...new Set([...this.selectedRows, ...changeOrderIds])];
         } else {
-            const changeOrderIds = nonApprovedChangeOrderEntries.map(entry => entry.Id);
+            const changeOrderIds = this.filteredChangeOrderEntries.map(entry => entry.Id);
             this.selectedRows = this.selectedRows.filter(id => !changeOrderIds.includes(id));
         }
 
@@ -4684,6 +4840,14 @@ export default class SovJobScope extends NavigationMixin(LightningElement) {
                 case 'approveContractEntries':
                     this.showConfirmationModal = false;
                     this.proceedWithContractApproval(this.confirmationData);
+                    break;
+                case 'unapproveContractEntries':
+                    this.showConfirmationModal = false;
+                    this.proceedWithContractUnapproval(this.confirmationData);
+                    break;
+                case 'unapproveChangeOrderEntries':
+                    this.showConfirmationModal = false;
+                    this.proceedWithChangeOrderUnapproval(this.confirmationData);
                     break;
                 case 'deleteScopeEntries':
                     this.showConfirmationModal = false;
