@@ -1,5 +1,6 @@
-trigger ContactTrigger on Contact (before insert,before update) {
-    if(Trigger.isInsert || Trigger.isUpdate){
-        ContactTriggerHandler.addUsersToContacts(Trigger.new);
-    }   
+trigger ContactTrigger on Contact (before insert) {
+
+    if(Trigger.isInsert){
+        ContactTriggerHandler.handleAfterInsert(trigger.new);
+    }
 }
