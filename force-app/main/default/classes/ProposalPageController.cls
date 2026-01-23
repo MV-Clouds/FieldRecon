@@ -68,7 +68,10 @@ public without sharing class ProposalPageController {
                 isAccepted = true;
                 result = 'Accepted';
                 proposalStatus = 'Accepted';
-                strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Accepted on ' + (proRecRecord.wfrecon__Accepted_Rejected_Changed_Date__c?.format() ?? 'N/A');
+                String acceptedDateStr = proRecRecord.wfrecon__Accepted_Rejected_Changed_Date__c != null 
+                    ? '<span class="local-datetime" data-timestamp="' + proRecRecord.wfrecon__Accepted_Rejected_Changed_Date__c.getTime() + '"></span>' 
+                    : 'N/A';
+                strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Accepted on ' + acceptedDateStr;
                 return;
             } else if (proRecRecord.wfrecon__Status__c == 'Rejected') {
                 quoteMessage = 'This Proposal has already been Rejected, please contact your Sales Representative with any questions.';
@@ -139,6 +142,14 @@ public without sharing class ProposalPageController {
                 wfrecon__Requested_Changes__c = rejectionReason
             );
             update proposalRec;
+
+            if (proRecRecord != null && proRecRecord.wfrecon__Proposal__c != null) {
+                wfrecon__Proposal__c prop = new wfrecon__Proposal__c(
+                    Id = proRecRecord.wfrecon__Proposal__c,
+                    wfrecon__Status__c = 'Closed Lost'
+                );
+                update prop;
+            }
 
             customSignature = true;
             proposalStatus = 'Rejected';
@@ -225,11 +236,19 @@ public without sharing class ProposalPageController {
             );
             update proposalRec;
 
+            if (proRecRecord != null && proRecRecord.wfrecon__Proposal__c != null) {
+                wfrecon__Proposal__c prop = new wfrecon__Proposal__c(
+                    Id = proRecRecord.wfrecon__Proposal__c,
+                    wfrecon__Status__c = 'Closed Won'
+                );
+                update prop;
+            }
+
             customSignature = true;
             proposalStatus = 'Accepted';
             result = 'Accepted';
             quoteMessage = 'You have successfully signed and accepted your Proposal. Thank you for your business.';
-            strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Accepted on ' + Datetime.now().format();
+            strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Accepted on <span class="local-datetime" data-timestamp="' + nowDT.getTime() + '"></span>';
 
             return null;
         } catch (Exception e) {
@@ -281,7 +300,7 @@ public without sharing class ProposalPageController {
             customSignature = true;
             proposalStatus = 'Accepted';
             quoteMessage = 'You have successfully signed and accepted your Proposal. Thank you for your business.';
-            strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Accepted on ' + customerAcceptedDate;
+            strBody = 'Proposal: ' + proRecRecord.wfrecon__Proposal__r.Name + '<br/>Status: Accepted on <span class="local-datetime" data-timestamp="' + Datetime.now().getTime() + '"></span>';
             return null;
         } catch (Exception e) {
             ExceptionHandler.logException(new Map<String, Object>{'className' => 'ProposalPageController', 'methodName' => 'insertAttachment', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
