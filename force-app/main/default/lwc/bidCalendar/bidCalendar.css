@@ -1,0 +1,403 @@
+*{
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  scrollbar-width: thin;
+  scrollbar-color: #5e5adb #5e5adb20;
+}
+
+:host{
+  --primary-theme-color: #5e5adb;
+  --primary-theme-color-shade-20: #5e5adb20;
+}
+
+.fullcalendarjs{
+    margin-inline: 1rem;
+    user-select: none;
+}
+
+.main-calendar-div{
+  min-height: 100%;
+}
+
+.spinner-container{
+  height: 100vh;
+  width: 100vw;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+}
+
+.cancel-btn{
+    margin-inline: 1rem;
+}
+
+.mob-popup-body, .confirm-popup-body{
+    background: white;
+    background-image: url(/resource/wfrecon__FieldReconBG);
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+.mob-popup-body{
+    gap: 0.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.main-resources-edit-div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 100%;
+    height: 100%;
+}
+
+.empty-state-msg{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--primary-theme-color, #5a5adb);
+    font-weight: 600;
+    padding: 2rem 1rem;
+    font-size: 14px;
+    text-align: center;
+}
+
+.main-resources-edit-div .empty-state-msg img{
+  max-height: 10rem;
+}
+
+.mob-popup-body:has(.main-resources-edit-div){
+  min-height: min(32rem, 90%);
+  height: min(32rem, 90%);
+}
+
+.mob-popup-header, .confirm-popup-header{
+  background-color: var(--primary-theme-color, #5e5adb);
+  color: white;
+  border: none;
+}
+
+.save-btn, .nav-btn, .add-btn, .create-btn{
+    background-color: var(--primary-theme-color, #5a5adb);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding-inline: 0.6rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: grid;
+    place-items: center;
+    height: 2.5rem;
+}
+
+.save-btn:hover, .nav-btn:hover, .add-btn:hover, .create-btn:hover{
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.confirmation-cancel-btn{
+  background: white;
+  border: 1px solid var(--primary-theme-color, #5a5adb);
+  color: var(--primary-theme-color, #5a5adb);
+}
+
+.confirmation-cancel-btn:hover{
+  background: var(--primary-theme-color-shade-20, #5e5adb20);
+}
+
+.confirm-popup-btns{
+    gap: 1rem;
+}
+
+.record-nav-link{
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    font-size: 14px;
+    color: black;
+    font-weight: 400;
+}
+
+.record-nav-link:hover{
+    color: var(--primary-theme-color, #5a5adb);
+    text-decoration: underline;
+}
+
+.header{
+    height: fit-content;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1rem 0.5rem 1rem;
+    border-radius: 8px;
+    gap: 1rem;
+}
+
+.title-text{
+    font-weight: 600;
+    color: #5e5adb;
+}
+
+.filters-and-search{
+    gap: 0.5rem;
+}
+
+.main-mob-group-popup-form{
+    max-height: min(32rem, 60vh);
+    display: flex;
+    flex-direction: column;
+    padding-block: 1rem;
+}
+
+.bottom-footer-btn{
+    /* width: calc(100% + 2rem);
+    margin-left: -1rem; */
+    width: 100%;
+    margin-bottom: -1rem;
+    background: white;
+    border-top: 1px solid lightgray;
+    margin-top: 0.5rem;
+}
+
+.footer-btn{
+    background-color: var(--primary-theme-color, #5a5adb);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding-inline: 0.6rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: grid;
+    place-items: center;
+    height: 2.5rem;
+    min-width: 6.75rem;
+}
+
+.footer-btn:hover{
+    background: rgba(94, 90, 219, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(94, 90, 219, 0.3);
+}
+
+.footer-btn.delete-btn{
+  background: #dc3545;
+  border: none;
+  color: white;
+}
+
+.footer-btn.delete-btn:hover{
+    background: #c82333;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+}
+
+
+/* Resource Assignment Popup Styles */
+.resource-assign-popup{
+    z-index: 9011;
+}
+
+.resource-assign-backdrop{
+    z-index: 9010;
+}
+
+.tab-navigation {
+    min-height: 2.25rem;
+    height: 2.25rem;
+    max-height: 2.25rem;
+    display: flex;
+    max-width: 100%;
+    flex-grow: 1;
+    border-bottom: 2px solid var(--primary-theme-color, #5a5adb);
+}
+
+.tab-navigation button {
+    background: transparent;
+    border: none;
+    padding-inline: 0.4rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 14px;
+    line-height: 1rem;
+    font-weight: 600;
+    color: #585858;
+    transition: all 0.1s ease;
+    white-space: nowrap;
+    min-width: fit-content;
+    position: relative;
+    width: calc(100% / 3);
+}
+
+.tab-navigation button:hover {
+    background: #ebf3f6;
+    color: var(--primary-theme-color, #5a5adb);
+}
+
+.nav-tab-btn[data-selected="Crew"].nav-tab-btn[name="Crew"], 
+.nav-tab-btn[data-selected="Asset"].nav-tab-btn[name="Asset"],
+.nav-tab-btn[data-selected="SubContractor"].nav-tab-btn[name="SubContractor"], 
+.tab-navigation button.active{
+    color: var(--primary-theme-color, #5a5adb);
+    border-top: 3px solid var(--primary-theme-color, #5a5adb);
+    background: var(--primary-theme-color-shade-20, #5e5adb20);
+    font-weight: 700;
+}
+
+
+.status-filter-picklist {
+    height: 2rem;
+    overflow: hidden;
+    position: relative;
+    width: 6rem;
+    min-width: 5rem;
+    z-index: 15;
+    cursor: pointer;
+    border: 1px solid gray;
+    border-radius: 0.5rem;
+}
+
+.status-filter-picklist:hover{
+  overflow: unset;
+}
+
+.status-options-selection-div {
+    background-color: white;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    width: max-content;
+    max-width: 50vw;
+    border-radius: 0.5rem;
+    gap: 1px;
+}
+
+.status-filter-picklist:hover .status-options-selection-div{
+  box-shadow: 0px 0px 5px 0 #5a5adb;
+}
+
+.status-picklist-label {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-inline: 0.6rem;
+}
+
+.status-options{
+  width: 100%;
+  padding: 0.3rem 0.6rem;
+}
+
+.status-options[data-selected="true"]{
+  background-color: var(--primary-theme-color-shade-20, #5a5adb20);
+  color: var(--primary-theme-color, #5a5adb)
+}
+
+.select-and-add-div {
+    display: flex;
+    overflow: auto;
+    max-height: min(22rem, 50vh);
+}
+
+.resource-list-div{
+  flex-grow: 1;
+  overflow: auto;
+}
+
+.checkboxes-select{
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.checkboxes-select.options-with-crew-and-members{
+  flex-direction: column;
+  border-radius: 0.5rem;
+  padding: 0.2rem;
+}
+
+.checkboxes-select:has(.checkboxes-select) {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.checkboxes-select .checkboxes-select {
+  margin-left: 1rem;
+}
+
+.checkboxes-select .whole-crew-selection-checkbox{
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Hide the "Individual Employees" checkbox, as it is not a crew */
+.whole-crew-selection-checkbox:has(.checkbox-option-label[title="Individual Employees"]) .resource-option-checkbox{
+  display: none;
+}
+
+.whole-crew-title-checkbox{
+  font-weight: 600;
+}
+
+/* .checkbox-option-label[data-available="false"]{
+  color: #ff000099;
+}
+
+.checkbox-option-label[data-is-added="true"]{
+  color: var(--primary-theme-color, #5a5adb);
+} */
+
+.confirmation-popup-div{
+  z-index: 9999;
+}
+
+.confirmation-backdrop{
+  z-index: 9998;
+}
+
+.job-label{
+  font-size: 15px;
+}
+
+.slds-backdrop{
+  pointer-events: none;
+}
+
+/* Responsive Design for Access Control */
+@media screen and (max-width: 768px) {
+  :host:has(.mob-popup) .main-calendar-div{
+    max-height: 10rem;
+    overflow: hidden;
+  }
+
+  .footer-btn {
+    font-size: 11px;
+    min-width: 5rem;
+  }
+
+  .date-field-in-mob-form{
+    max-width: min( 90% , 24rem);
+  }
+
+  .status-filter-picklist {
+    height: unset;
+    border-radius: 0.3rem;
+  }
+}
+
+.edit-header:hover{
+    cursor: pointer;
+}
