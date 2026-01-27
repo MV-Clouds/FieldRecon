@@ -1,35 +1,59 @@
+
 public with sharing class ProposalConfigController {
-    
+
+    // READ config
     @AuraEnabled(cacheable=true)
-    public static wfrecon__Proposal_Configuration__c getProposalConfig() {
+    public static String getProposalConfig() {
         try {
-            return wfrecon__Proposal_Configuration__c.getInstance();
+            Proposal_Config__mdt config =
+                Proposal_Config__mdt.getInstance('ProposalConfig');
+
+            return config != null ? config.Config_JSON__c : null;
+
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ProposalConfigController', 'methodName' => 'getProposalConfig', 'exceptionObj' => e});
-            return null;
+            throw new AuraHandledException(e.getMessage());
         }
     }
-    
+
+    // SAVE config (all data in one JSON field)
     @AuraEnabled
-    public static void saveProposalConfig(Decimal ohValue, Decimal warrantyValue, Decimal profitValue) {
+    public static void saveProposalConfig(
+        Decimal ohValue,
+        Decimal warrantyValue,
+        Decimal profitValue,
+        String warrantyArea,
+        String agreement,
+        String limitations
+    ) {
         try {
-            // Get or create instance
-        wfrecon__Proposal_Configuration__c config = wfrecon__Proposal_Configuration__c.getInstance();
-        
-        if (config == null) {
-            config = new wfrecon__Proposal_Configuration__c();
-        }
-        
-        // Update values
-        config.wfrecon__OH__c = ohValue;
-        config.wfrecon__Warranty__c = warrantyValue;
-        config.wfrecon__Profit__c = profitValue;
-        
-        // Simple upsert
-        upsert config;
+            // Prepare JSON
+            Map<String, Object> data = new Map<String, Object>{
+                'ohValue' => ohValue,
+                'warrantyValue' => warrantyValue,
+                'profitValue' => profitValue,
+                'warrantyArea' => warrantyArea,
+                'agreement' => agreement,
+                'limitations' => limitations
+            };
+
+            String jsonData = JSON.serialize(data);
+
+            // Custom Metadata update (simple & clean)
+            Metadata.CustomMetadata mdata = new Metadata.CustomMetadata();
+            mdata.fullName = 'Proposal_Config__mdt.ProposalConfig';
+            mdata.label = 'ProposalConfig';
+
+            Metadata.CustomMetadataValue val = new Metadata.CustomMetadataValue();
+            val.field = 'Config_JSON__c';
+            val.value = jsonData;
+            mdata.values.add(val);
+
+            Metadata.DeployContainer container = new Metadata.DeployContainer();
+            container.addMetadata(mdata);
+            Metadata.Operations.enqueueDeployment(container, null);
+
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ProposalConfigController', 'methodName' => 'saveProposalConfig', 'exceptionObj' => e});
+            throw new AuraHandledException(e.getMessage());
         }
-        
     }
 }
