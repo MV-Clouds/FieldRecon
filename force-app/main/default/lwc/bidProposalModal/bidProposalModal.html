@@ -123,6 +123,42 @@
                                         onblur={handlePercentageBlur}>
                                     </lightning-input>
                                 </div>
+                                    
+                                <!-- Proposal Warranty - Full Width -->
+                                <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                                    <label class="slds-form-element__label">Proposal Warranty</label>
+                                    <textarea
+                                        class="slds-textarea"
+                                        data-field="warrantyArea"
+                                        onchange={handleWarrantyAreaChange}
+                                        maxlength="131072"
+                                        rows="4"
+                                        placeholder="Enter warranty details..."></textarea>
+                                </div>
+
+                                <!-- Agreement - Full Width -->
+                                <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                                    <label class="slds-form-element__label">Agreement</label>
+                                    <textarea
+                                        class="slds-textarea"
+                                        data-field="agreement"
+                                        onchange={handleAgreementChange}
+                                        maxlength="131072"
+                                        rows="4"
+                                        placeholder="Enter agreement details..."></textarea>
+                                </div>
+
+                                <!-- Limitations - Full Width -->
+                                <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
+                                    <label class="slds-form-element__label">Limitations</label>
+                                    <textarea
+                                        class="slds-textarea"
+                                        data-field="limitations"
+                                        onchange={handleLimitationsChange}
+                                        maxlength="131072"
+                                        rows="4"
+                                        placeholder="Enter limitations..."></textarea>
+                                </div>
 
                                 <!-- Expiration Date - Full Width -->
                                 <div class="slds-col slds-size_1-of-1 slds-m-bottom_small">
@@ -141,6 +177,9 @@
                                     <lightning-input-field class="hidden-percentage-field" field-name="wfrecon__Warranty__c" value={warrantyValue}></lightning-input-field>
                                     <lightning-input-field class="hidden-percentage-field" field-name="wfrecon__Profit__c" value={profitValue}></lightning-input-field>
                                     <lightning-input-field field-name="wfrecon__Expiration_Date__c" value={expirationDate}></lightning-input-field>
+                                    <lightning-input-field field-name="wfrecon__Proposal_Warranty__c" value={warrantyArea}></lightning-input-field>
+                                    <lightning-input-field field-name="wfrecon__Aggrement__c" value={agreement}></lightning-input-field>
+                                    <lightning-input-field field-name="wfrecon__Limitations__c" value={limitations}></lightning-input-field>
                                 </div>
 
                             </div>

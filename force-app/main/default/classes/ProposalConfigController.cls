@@ -1,51 +1,74 @@
 
 public with sharing class ProposalConfigController {
 
-    // READ config
     @AuraEnabled(cacheable=true)
-    public static String getProposalConfig() {
+    public static Map<String, Object> getProposalConfig() {
+        Map<String, Object> defaultResult = new Map<String, Object>{
+            'ohValue' => 0,
+            'warrantyValue' => 0,
+            'profitValue' => 0,
+            'warrantyArea' => '',
+            'agreement' => '',
+            'limitations' => ''
+        };
+        
         try {
-            Proposal_Config__mdt config =
-                Proposal_Config__mdt.getInstance('ProposalConfig');
-
-            return config != null ? config.Config_JSON__c : null;
-
+            Map<String, Proposal_Config__mdt> configMap = Proposal_Config__mdt.getAll();
+            
+            if (configMap.isEmpty()) {
+                return defaultResult;
+            }
+            
+            Proposal_Config__mdt config = configMap.values().get(0);
+            
+            if (config == null || String.isBlank(config.Config_JSON__c)) {
+                return defaultResult;
+            }
+            
+            String jsonString = config.Config_JSON__c.trim();
+            
+            // Check if the value is Base64 encoded (doesn't start with { or [)
+            if (!jsonString.startsWith('{') && !jsonString.startsWith('[')) {
+                // Decode from Base64
+                jsonString = EncodingUtil.base64Decode(jsonString).toString();
+            }
+            
+            Map<String, Object> jsonData = (Map<String, Object>) JSON.deserializeUntyped(jsonString);
+            
+            // Merge with defaults
+            for (String key : defaultResult.keySet()) {
+                if (!jsonData.containsKey(key)) {
+                    jsonData.put(key, defaultResult.get(key));
+                }
+            }
+            
+            return jsonData;
+            
         } catch (Exception e) {
-            throw new AuraHandledException(e.getMessage());
+            System.debug(LoggingLevel.ERROR, 'getProposalConfig Error: ' + e.getMessage());
+             ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'ProposalConfigController', 
+                'methodName' => 'getProposalConfig', 
+                'exceptionObj' => e, 
+                'moreDetails' => e.getMessage()
+            });
+            return defaultResult;
         }
     }
 
-    // SAVE config (all data in one JSON field)
     @AuraEnabled
-    public static void saveProposalConfig(
-        Decimal ohValue,
-        Decimal warrantyValue,
-        Decimal profitValue,
-        String warrantyArea,
-        String agreement,
-        String limitations
-    ) {
+    public static void saveProposalConfig(String configJson) {
         try {
-            // Prepare JSON
-            Map<String, Object> data = new Map<String, Object>{
-                'ohValue' => ohValue,
-                'warrantyValue' => warrantyValue,
-                'profitValue' => profitValue,
-                'warrantyArea' => warrantyArea,
-                'agreement' => agreement,
-                'limitations' => limitations
-            };
+            JSON.deserializeUntyped(configJson);
 
-            String jsonData = JSON.serialize(data);
-
-            // Custom Metadata update (simple & clean)
             Metadata.CustomMetadata mdata = new Metadata.CustomMetadata();
             mdata.fullName = 'Proposal_Config__mdt.ProposalConfig';
             mdata.label = 'ProposalConfig';
 
             Metadata.CustomMetadataValue val = new Metadata.CustomMetadataValue();
             val.field = 'Config_JSON__c';
-            val.value = jsonData;
+            val.value = configJson;
+
             mdata.values.add(val);
 
             Metadata.DeployContainer container = new Metadata.DeployContainer();
@@ -53,7 +76,14 @@ public with sharing class ProposalConfigController {
             Metadata.Operations.enqueueDeployment(container, null);
 
         } catch (Exception e) {
-            throw new AuraHandledException(e.getMessage());
+            System.debug(LoggingLevel.ERROR, 'saveProposalConfig Error: ' + e.getMessage());
+             ExceptionHandler.logException(new Map<String, Object>{
+                'className' => 'ProposalConfigController', 
+                'methodName' => 'saveProposalConfig', 
+                'exceptionObj' => e, 
+                'moreDetails' => e.getMessage()
+            });
         }
     }
+    
 }
