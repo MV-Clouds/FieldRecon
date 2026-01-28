@@ -29,6 +29,11 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
     defaultJobName = '';
     defaultAmount;
     defaultDescription = '';
+    defaultBudgetedPerDiemCost;
+    defaultBudgetedMileageCost;
+    defaultBudgetedMaterialCost;
+    defaultBudgetedLabourCost;
+    defaultBudgetedHotelCost;
 
     // Page navigation
     @track currentPage = 'createLink'; // 'createLink' or 'proposals'
@@ -279,6 +284,11 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
                         Type__c: proposal.Type__c,
                         Sales_Price__c: proposal.Sales_Price__c,
                         Status__c: proposal.Status__c,
+                        wfrecon__Budgeted_Per_Diem_Cost__c: proposal.wfrecon__Budgeted_Per_Diem_Cost__c,
+                        wfrecon__Budgeted_Mileage_Cost__c: proposal.wfrecon__Budgeted_Mileage_Cost__c,
+                        wfrecon__Budgeted_Material_Cost__c: proposal.wfrecon__Budgeted_Material_Cost__c,
+                        wfrecon__Budgeted_Labour_Cost__c: proposal.wfrecon__Budgeted_Labour_Cost__c,
+                        wfrecon__Budgeted_Hotel_Cost__c: proposal.wfrecon__Budgeted_Hotel_Cost__c,
                         recordUrl: proposal.recordUrl,
                         showLines: false,
                         isLoadingLines: false,
@@ -294,6 +304,11 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
                     }));
 
                     this.displayedProposals = [...this.originalProposals];
+                    this.defaultBudgetedPerDiemCost = this.originalProposals[0].wfrecon__Budgeted_Per_Diem_Cost__c;
+                    this.defaultBudgetedMileageCost = this.originalProposals[0].wfrecon__Budgeted_Mileage_Cost__c;
+                    this.defaultBudgetedMaterialCost = this.originalProposals[0].wfrecon__Budgeted_Material_Cost__c;
+                    this.defaultBudgetedLabourCost = this.originalProposals[0].wfrecon__Budgeted_Labour_Cost__c;
+                    this.defaultBudgetedHotelCost = this.originalProposals[0].wfrecon__Budgeted_Hotel_Cost__c;
 
                     // Initialize proposal line selections
                     this.selectedProposalLines.clear();
@@ -810,12 +825,12 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
             }, 1000);
 
             this[NavigationMixin.Navigate]({
-                type: 'standard__recordPage',
-                attributes: {
-                    recordId: jobId,
-                    actionName: 'view',
-                },
-            });
+                    type: 'standard__recordPage',
+                    attributes: {
+                        recordId: jobId,
+                        actionName: 'view',
+                    },
+                });
 
         } catch (error) {
             console.error('Error in handleSuccess:', error);
