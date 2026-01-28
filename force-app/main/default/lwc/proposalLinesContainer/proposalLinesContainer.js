@@ -1017,8 +1017,11 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                     salesPrice = recommendedPrice;
                 }
 
-                // Validation only - ensure sales price is not less than recommended price
+                // Validation - ensure sales price is not less than recommended price
                 if (salesPrice < recommendedPrice) {
+                    this.showToast('Error', `Sales Price ($${this.formatCurrency(salesPrice)}) cannot be less than Recommended Price ($${this.formatCurrency(recommendedPrice)}). Please enter a valid value.`, 'error');
+                    
+                    // Set to recommended price
                     this.proposalLinesRaw = this.proposalLinesRaw.map(l => {
                         if (l.Id === proposalLineId) {
                             return {
@@ -1028,8 +1031,18 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                         }
                         return l;
                     });
+                    
+                    // Update the manually edited tracking
                     this.manuallyEditedSalesPrices.set(proposalLineId, recommendedPrice);
-                    this.showToast('Error', `Sales Price cannot be less than Recommended Price ($${this.formatCurrency(recommendedPrice)})`, 'error');
+                    
+                    // Ensure the field is marked as modified with the corrected value
+                    if (!this.modifiedProposalLines.has(proposalLineId)) {
+                        this.modifiedProposalLines.set(proposalLineId, new Set());
+                    }
+                    this.modifiedProposalLines.get(proposalLineId).add('wfrecon__Sales_Price__c');
+                    
+                    // Recalculate amount fields based on corrected sales price
+                    this.recalculateFromSalesPrice(proposalLineId);
                 }
             }
         }
@@ -1469,7 +1482,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         });
     }
 
-    // Recalculate from Unit Price change (updates Total Cost → continues flow)
+    // Recalculate from Unit Price change (updates Sales Price = Quantity × Unit Price)
     recalculateFromUnitPrice(proposalLineId) {
         this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
             if (line.Id === proposalLineId) {
@@ -1477,18 +1490,28 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 const unitPrice = parseFloat(line.wfrecon__Unit_Price__c) || 0;
                 const quantity = parseFloat(line.wfrecon__Quantity__c) || 1;
 
-                // Calculate total cost
-                const totalCost = unitPrice * quantity;
-                line.wfrecon__Total_Cost__c = roundTo2(totalCost);
+                // Calculate sales price as Quantity × Unit Price (validation will happen on save)
+                const salesPrice = unitPrice * quantity;
+                
+                line.wfrecon__Sales_Price__c = roundTo2(salesPrice);
+                
+                // Track this as manually edited
+                this.manuallyEditedSalesPrices.set(line.Id, roundTo2(salesPrice));
+                
+                // Mark sales price as modified
+                if (!this.modifiedProposalLines.has(line.Id)) {
+                    this.modifiedProposalLines.set(line.Id, new Set());
+                }
+                this.modifiedProposalLines.get(line.Id).add('wfrecon__Sales_Price__c');
             }
             return line;
         });
         
-        // Continue with total cost flow
-        this.recalculateFromTotalCost(proposalLineId);
+        // Recalculate amount fields based on new sales price
+        this.recalculateFromSalesPrice(proposalLineId);
     }
 
-    // Recalculate from Quantity change (updates Total Cost → continues flow)
+    // Recalculate from Quantity change (updates Sales Price = Quantity × Unit Price)
     recalculateFromQuantity(proposalLineId) {
         this.proposalLinesRaw = this.proposalLinesRaw.map(line => {
             if (line.Id === proposalLineId) {
@@ -1496,15 +1519,25 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 const unitPrice = parseFloat(line.wfrecon__Unit_Price__c) || 0;
                 const quantity = parseFloat(line.wfrecon__Quantity__c) || 1;
 
-                // Calculate total cost
-                const totalCost = unitPrice * quantity;
-                line.wfrecon__Total_Cost__c = roundTo2(totalCost);
+                // Calculate sales price as Quantity × Unit Price (validation will happen on save)
+                const salesPrice = unitPrice * quantity;
+                
+                line.wfrecon__Sales_Price__c = roundTo2(salesPrice);
+                
+                // Track this as manually edited
+                this.manuallyEditedSalesPrices.set(line.Id, roundTo2(salesPrice));
+                
+                // Mark sales price as modified
+                if (!this.modifiedProposalLines.has(line.Id)) {
+                    this.modifiedProposalLines.set(line.Id, new Set());
+                }
+                this.modifiedProposalLines.get(line.Id).add('wfrecon__Sales_Price__c');
             }
             return line;
         });
         
-        // Continue with total cost flow
-        this.recalculateFromTotalCost(proposalLineId);
+        // Recalculate amount fields based on new sales price
+        this.recalculateFromSalesPrice(proposalLineId);
     }
 
     // Recalculate from Sales Price change (updates amounts only)
@@ -1572,18 +1605,10 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             const perDiemLines = line.budget.budgetLinesByCostType.perdiem || [];
             perDiemCost = perDiemLines.reduce((sum, bl) => sum + parseNum(bl.wfrecon__Total_Per_Diem__c), 0);
 
-            // Calculate unit cost (sum of all budget line costs WITHOUT quantity)
-            const unitCostFromBudget = laborCost + materialCost + hotelCost + mileageCost + perDiemCost;
-            
-            // Check if Unit Price was manually edited
-            const manuallyEditedUnitPrice = this.manuallyEditedUnitPrices?.get(line.Id);
-            const unitPrice = manuallyEditedUnitPrice !== undefined ? manuallyEditedUnitPrice : unitCostFromBudget;
-            
-            // Calculate total cost (unit price multiplied by quantity)
-            const quantity = parseNum(line.wfrecon__Quantity__c) || 1;
-            const totalCost = unitPrice * quantity;
+            // Calculate Total Cost as sum of all budget line costs (this is the only source of Total Cost)
+            const totalCost = laborCost + materialCost + hotelCost + mileageCost + perDiemCost;
 
-            // Calculate sales price using the formula: Total_Cost / (1 - (OH% + Profit% + Warranty%))
+            // Calculate recommended price using the formula: Total_Cost / (1 - (OH% + Profit% + Warranty%))
             const ohPer = parseNum(line.wfrecon__OH_Per__c) / 100; // Convert percentage to decimal
             const profitPer = parseNum(line.wfrecon__Profit_Per__c) / 100;
             const warrantyPer = parseNum(line.wfrecon__Warranty_Per__c) / 100;
@@ -1591,32 +1616,24 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             const denominator = 1 - (ohPer + profitPer + warrantyPer);
             const recommendedPrice = denominator !== 0 ? totalCost / denominator : totalCost;
 
-            // Set Sales Price to Recommended Price if not manually edited or if Recommended Price is higher
+            // Get current sales price
             let salesPrice = parseNum(line.wfrecon__Sales_Price__c);
-            const prevRecommendedPrice = parseNum(line.wfrecon__Recommended_Price__c);
-            const manuallyEditedPrice = this.manuallyEditedSalesPrices.get(line.Id);
-
-            // Update sales price only if:
-            // 1. It's not set yet, OR
-            // 2. User has NOT manually edited it AND recommended price changed, OR
-            // 3. User HAS manually edited it BUT new recommended price is higher than their manual value
-            const shouldUpdateSalesPrice = !salesPrice ||
-                (!manuallyEditedPrice && Math.abs(prevRecommendedPrice - recommendedPrice) > 0.01) ||
-                (manuallyEditedPrice && recommendedPrice > manuallyEditedPrice);
-
-            if (shouldUpdateSalesPrice) {
+            
+            // Only update sales price if it's less than the new recommended price
+            // This ensures sales price always meets minimum threshold
+            if (salesPrice < recommendedPrice) {
                 salesPrice = recommendedPrice;
-                // Clear manual edit tracking since we're auto-updating
-                this.manuallyEditedSalesPrices.delete(line.Id);
-                // Mark sales price as modified when auto-updated due to recommended price change
+                // Mark sales price as modified when auto-updated
                 if (!this.modifiedProposalLines.has(line.Id)) {
                     this.modifiedProposalLines.set(line.Id, new Set());
                 }
                 this.modifiedProposalLines.get(line.Id).add('wfrecon__Sales_Price__c');
-            } else if (manuallyEditedPrice) {
-                // Use the manually edited price if it's higher than or equal to recommended price
-                salesPrice = manuallyEditedPrice;
             }
+            // Otherwise, keep the existing sales price (whether manually edited or not)
+
+            // Calculate Unit Price from Total Cost (Total Cost / Quantity)
+            const quantity = parseNum(line.wfrecon__Quantity__c) || 1;
+            const unitPrice = salesPrice / quantity;
 
             // Calculate amount fields using the actual sales price
             const ohAmount = ohPer * salesPrice;

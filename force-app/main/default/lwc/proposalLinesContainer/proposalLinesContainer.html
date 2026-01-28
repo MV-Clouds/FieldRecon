@@ -277,77 +277,85 @@
                                                     <td colspan="10" class="nested-table-container">
                                                         <template if:true={line.budget}>
                                                             <!-- Proposal Line Summary Section -->
-                                                            <div class="proposal-summary-section">
-                                                                <div class="summary-grid">
-                                                                    <div class={line.profitSummaryItemClass}>
-                                                                        <span class="summary-label">Profit % - </span>
-                                                                        <div class="summary-value-editable">
-                                                                            <template if:true={line.isEditingProfit}>
-                                                                                <input type="number"
-                                                                                    class="summary-edit-input"
-                                                                                    value={line.displayProfit}
-                                                                                    data-proposal-line-id={line.Id}
-                                                                                    data-field="wfrecon__Profit_Per__c"
-                                                                                    data-oh={line.displayOH}
-                                                                                    data-warranty={line.displayWarranty}
-                                                                                    oninput={handleProposalLineFieldChange}
-                                                                                    onblur={handleProposalLineFieldBlur} 
-                                                                                    step="0.01"
-                                                                                    min="0.01" />
-                                                                            </template>
-                                                                            <template if:false={line.isEditingProfit}>
-                                                                                <div class="summary-edit-container"
-                                                                                    data-proposal-line-id={line.Id}
-                                                                                    data-field="wfrecon__Profit_Per__c"
-                                                                                    data-editable="true"
-                                                                                    onclick={handleProposalLineCellClick}>
-                                                                                    <span
-                                                                                        class="summary-value">{line.displayProfit}%</span>
-                                                                                    <svg class="summary-edit-icon"
-                                                                                        width="14" height="14"
-                                                                                        viewBox="0 0 24 24" fill="none">
-                                                                                        <path
-                                                                                            d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                                                                                            stroke="currentColor"
-                                                                                            stroke-width="2"
-                                                                                            stroke-linecap="round"
-                                                                                            stroke-linejoin="round" />
-                                                                                        <path
-                                                                                            d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                                                                                            stroke="currentColor"
-                                                                                            stroke-width="2"
-                                                                                            stroke-linecap="round"
-                                                                                            stroke-linejoin="round" />
-                                                                                    </svg>
-                                                                                </div>
-                                                                            </template>
-                                                                        </div>
+                                                            <div class="summary-grid">
+                                                                <div class={line.profitSummaryItemClass}>
+                                                                    <span class="summary-label">Profit % - </span>
+                                                                    <div class="summary-value-editable">
+                                                                        <template if:true={line.isEditingProfit}>
+                                                                            <input type="number"
+                                                                                class="summary-edit-input"
+                                                                                value={line.displayProfit}
+                                                                                data-proposal-line-id={line.Id}
+                                                                                data-field="wfrecon__Profit_Per__c"
+                                                                                data-oh={line.displayOH}
+                                                                                data-warranty={line.displayWarranty}
+                                                                                oninput={handleProposalLineFieldChange}
+                                                                                onblur={handleProposalLineFieldBlur} 
+                                                                                step="0.01"
+                                                                                min="0.01" />
+                                                                        </template>
+                                                                        <template if:false={line.isEditingProfit}>
+                                                                            <div class="summary-edit-container"
+                                                                                data-proposal-line-id={line.Id}
+                                                                                data-field="wfrecon__Profit_Per__c"
+                                                                                data-editable="true"
+                                                                                onclick={handleProposalLineCellClick}>
+                                                                                <span
+                                                                                    class="summary-value">{line.displayProfit}%</span>
+                                                                                <svg class="summary-edit-icon"
+                                                                                    width="14" height="14"
+                                                                                    viewBox="0 0 24 24" fill="none">
+                                                                                    <path
+                                                                                        d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                                                                                        stroke="currentColor"
+                                                                                        stroke-width="2"
+                                                                                        stroke-linecap="round"
+                                                                                        stroke-linejoin="round" />
+                                                                                    <path
+                                                                                        d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                                                                                        stroke="currentColor"
+                                                                                        stroke-width="2"
+                                                                                        stroke-linecap="round"
+                                                                                        stroke-linejoin="round" />
+                                                                                </svg>
+                                                                            </div>
+                                                                        </template>
                                                                     </div>
-                                                                    <div class="summary-item">
-                                                                        <span class="summary-label">Profit Amount -
+                                                                </div>
+                                                                <div class="summary-item">
+                                                                    <span class="summary-label">Profit Amount -
+                                                                    </span>
+                                                                    <span
+                                                                        class="summary-value-amount">${line.displayProfitAmount}</span>
+                                                                </div>
+                                                                <div class="summary-item">
+                                                                    <span class="summary-label">OH Amount - </span>
+                                                                    <span
+                                                                        class="summary-value-amount">${line.displayOHAmount}</span>
+                                                                </div>
+                                                                <div class="summary-item">
+                                                                    <span class="summary-label">Warranty Amount -
+                                                                    </span>
+                                                                    <span
+                                                                        class="summary-value-amount">${line.displayWarrantyAmount}</span>
+                                                                </div>
+                                                                <div class="summary-item">
+                                                                    <span class="summary-label">Total Cost - </span>
+                                                                    <span class="summary-value-amount">${line.displayTotalCost}</span>
+                                                                </div>
+                                                                <div class="summary-item">
+                                                                    <span class="summary-label">Recommended Price
+                                                                        <span class="info-icon-wrapper">
+                                                                            <svg class="info-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                <circle cx="12" cy="12" r="10" stroke="#5E5ADB" stroke-width="2" fill="none"/>
+                                                                                <path d="M12 16V12" stroke="#5E5ADB" stroke-width="2" stroke-linecap="round"/>
+                                                                                <circle cx="12" cy="8" r="0.5" fill="#5E5ADB" stroke="#5E5ADB" stroke-width="1"/>
+                                                                            </svg>
+                                                                            <span class="info-tooltip">Total Cost / (1 - (OH% + Profit% + Warranty%))</span>
                                                                         </span>
-                                                                        <span
-                                                                            class="summary-value-amount">${line.displayProfitAmount}</span>
-                                                                    </div>
-                                                                    <div class="summary-item">
-                                                                        <span class="summary-label">OH Amount - </span>
-                                                                        <span
-                                                                            class="summary-value-amount">${line.displayOHAmount}</span>
-                                                                    </div>
-                                                                    <div class="summary-item">
-                                                                        <span class="summary-label">Warranty Amount -
-                                                                        </span>
-                                                                        <span
-                                                                            class="summary-value-amount">${line.displayWarrantyAmount}</span>
-                                                                    </div>
-                                                                    <div class="summary-item">
-                                                                        <span class="summary-label">Total Cost - </span>
-                                                                        <span class="summary-value-amount">${line.displayTotalCost}</span>
-                                                                    </div>
-                                                                    <div class="summary-item">
-                                                                        <span class="summary-label">Recommended Price - </span>
-                                                                        <span class="summary-value-amount">${line.formattedRecommendedPrice}</span>
-                                                                    </div>
+                                                                            - 
+                                                                    </span>
+                                                                    <span class="summary-value-amount">${line.formattedRecommendedPrice}</span>
                                                                 </div>
                                                             </div>
 
@@ -2568,76 +2576,84 @@
                                                     <td colspan="10" class="nested-table-container">
                                                         <template if:true={line.budget}>
                                                             <!-- Proposal Line Summary Section -->
-                                                            <div class="proposal-summary-section">
-                                                                <div class="summary-grid">
-                                                                    <div class={line.profitSummaryItemClass}>
-                                                                        <span class="summary-label">Profit % - </span>
-                                                                        <div class="summary-value-editable">
-                                                                            <template if:true={line.isEditingProfit}>
-                                                                                <input type="number"
-                                                                                    class="summary-edit-input"
-                                                                                    value={line.displayProfit}
-                                                                                    data-proposal-line-id={line.Id}
-                                                                                    data-field="wfrecon__Profit_Per__c"
-                                                                                    data-oh={line.displayOH}
-                                                                                    data-warranty={line.displayWarranty}
-                                                                                    oninput={handleProposalLineFieldChange}
-                                                                                    onblur={handleProposalLineFieldBlur} step="0.01"
-                                                                                    min="0.01" />
-                                                                            </template>
-                                                                            <template if:false={line.isEditingProfit}>
-                                                                                <div class="summary-edit-container"
-                                                                                    data-proposal-line-id={line.Id}
-                                                                                    data-field="wfrecon__Profit_Per__c"
-                                                                                    data-editable="true"
-                                                                                    onclick={handleProposalLineCellClick}>
-                                                                                    <span
-                                                                                        class="summary-value">{line.displayProfit}%</span>
-                                                                                    <svg class="summary-edit-icon"
-                                                                                        width="14" height="14"
-                                                                                        viewBox="0 0 24 24" fill="none">
-                                                                                        <path
-                                                                                            d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                                                                                            stroke="currentColor"
-                                                                                            stroke-width="2"
-                                                                                            stroke-linecap="round"
-                                                                                            stroke-linejoin="round" />
-                                                                                        <path
-                                                                                            d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                                                                                            stroke="currentColor"
-                                                                                            stroke-width="2"
-                                                                                            stroke-linecap="round"
-                                                                                            stroke-linejoin="round" />
-                                                                                    </svg>
-                                                                                </div>
-                                                                            </template>
-                                                                        </div>
+                                                            <div class="summary-grid">
+                                                                <div class={line.profitSummaryItemClass}>
+                                                                    <span class="summary-label">Profit % - </span>
+                                                                    <div class="summary-value-editable">
+                                                                        <template if:true={line.isEditingProfit}>
+                                                                            <input type="number"
+                                                                                class="summary-edit-input"
+                                                                                value={line.displayProfit}
+                                                                                data-proposal-line-id={line.Id}
+                                                                                data-field="wfrecon__Profit_Per__c"
+                                                                                data-oh={line.displayOH}
+                                                                                data-warranty={line.displayWarranty}
+                                                                                oninput={handleProposalLineFieldChange}
+                                                                                onblur={handleProposalLineFieldBlur} step="0.01"
+                                                                                min="0.01" />
+                                                                        </template>
+                                                                        <template if:false={line.isEditingProfit}>
+                                                                            <div class="summary-edit-container"
+                                                                                data-proposal-line-id={line.Id}
+                                                                                data-field="wfrecon__Profit_Per__c"
+                                                                                data-editable="true"
+                                                                                onclick={handleProposalLineCellClick}>
+                                                                                <span
+                                                                                    class="summary-value">{line.displayProfit}%</span>
+                                                                                <svg class="summary-edit-icon"
+                                                                                    width="14" height="14"
+                                                                                    viewBox="0 0 24 24" fill="none">
+                                                                                    <path
+                                                                                        d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                                                                                        stroke="currentColor"
+                                                                                        stroke-width="2"
+                                                                                        stroke-linecap="round"
+                                                                                        stroke-linejoin="round" />
+                                                                                    <path
+                                                                                        d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                                                                                        stroke="currentColor"
+                                                                                        stroke-width="2"
+                                                                                        stroke-linecap="round"
+                                                                                        stroke-linejoin="round" />
+                                                                                </svg>
+                                                                            </div>
+                                                                        </template>
                                                                     </div>
-                                                                    <div class="summary-item">
-                                                                        <span class="summary-label">Profit Amount -
+                                                                </div>
+                                                                <div class="summary-item">
+                                                                    <span class="summary-label">Profit Amount -
+                                                                    </span>
+                                                                    <span
+                                                                        class="summary-value-amount">${line.displayProfitAmount}</span>
+                                                                </div>
+                                                                <div class="summary-item">
+                                                                    <span class="summary-label">OH Amount - </span>
+                                                                    <span
+                                                                        class="summary-value-amount">${line.displayOHAmount}</span>
+                                                                </div>
+                                                                <div class="summary-item">
+                                                                    <span class="summary-label">Warranty Amount -
+                                                                    </span>
+                                                                    <span
+                                                                        class="summary-value-amount">${line.displayWarrantyAmount}</span>
+                                                                </div>
+                                                                <div class="summary-item">
+                                                                    <span class="summary-label">Total Cost - </span>
+                                                                    <span class="summary-value-amount">${line.displayTotalCost}</span>
+                                                                </div>
+                                                                <div class="summary-item">
+                                                                    <span class="summary-label">Recommended Price
+                                                                        <span class="info-icon-wrapper">
+                                                                            <svg class="info-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                                <circle cx="12" cy="12" r="10" stroke="#5E5ADB" stroke-width="2" fill="none"/>
+                                                                                <path d="M12 16V12" stroke="#5E5ADB" stroke-width="2" stroke-linecap="round"/>
+                                                                                <circle cx="12" cy="8" r="0.5" fill="#5E5ADB" stroke="#5E5ADB" stroke-width="1"/>
+                                                                            </svg>
+                                                                            <span class="info-tooltip">Total Cost / (1 - (OH% + Profit% + Warranty%))</span>
                                                                         </span>
-                                                                        <span
-                                                                            class="summary-value-amount">${line.displayProfitAmount}</span>
-                                                                    </div>
-                                                                    <div class="summary-item">
-                                                                        <span class="summary-label">OH Amount - </span>
-                                                                        <span
-                                                                            class="summary-value-amount">${line.displayOHAmount}</span>
-                                                                    </div>
-                                                                    <div class="summary-item">
-                                                                        <span class="summary-label">Warranty Amount -
-                                                                        </span>
-                                                                        <span
-                                                                            class="summary-value-amount">${line.displayWarrantyAmount}</span>
-                                                                    </div>
-                                                                    <div class="summary-item">
-                                                                        <span class="summary-label">Total Cost - </span>
-                                                                        <span class="summary-value-amount">${line.displayTotalCost}</span>
-                                                                    </div>
-                                                                    <div class="summary-item">
-                                                                        <span class="summary-label">Recommended Price - </span>
-                                                                        <span class="summary-value-amount">${line.formattedRecommendedPrice}</span>
-                                                                    </div>
+                                                                            - 
+                                                                    </span>
+                                                                    <span class="summary-value-amount">${line.formattedRecommendedPrice}</span>
                                                                 </div>
                                                             </div>
 
