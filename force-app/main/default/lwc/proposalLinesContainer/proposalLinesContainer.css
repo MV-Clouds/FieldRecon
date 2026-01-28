@@ -563,17 +563,12 @@ input[type="number"] {
     background-color: rgb(244, 244, 255);
 }
 
-/* Proposal Line Summary Section */
-.proposal-summary-section {
-    margin-top: 16px;
-    overflow-x: auto;
-}
-
 .summary-grid {
     display: flex;
     gap: 12px;
-    min-width: min-content;
     justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 16px;
 }
 
 .summary-item {
@@ -1722,4 +1717,54 @@ input[type="number"] {
 /* Modal Column Width for Type */
 .modal-col-type {
     width: 12%;
+}
+
+/* Info Icon and Tooltip Styles */
+.info-icon-wrapper {
+    position: relative;
+    margin-left: 4px;
+    cursor: help;
+}
+
+.info-icon {
+    vertical-align: middle;
+    transition: transform 0.2s ease;
+}
+
+.info-icon-wrapper:hover .info-icon {
+    transform: scale(1.1);
+}
+
+.info-tooltip {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    top: 160%;
+    right: -13px;
+    background-color: rgba(51, 51, 51, 0.95);
+    color: #ffffff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.info-tooltip::after {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    right: 15px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent rgba(51, 51, 51, 0.95) transparent;
+}
+
+.info-icon-wrapper:hover .info-tooltip {
+    visibility: visible;
+    opacity: 1;
 }
