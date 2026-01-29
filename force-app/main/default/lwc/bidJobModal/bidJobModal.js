@@ -26,6 +26,7 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
     bidId;
     bidName = '';
     accountId;
+    jobStatus = 'Active';
     defaultJobName = '';
     defaultAmount;
     defaultDescription = '';
@@ -41,6 +42,7 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
 
     // Selected job for linking
     @track selectedJobId = '';
+    defaultjobId = '';
 
     // Bid/Proposal/Proposal Line properties
     @track displayedProposals = [];
@@ -70,7 +72,10 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
             this.bidName = getFieldValue(data, 'wfrecon__Bid__c.Name') || this.recordId;
             this.accountId = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__AccountId__c');
             this.defaultJobName = this.bidName;
-            this.selectedJobId = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Job__c');
+
+            const job = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Job__c');
+            this.selectedJobId = job;
+            this.defaultjobId = job;
             this.defaultAmount = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Amount__c');
             this.defaultDescription = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Description__c') || '';
 
@@ -243,7 +248,7 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
 
         // Set mode for create new job
         this.createLinkMode = 'create';
-        this.selectedJobId = null;
+         this.selectedJobId = '';
     }
 
     handleLinkExistingJob() {
@@ -255,10 +260,18 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
         }
         // Set mode for link existing job
         this.createLinkMode = 'link';
+        this.selectedJobId = this.defaultjobId;
     }
 
     handleJobSelection(event) {
+        const recordPicker = this.template.querySelector('lightning-record-picker');
         this.selectedJobId = event.detail.recordId;
+        if (this.selectedJobId) {
+             if (recordPicker) {
+                recordPicker.setCustomValidity('');
+                recordPicker.reportValidity();
+            }
+        } 
     }
 
     /**
@@ -407,6 +420,8 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
                     this.defaultDescription = value;
                 } else if (fieldName === 'wfrecon__Account__c') {
                     this.accountId = value;
+                } else if (fieldName === 'wfrecon__Status__c') {
+                    this.jobStatus = value;
                 } else if (fieldName === 'wfrecon__Budgeted_Labour_Cost__c') {
                     this.defaultBudgetedLabourCost = value;
                 } else if (fieldName === 'wfrecon__Budgeted_Hotel_Cost__c') {
