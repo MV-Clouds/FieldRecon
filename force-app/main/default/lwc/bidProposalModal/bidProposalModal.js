@@ -36,27 +36,49 @@ export default class BidProposalModal extends LightningElement {
     // Expiration Date
     @track expirationDate = null;
 
+    // Textarea fields
+    @track warrantyArea = '';
+    @track agreement = '';
+    @track limitations = '';
+
     // Track if we need to fetch contact
     currentContactId = null;
+
+    // Track if config has been loaded
+    _configLoaded = false;
 
     // Wire to get custom setting values
     @wire(getProposalConfig)
     wiredProposalConfig({ error, data }) {
         if (data) {
-            // Set default values from custom setting
-            this.ohValue = data.wfrecon__OH__c || 0;
-            this.warrantyValue = data.wfrecon__Warranty__c || 0;
-            this.profitValue = data.wfrecon__Profit__c || 0;
+            try {
+                const config = data;
 
-            // Update display values
-            this.ohDisplay = `${this.ohValue}%`;
-            this.warrantyDisplay = `${this.warrantyValue}%`;
-            this.profitDisplay = `${this.profitValue}%`;
+                // Percentages
+                this.ohValue = config.ohValue ?? 0;
+                this.warrantyValue = config.warrantyValue ?? 0;
+                this.profitValue = config.profitValue ?? 0;
+
+                // Textareas
+                this.warrantyArea = (config.warrantyArea || '').replace(/\\n/g, '\n');
+                this.agreement = (config.agreement || '').replace(/\\n/g, '\n');
+                this.limitations = (config.limitations || '').replace(/\\n/g, '\n');
+
+                // Display values
+                this.ohDisplay = `${this.ohValue}%`;
+                this.warrantyDisplay = `${this.warrantyValue}%`;
+                this.profitDisplay = `${this.profitValue}%`;
+
+                this._configLoaded = true;
+
+            } catch (e) {
+                console.error('Error handling Proposal Configuration:', e);
+            }
         } else if (error) {
             console.error('Error loading Proposal Configuration:', error);
-            // Keep default values (0) if error occurs
         }
     }
+
 
     @wire(getRecord, { recordId: '$recordId', fields: BID_FIELDS })
     wiredBid({ error, data }) {
@@ -96,6 +118,31 @@ export default class BidProposalModal extends LightningElement {
     connectedCallback() {
         this.isLoading = true;
         this.overrideSLDS();
+    }
+
+    renderedCallback() {
+        // Update textarea values after render
+        // This is needed because textarea value binding doesn't work reactively in LWC
+        if (this._configLoaded) {
+            this.updateTextareaValues();
+            this._configLoaded = false; // Reset flag to avoid repeated updates
+        }
+    }
+
+    updateTextareaValues() {
+        const textareas = this.template.querySelectorAll('textarea');
+        textareas.forEach(textarea => {
+            const field = textarea.dataset.field;
+            if (field) {
+                if (field === 'warrantyArea') {
+                    textarea.value = this.warrantyArea;
+                } else if (field === 'agreement') {
+                    textarea.value = this.agreement;
+                } else if (field === 'limitations') {
+                    textarea.value = this.limitations;
+                }
+            }
+        });
     }
 
     /** 
@@ -250,6 +297,23 @@ export default class BidProposalModal extends LightningElement {
             this.profitDisplay = numValue + '%';
         }
 
+
+    }
+
+    handleWarrantyAreaChange(event) {
+        this.warrantyArea = event.target.value;
+    }
+
+    handleAgreementChange(event) {
+        this.agreement = event.target.value;
+    }
+
+    handleLimitationsChange(event) {
+        this.limitations = event.target.value;
+    }
+
+    handleExpirationDateChange(event) {
+        this.expirationDate = event.target.value;
     }
 
     handleCancel() {
@@ -261,12 +325,12 @@ export default class BidProposalModal extends LightningElement {
         event.preventDefault();
         event.stopPropagation();
 
-           // First validate profit - this is the key fix
-    const maxAllowed = 100 - this.ohValue - this.warrantyValue;
-    if (this.profitValue > maxAllowed) {
-        this.showToast('Invalid Profit', `Profit cannot exceed ${maxAllowed}%`, 'error');
-        return; // Make sure to return early
-    }
+        // First validate profit - this is the key fix
+        const maxAllowed = 100 - this.ohValue - this.warrantyValue - 1;
+        if (this.profitValue >= maxAllowed) {
+            this.showToast('Invalid Profit', `Profit cannot exceed ${maxAllowed}%`, 'error');
+            return; // Make sure to return early
+        }
 
         const inputFields = this.template.querySelectorAll('lightning-input-field');
         const customInputs = this.template.querySelectorAll('lightning-input');
@@ -309,6 +373,22 @@ export default class BidProposalModal extends LightningElement {
         const expirationField = this.template.querySelector('lightning-input-field[field-name="wfrecon__Expiration_Date__c"]');
         if (expirationField) {
             expirationField.value = this.expirationDate;
+        }
+
+        // Update textarea fields
+        const warrantyAreaField = this.template.querySelector('lightning-input-field[field-name="wfrecon__Proposal_Warranty__c"]');
+        if (warrantyAreaField) {
+            warrantyAreaField.value = this.warrantyArea;
+        }
+
+        const agreementField = this.template.querySelector('lightning-input-field[field-name="wfrecon__Aggrement__c"]');
+        if (agreementField) {
+            agreementField.value = this.agreement;
+        }
+
+        const limitationsField = this.template.querySelector('lightning-input-field[field-name="wfrecon__Limitations__c"]');
+        if (limitationsField) {
+            limitationsField.value = this.limitations;
         }
 
         // Submit the form
