@@ -275,6 +275,7 @@ export default class BidProposalModal extends LightningElement {
         // Validate all lightning-input-field
         inputFields.forEach(field => {
             if (!field.reportValidity()) {
+                console.log('field - ', field)
                 isValid = false;
             }
         });
