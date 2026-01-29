@@ -1301,7 +1301,7 @@ public with sharing class SovJobScopeController {
             if (String.isNotBlank(bidId)) {
                 bids = [
                     SELECT Id, Name, Status__c, 
-                           (SELECT Id, Name, Type__c, Total_Sales_Price__c, Margin__c, Status__c 
+                           (SELECT Id, Name, Type__c, Total_Sales_Price__c, Margin__c, Status__c, wfrecon__Budgeted_Per_Diem_Cost__c,wfrecon__Budgeted_Mileage_Cost__c,wfrecon__Budgeted_Material_Cost__c,wfrecon__Budgeted_Labour_Cost__c,wfrecon__Budgeted_Hotel_Cost__c
                             FROM Proposals__r 
                             WHERE Status__c = 'Closed Won'
                             ORDER BY CreatedDate DESC)
@@ -1315,7 +1315,7 @@ public with sharing class SovJobScopeController {
             else if (String.isNotBlank(jobId)) {
                 bids = [
                     SELECT Id, Name, Status__c, 
-                           (SELECT Id, Name, Type__c, Total_Sales_Price__c, Margin__c, Status__c 
+                           (SELECT Id, Name, Type__c, Total_Sales_Price__c, Margin__c, Status__c,wfrecon__Budgeted_Per_Diem_Cost__c,wfrecon__Budgeted_Mileage_Cost__c,wfrecon__Budgeted_Material_Cost__c,wfrecon__Budgeted_Labour_Cost__c,wfrecon__Budgeted_Hotel_Cost__c
                             FROM Proposals__r 
                             WHERE Status__c = 'Approved'
                             ORDER BY CreatedDate DESC)
@@ -1343,6 +1343,11 @@ public with sharing class SovJobScopeController {
                     proposalData.put('Sales_Price__c', proposal.Total_Sales_Price__c);
                     proposalData.put('Margin__c', proposal.Margin__c);
                     proposalData.put('Status__c', proposal.Status__c);
+                    proposalData.put('wfrecon__Budgeted_Per_Diem_Cost__c', proposal.wfrecon__Budgeted_Per_Diem_Cost__c);
+                    proposalData.put('wfrecon__Budgeted_Mileage_Cost__c', proposal.wfrecon__Budgeted_Mileage_Cost__c);
+                    proposalData.put('wfrecon__Budgeted_Material_Cost__c', proposal.wfrecon__Budgeted_Material_Cost__c);
+                    proposalData.put('wfrecon__Budgeted_Labour_Cost__c', proposal.wfrecon__Budgeted_Labour_Cost__c);
+                    proposalData.put('wfrecon__Budgeted_Hotel_Cost__c', proposal.wfrecon__Budgeted_Hotel_Cost__c);
                     proposalData.put('recordUrl', '/lightning/r/Proposal__c/' + proposal.Id + '/view');
                     
                     // Query proposal lines for this proposal
