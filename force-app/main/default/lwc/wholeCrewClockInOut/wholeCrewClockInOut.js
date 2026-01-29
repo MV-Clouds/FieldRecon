@@ -9,6 +9,8 @@ import { CloseActionScreenEvent } from 'lightning/actions';
 export default class WholeCrewClockInOut extends LightningElement {
     @api recordId; // Job Id passed from Aura wrapper
     @api isHomePage = false; // Flag to indicate if component is on home page
+    @api initialMobilizationId; // Optional: Mobilization Id to pre-select
+    @api initialDate; // Optional: Date to fetch mobilizations for (YYYY-MM-DD)
     @track isLoading = false;
     @track hasAccess = false;
     @track accessErrorMessage = '';
@@ -32,6 +34,10 @@ export default class WholeCrewClockInOut extends LightningElement {
     @track selectedMobilizationDate = '';
 
     // Getters
+    get effectiveDate() {
+        return this.initialDate || this.getClientDateString();
+    }
+
     get showMobilizationSelector() {
         return this.hasMobilizations && this.mobilizationOptions.length > 1;
     }
@@ -190,7 +196,7 @@ export default class WholeCrewClockInOut extends LightningElement {
             return;
         }
         
-        checkUserAccess({ jobId: this.recordId, clientDate: this.getClientDateString() })
+        checkUserAccess({ jobId: this.recordId, clientDate: this.effectiveDate })
             .then(result => {
                 console.log('checkAccess result ::', result);
                 
@@ -248,7 +254,7 @@ export default class WholeCrewClockInOut extends LightningElement {
         try {
             const result = await getMobilizationsForJob({ 
                 jobId: this.recordId,
-                clientDate: this.getClientDateString() 
+                clientDate: this.effectiveDate 
             });
 
             console.log('Mobilization result:', result);
@@ -263,7 +269,9 @@ export default class WholeCrewClockInOut extends LightningElement {
             
             this.mobilizationOptions = result.mobilizationOptions || [];
             this.mobilizationDateMap = result.mobilizationDates || {};
-            this.selectedMobilizationId = result.defaultMobilizationId || '';
+            
+            // Prioritize initialMobilizationId if provided
+            this.selectedMobilizationId = this.initialMobilizationId || result.defaultMobilizationId || '';
             
             // Auto-load members for default mobilization
             if (this.selectedMobilizationId) {
@@ -330,6 +338,13 @@ export default class WholeCrewClockInOut extends LightningElement {
                 
                 this.costCodes = result.costCodes || [];
                 this.errorMessage = '';
+
+                // Auto-switch tabs based on member availability
+                if (this.clockInMembers.length === 0 && this.clockOutMembers.length > 0) {
+                    this.activeTab = 'clockout';
+                } else if (this.clockOutMembers.length === 0 && this.clockInMembers.length > 0) {
+                    this.activeTab = 'clockin';
+                }
             } else {
                 this.hasData = false;
                 this.errorMessage = result.message || 'No members found for selected mobilization';
