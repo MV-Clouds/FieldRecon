@@ -170,6 +170,11 @@ export default class ProposalConfiguration extends LightningElement {
             return;
         }
 
+        if(this.ohValue + this.warrantyValue + this.profitValue >= 100) {
+            this.showToast('Invalid Input', 'Sum of OH, Warranty and Profit should be less than 100%', 'error');
+            return;
+        }
+        
         const maxAllowed = 100 - this.ohValue - this.warrantyValue - 1;
         if (this.profitValue > maxAllowed) {
             this.showToast('Invalid Profit', `Profit cannot exceed ${maxAllowed}%`, 'error');

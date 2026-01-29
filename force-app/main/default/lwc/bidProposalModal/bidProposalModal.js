@@ -327,7 +327,7 @@ export default class BidProposalModal extends LightningElement {
 
         // First validate profit - this is the key fix
         const maxAllowed = 100 - this.ohValue - this.warrantyValue - 1;
-        if (this.profitValue >= maxAllowed) {
+        if (this.profitValue > maxAllowed) {
             this.showToast('Invalid Profit', `Profit cannot exceed ${maxAllowed}%`, 'error');
             return; // Make sure to return early
         }
