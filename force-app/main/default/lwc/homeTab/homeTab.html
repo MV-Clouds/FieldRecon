@@ -490,6 +490,8 @@
         <template if:true={showCrewModal}>
             <c-whole-crew-clock-in-out 
                 record-id={selectedJobId} 
+                initial-mobilization-id={selectedMobilizationId}
+                initial-date={apexFormattedDate}
                 is-home-page="true" 
                 onclosepopup={closeCrewModal}>
             </c-whole-crew-clock-in-out>
