@@ -7,7 +7,7 @@ public with sharing class BidsListController {
     @return          : List<BidData> - List of bids
     ********************************************************
     */
-    @AuraEnabled(cacheable=true)
+    @AuraEnabled
     public static List<BidData> getAllBids(Boolean filterByRecentlyViewed) {
         List<BidData> bidDataList = new List<BidData>();
         Set<Id> bidIdsToQuery = new Set<Id>();
