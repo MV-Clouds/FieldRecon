@@ -1,6 +1,6 @@
 public with sharing class ContactTriggerHandler {
     
-    public static void handleAfterInsert(List<Contact> recordNewList){
+   /* public static void handleAfterInsert(List<Contact> recordNewList){
         try{
             String standardUserProfileId = '';
             List<Profile> standardUserProfileRec = [SELECT Id, Name FROM Profile WHERE Name = 'Standard Platform User'];
@@ -44,5 +44,5 @@ public with sharing class ContactTriggerHandler {
         } catch(Exception e){
             throw new HandledException(WFEmployeeController.generateException(e.getMessage()));
         }
-    }
+    } */
 }
