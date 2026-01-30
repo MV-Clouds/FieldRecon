@@ -70,6 +70,78 @@
                     </div>
                 </div>
 
+                <div class="toggle-section">
+                    <div class="toggle-container-area">
+                        <div class="toggle-label-container">
+                            <label class="toggle-label">Proposal Warranty</label>
+                            <div class="info-icon-wrapper">
+                                <lightning-icon icon-name="utility:info" size="x-small" class="info-icon">
+                                </lightning-icon>
+                                <div class="tooltip">Enter the warranty details that will be default set everywhere for
+                                    proposal.</div>
+                            </div>
+                        </div>
+                        <div class="custom-toggle-wrapper-area">
+                            <textarea
+                                class="custom-area"
+                                data-field="warrantyArea"
+                                onchange={handleWarrantyArea}
+                                maxlength="131072"
+                                rows="10"
+                                placeholder="Enter value here..."
+                            ></textarea>
+
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="toggle-section">
+                    <div class="toggle-container-area">
+                        <div class="toggle-label-container">
+                            <label class="toggle-label">Aggrement</label>
+                            <div class="info-icon-wrapper">
+                                <lightning-icon icon-name="utility:info" size="x-small" class="info-icon">
+                                </lightning-icon>
+                                <div class="tooltip">Enter the Aggrement details that will be default set everywhere for
+                                    proposal.</div>
+                            </div>
+                        </div>
+                        <div class="custom-toggle-wrapper-area">
+                            <textarea
+                                class="custom-area"
+                                data-field="agreement"
+                                onchange={handleAgreement}
+                                maxlength="131072"
+                                placeholder="Enter value here..."
+                            ></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="toggle-section">
+                    <div class="toggle-container-area">
+                        <div class="toggle-label-container">
+                            <label class="toggle-label">Limitations</label>
+                            <div class="info-icon-wrapper">
+                                <lightning-icon icon-name="utility:info" size="x-small" class="info-icon">
+                                </lightning-icon>
+                                <div class="tooltip">Enter the Limitations details that will be default set everywhere for
+                                    proposal.</div>
+                            </div>
+                        </div>
+                        <div class="custom-toggle-wrapper-area">
+                            <textarea
+                                class="custom-area"
+                                data-field="limitations"
+                                onchange={handleLimitations}
+                                maxlength="131072"
+                                placeholder="Enter value here..."
+                            ></textarea>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
         <!-- Action Buttons -->

@@ -9,116 +9,227 @@ export default class ProposalConfiguration extends LightningElement {
     @track profitValue = 0;
     @track isLoading = true;
     @track hasChanges = false;
-    
-    // Store original values for cancel functionality
+    @track _initialized = false;
+
+    @track warrantyArea = '';
+    @track agreement = '';
+    @track limitations = '';
+
+    // originals
     originalOhValue = 0;
     originalWarrantyValue = 0;
     originalProfitValue = 0;
+    originalWarrantyArea = '';
+    originalAgreement = '';
+    originalLimitations = '';
 
     get isButtonDisabled() {
-    return !this.hasChanges;
-}
+        return !this.hasChanges;
+    }
 
     connectedCallback() {
         this.loadConfiguration();
     }
 
-    loadConfiguration() {
-        getProposalConfig()
-            .then(result => {
-                this.ohValue = result?.wfrecon__OH__c || 0;
-                this.warrantyValue = result?.wfrecon__Warranty__c || 0;
-                this.profitValue = result?.wfrecon__Profit__c || 0;
-                
-                // Store original values for cancel
-                this.originalOhValue = this.ohValue;
-                this.originalWarrantyValue = this.warrantyValue;
-                this.originalProfitValue = this.profitValue;
-                
-                // Reset changes flag
-                this.hasChanges = false;
-            })
-            .catch(error => {
-                this.showToast('Error', 'Failed to load configuration', 'error');
-            })
-            .finally(() => {
-                this.isLoading = false;
-            });
+    renderedCallback() {
+        if (!this._initialized && !this.isLoading) {
+            this._initialized = true;
+            this.updateTextareaValues();
+        }
+    }
+
+    updateTextareaValues() {
+        const textareas = this.template.querySelectorAll('textarea');
+        textareas.forEach(textarea => {
+            const field = textarea.dataset.field;
+            if (field) {
+                if (field === 'warrantyArea') {
+                    textarea.value = this.warrantyArea || '';
+                } else if (field === 'agreement') {
+                    textarea.value = this.agreement || '';
+                } else if (field === 'limitations') {
+                    textarea.value = this.limitations || '';
+                }
+            }
+        });
+    }
+
+    async loadConfiguration() {
+        this.isLoading = true;
+        try {
+            const result = await getProposalConfig();
+            console.log('Result from Apex:', result);
+            
+            // Result is already a JavaScript object (Map from Apex)
+            this.ohValue = result.ohValue || 0;
+            this.warrantyValue = result.warrantyValue || 0;
+            this.profitValue = result.profitValue || 0;
+            this.warrantyArea = result.warrantyArea || '';
+            this.agreement = result.agreement || '';
+            this.limitations = result.limitations || '';
+
+            // Store originals
+            this.originalOhValue = this.ohValue;
+            this.originalWarrantyValue = this.warrantyValue;
+            this.originalProfitValue = this.profitValue;
+            this.originalWarrantyArea = this.warrantyArea;
+            this.originalAgreement = this.agreement;
+            this.originalLimitations = this.limitations;
+
+            this.hasChanges = false;
+            this._initialized = false;
+            
+        } catch (error) {
+            console.error('Error loading configuration:', error);
+            this.showToast('Error', 'Failed to load configuration. Using default values.', 'error');
+            this.setDefaultValues();
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    setDefaultValues() {
+        this.ohValue = 0;
+        this.warrantyValue = 0;
+        this.profitValue = 0;
+        this.warrantyArea = '';
+        this.agreement = '';
+        this.limitations = '';
+        
+        // Store originals
+        this.originalOhValue = this.ohValue;
+        this.originalWarrantyValue = this.warrantyValue;
+        this.originalProfitValue = this.profitValue;
+        this.originalWarrantyArea = this.warrantyArea;
+        this.originalAgreement = this.agreement;
+        this.originalLimitations = this.limitations;
+        
+        this.hasChanges = false;
+        this._initialized = false;
     }
 
     handleOHChange(event) {
-        const newValue = parseFloat(event.target.value) || 0;
-        this.ohValue = newValue;
+        this.ohValue = parseFloat(event.target.value) || 0;
         this.checkForChanges();
     }
 
     handleWarrantyChange(event) {
-        const newValue = parseFloat(event.target.value) || 0;
-        this.warrantyValue = newValue;
+        this.warrantyValue = parseFloat(event.target.value) || 0;
         this.checkForChanges();
     }
 
     handleProfitChange(event) {
-        const newValue = parseFloat(event.target.value) || 0;
-        this.profitValue = newValue;
+        this.profitValue = parseFloat(event.target.value) || 0;
+        this.checkForChanges();
+    }
+
+    handleWarrantyArea(event) {
+        this.warrantyArea = event.target.value;
+        this.checkForChanges();
+    }
+
+    handleAgreement(event) {
+        this.agreement = event.target.value;
+        this.checkForChanges();
+    }
+
+    handleLimitations(event) {
+        this.limitations = event.target.value;
         this.checkForChanges();
     }
 
     checkForChanges() {
-        // Check if any value differs from original
-        this.hasChanges = 
+        this.hasChanges =
             this.ohValue !== this.originalOhValue ||
             this.warrantyValue !== this.originalWarrantyValue ||
-            this.profitValue !== this.originalProfitValue;
+            this.profitValue !== this.originalProfitValue ||
+            this.warrantyArea !== this.originalWarrantyArea ||
+            this.agreement !== this.originalAgreement ||
+            this.limitations !== this.originalLimitations;
     }
 
     handleCancel() {
         this.ohValue = this.originalOhValue;
         this.warrantyValue = this.originalWarrantyValue;
         this.profitValue = this.originalProfitValue;
+        this.warrantyArea = this.originalWarrantyArea;
+        this.agreement = this.originalAgreement;
+        this.limitations = this.originalLimitations;
         this.hasChanges = false;
+        
+        this.updateTextareaValues();
     }
 
-    handleSave() {
-        // Validate
-        if (this.ohValue < 0 || this.ohValue > 100 ||
+    async handleSave() {
+        if (
+            this.ohValue < 0 || this.ohValue > 100 ||
             this.warrantyValue < 0 || this.warrantyValue > 100 ||
-            this.profitValue < 0 || this.profitValue > 100) {
-            this.showToast('Invalid Input', 'Values must be between 0-100%', 'error');
+            this.profitValue < 0 || this.profitValue > 100
+        ) {
+            this.showToast('Invalid Input', 'Values must be between 0–100%', 'error');
+            return;
+        }
+
+        if(this.ohValue + this.warrantyValue + this.profitValue >= 100) {
+            this.showToast('Invalid Input', 'Sum of OH, Warranty and Profit should be less than 100%', 'error');
+            return;
+        }
+        
+        const maxAllowed = 100 - this.ohValue - this.warrantyValue - 1;
+        if (this.profitValue > maxAllowed) {
+            this.showToast('Invalid Profit', `Profit cannot exceed ${maxAllowed}%`, 'error');
             return;
         }
 
         this.isLoading = true;
-        
-        saveProposalConfig({
-            ohValue: this.ohValue,
-            warrantyValue: this.warrantyValue,
-            profitValue: this.profitValue
-        })
-        .then(() => {
-            // Update original values after successful save
+
+        try {
+            const configJson = JSON.stringify({
+                ohValue: this.ohValue,
+                warrantyValue: this.warrantyValue,
+                profitValue: this.profitValue,
+                warrantyArea: this.warrantyArea,
+                agreement: this.agreement,
+                limitations: this.limitations
+            });
+
+            await saveProposalConfig({ configJson });
+
+            // Update originals
             this.originalOhValue = this.ohValue;
             this.originalWarrantyValue = this.warrantyValue;
             this.originalProfitValue = this.profitValue;
-            
-            // Reset changes flag
+            this.originalWarrantyArea = this.warrantyArea;
+            this.originalAgreement = this.agreement;
+            this.originalLimitations = this.limitations;
+
             this.hasChanges = false;
-            
             this.showToast('Success', 'Configuration saved successfully', 'success');
+
+            this.loadConfiguration();
+
+        } catch (error) {
+            console.error('Save error:', error);
+            this.showToast(
+                'Error',
+                'Failed to save configuration: ' +
+                (error.body?.message || error.message),
+                'error'
+            );
+        } finally {
             this.isLoading = false;
-        })
-        .catch(error => {
-            this.showToast('Error', 'Failed to save configuration', 'error');
-            this.isLoading = false;
-        });
+        }
     }
 
+
     showToast(title, message, variant) {
-        this.dispatchEvent(new ShowToastEvent({
-            title,
-            message,
-            variant,
-            mode: 'dismissable'
-        }));
+        this.dispatchEvent(
+            new ShowToastEvent({
+                title,
+                message,
+                variant,
+                mode: 'dismissable'
+            })
+        );
     }
 }
