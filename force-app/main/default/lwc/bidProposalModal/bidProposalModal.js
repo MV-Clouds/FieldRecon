@@ -325,11 +325,16 @@ export default class BidProposalModal extends LightningElement {
         event.preventDefault();
         event.stopPropagation();
 
-        // First validate profit - this is the key fix
-        const maxAllowed = 100 - this.ohValue - this.warrantyValue - 1;
-        if (this.profitValue > maxAllowed) {
-            this.showToast('Invalid Profit', `Profit cannot exceed ${maxAllowed}%`, 'error');
-            return; // Make sure to return early
+        // // First validate profit - this is the key fix
+        // const maxAllowed = 100 - this.ohValue - this.warrantyValue - 1;
+        // if (this.profitValue > maxAllowed) {
+        //     this.showToast('Invalid Profit', `Profit cannot exceed ${maxAllowed}%`, 'error');
+        //     return; // Make sure to return early
+        // }
+
+        if(this.ohValue + this.warrantyValue + this.profitValue >= 100) {
+            this.showToast('Invalid Input', 'Sum of OH, Warranty and Profit should be less than 100%', 'error');
+            return;
         }
 
         const inputFields = this.template.querySelectorAll('lightning-input-field');
