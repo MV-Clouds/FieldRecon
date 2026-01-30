@@ -4,6 +4,7 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getContacts from '@salesforce/apex/ManagementTabController.getContacts';
 import deleteContact from '@salesforce/apex/ManagementTabController.deleteContact';
 import getContactFields from '@salesforce/apex/ContactConfigController.getContactFields';
+import createUserFromContact from '@salesforce/apex/ManagementTabController.createUserFromContact';
 
 export default class ContactManagement extends NavigationMixin(LightningElement) {
     @track isLoading = true;
@@ -529,6 +530,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
  */
     handleSave(event) {
         event.preventDefault();
+        event.stopPropagation();
 
         // Get the record edit form
         const recordEditForm = this.template.querySelector('lightning-record-edit-form');
@@ -540,19 +542,45 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     }
 
     /**
-     * Method Name: handleSuccess
-     * @description: Handle successful save from lightning-record-edit-form
-     */
-    handleSuccess(event) {
-        this.isLoading = false;
+ * Method Name: handleSuccess
+ * @description: Handle successful save from lightning-record-edit-form
+ */
+handleSuccess(event) {
+    const contactId = event.detail.id;
+    const msg = this.isEditMode ? 'Contact and User updated successfully' : 'Contact and User created successfully';
 
-        const msg = this.isEditMode ? 'Contact updated successfully' : 'Contact created successfully';
-        this.showToast('Success', msg, 'success');
-
-        // Close modal and refresh contacts
-        this.handleCloseModal();
-        this.fetchContacts();
-    }
+    createUserFromContact({ contactId: contactId })
+        .then(result => {
+            console.log('result', result);
+            
+            if (result.success) {
+                // Success case - user was created
+                this.showToast('Success', msg, 'success');
+                console.log('User created with ID:', result.userId);
+            } else {
+                // Error case from Apex                
+                // Check if it's a license limit error
+                if (result.message && result.message.includes('LICENSE_LIMIT_EXCEEDED')) {
+                    this.showToast('Error', 'Cannot create user: No available licenses as limit exceeded.', 'error');
+                    deleteContact({ contactId: contactId });
+                } else if (result.message && !result.message.includes('LICENSE_LIMIT_EXCEEDED')) {
+                    // For other errors, delete the contact
+                    this.showToast('Error', 'User creation failed: ' + result.message, 'error');
+                    deleteContact({ contactId: contactId });
+                }
+            }
+        })
+        .catch(error => {
+            // This catches unexpected JavaScript errors
+            
+            deleteContact({ contactId: contactId });
+        })
+        .finally(() => {
+            this.isLoading = false;
+            this.handleCloseModal();
+            this.fetchContacts();
+        });
+}
 
     /**
      * Method Name: handleError
@@ -569,6 +597,9 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         if (error.detail) {
             if (error?.detail && error.detail.toLowerCase().includes('required')) {
                 errorMessage = 'Please fill all required fields.';
+            }
+            if (error?.detail && error.detail.toLowerCase().includes('duplicate')) {
+                errorMessage = 'Contact with this email already exists.';
             }
         } else if (error.message) {
             errorMessage = error.detail;
