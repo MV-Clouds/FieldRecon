@@ -39,24 +39,36 @@ export default class BidProposalModal extends LightningElement {
     // Track if we need to fetch contact
     currentContactId = null;
 
+    // Track if config has been loaded
+    _configLoaded = false;
+
     // Wire to get custom setting values
     @wire(getProposalConfig)
     wiredProposalConfig({ error, data }) {
         if (data) {
-            // Set default values from custom setting
-            this.ohValue = data.wfrecon__OH__c || 0;
-            this.warrantyValue = data.wfrecon__Warranty__c || 0;
-            this.profitValue = data.wfrecon__Profit__c || 0;
+            try {
+                const config = data;
 
-            // Update display values
-            this.ohDisplay = `${this.ohValue}%`;
-            this.warrantyDisplay = `${this.warrantyValue}%`;
-            this.profitDisplay = `${this.profitValue}%`;
+                // Percentages
+                this.ohValue = config.ohValue ?? 0;
+                this.warrantyValue = config.warrantyValue ?? 0;
+                this.profitValue = config.profitValue ?? 0;
+
+                // Display values
+                this.ohDisplay = `${this.ohValue}%`;
+                this.warrantyDisplay = `${this.warrantyValue}%`;
+                this.profitDisplay = `${this.profitValue}%`;
+
+                this._configLoaded = true;
+
+            } catch (e) {
+                console.error('Error handling Proposal Configuration:', e);
+            }
         } else if (error) {
             console.error('Error loading Proposal Configuration:', error);
-            // Keep default values (0) if error occurs
         }
     }
+
 
     @wire(getRecord, { recordId: '$recordId', fields: BID_FIELDS })
     wiredBid({ error, data }) {
@@ -250,6 +262,11 @@ export default class BidProposalModal extends LightningElement {
             this.profitDisplay = numValue + '%';
         }
 
+
+    }
+
+    handleExpirationDateChange(event) {
+        this.expirationDate = event.target.value;
     }
 
     handleCancel() {
@@ -261,13 +278,29 @@ export default class BidProposalModal extends LightningElement {
         event.preventDefault();
         event.stopPropagation();
 
-           // First validate profit - this is the key fix
-    const maxAllowed = 100 - this.ohValue - this.warrantyValue;
-    if (this.profitValue > maxAllowed) {
-        this.showToast('Invalid Profit', `Profit cannot exceed ${maxAllowed}%`, 'error');
-        return; // Make sure to return early
-    }
+        if(this.ohValue + this.warrantyValue + this.profitValue >= 100) {
+            this.showToast('Invalid Input', 'Sum of OH, Warranty and Profit should be less than 100%', 'error');
+            return;
+        }
 
+        // Expiration date validation 
+        if (this.expirationDate) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const expDate = new Date(this.expirationDate);
+            expDate.setHours(0, 0, 0, 0);
+
+            if (expDate < today) {
+                this.showToast(
+                    'Invalid Date',
+                    'Expiration Date cannot be in the past.',
+                    'error'
+                );
+                return;
+            }
+        }
+        
         const inputFields = this.template.querySelectorAll('lightning-input-field');
         const customInputs = this.template.querySelectorAll('lightning-input');
         let isValid = true;
@@ -275,6 +308,7 @@ export default class BidProposalModal extends LightningElement {
         // Validate all lightning-input-field
         inputFields.forEach(field => {
             if (!field.reportValidity()) {
+                console.log('field - ', field)
                 isValid = false;
             }
         });
