@@ -67,6 +67,10 @@
     gap: 16px;
 }
 
+.toggle-container-area{
+    align-items: center;
+}
+
 .toggle-label-container {
     display: flex;
     align-items: center;
@@ -149,6 +153,19 @@
     border-radius: 4px;
     height: 29px;
     padding-left: 0.5rem;
+}
+
+.custom-toggle-wrapper-area{
+    padding-top: 0.5rem;
+}
+
+.custom-area{
+    height: 150px;
+    padding: 0.5rem;
+    resize: none;
+    width: 100%;
+    border: 1px solid rgba(94, 90, 219, 0.2);
+    border-radius: 4px;
 }
 
 /* Action Buttons Container */
@@ -243,3 +260,4 @@
 .info-icon {
     flex-shrink: 0;
 }
+

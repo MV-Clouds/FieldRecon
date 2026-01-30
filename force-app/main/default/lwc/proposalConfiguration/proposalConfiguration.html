@@ -1,76 +1,156 @@
 <template>
-      <!-- Loading Spinner -->
-        <template if:true={isLoading}>
-            <div class="spinner-container slds-is-fixed">
-                <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
-            </div>
-        </template>
+    <!-- Loading Spinner -->
+    <template if:true={isLoading}>
+        <div class="spinner-container slds-is-fixed">
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        </div>
+    </template>
 
     <div class="slds-p-around_medium main-card">
-    
+
         <!-- Header Section -->
         <div class="header-section">
             <h2 class="header-title">Proposal Configuration</h2>
         </div>
 
         <!-- Configuration Form -->
-            <div class="slds-grid slds-wrap ">
+        <div class="slds-grid slds-wrap ">
 
-                <div class="toggle-section">
-                    <div class="toggle-container">
-                        <div class="toggle-label-container">
-                            <label class="toggle-label">OH (%)</label>
-                            <div class="info-icon-wrapper">
-                                <lightning-icon icon-name="utility:info" size="x-small" class="info-icon">
-                                </lightning-icon>
-                                <div class="tooltip">Enter the Overhead (OH) percentage that will be default set
-                                    everywhere for proposal.</div>
-                            </div>
-                        </div>
-                        <div class="custom-toggle-wrapper">
-                            <input type="number" min="0" max="100" step="0.01" value={ohValue} onchange={handleOHChange}
-                                formatter="decimal" class="custom-input" />
+            <div class="toggle-section">
+                <div class="toggle-container">
+                    <div class="toggle-label-container">
+                        <label class="toggle-label">OH (%)</label>
+                        <div class="info-icon-wrapper">
+                            <lightning-icon icon-name="utility:info" size="x-small" class="info-icon">
+                            </lightning-icon>
+                            <div class="tooltip">Enter the Overhead (OH) percentage that will be default set
+                                everywhere for proposal.</div>
                         </div>
                     </div>
-                </div>
-
-                <div class="toggle-section">
-                    <div class="toggle-container">
-                        <div class="toggle-label-container">
-                            <label class="toggle-label">Warranty (%)</label>
-                            <div class="info-icon-wrapper">
-                                <lightning-icon icon-name="utility:info" size="x-small" class="info-icon">
-                                </lightning-icon>
-                                <div class="tooltip">Enter the Warranty percentage that will be default set everywhere
-                                    for proposal.</div>
-                            </div>
-                        </div>
-                        <div class="custom-toggle-wrapper">
-                            <input type="number" min="0" max="100" step="0.01" value={warrantyValue}
-                                onchange={handleWarrantyChange} formatter="decimal" class="custom-input" />
-                        </div>
+                    <div class="custom-toggle-wrapper">
+                        <input type="number" min="0" max="100" step="0.01" value={ohValue} onchange={handleOHChange}
+                            formatter="decimal" class="custom-input" />
                     </div>
                 </div>
-
-                <div class="toggle-section">
-                    <div class="toggle-container">
-                        <div class="toggle-label-container">
-                            <label class="toggle-label">Profit (%)</label>
-                            <div class="info-icon-wrapper">
-                                <lightning-icon icon-name="utility:info" size="x-small" class="info-icon">
-                                </lightning-icon>
-                                <div class="tooltip">Enter the Profit percentage that will be default set everywhere for
-                                    proposal.</div>
-                            </div>
-                        </div>
-                        <div class="custom-toggle-wrapper">
-                            <input type="number" min="0" max="100" step="0.01" value={profitValue}
-                                onchange={handleProfitChange} formatter="decimal" class="custom-input" />
-                        </div>
-                    </div>
-                </div>
-
             </div>
+
+            <div class="toggle-section">
+                <div class="toggle-container">
+                    <div class="toggle-label-container">
+                        <label class="toggle-label">Warranty (%)</label>
+                        <div class="info-icon-wrapper">
+                            <lightning-icon icon-name="utility:info" size="x-small" class="info-icon">
+                            </lightning-icon>
+                            <div class="tooltip">Enter the Warranty percentage that will be default set everywhere
+                                for proposal.</div>
+                        </div>
+                    </div>
+                    <div class="custom-toggle-wrapper">
+                        <input type="number" min="0" max="100" step="0.01" value={warrantyValue}
+                            onchange={handleWarrantyChange} formatter="decimal" class="custom-input" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="toggle-section">
+                <div class="toggle-container">
+                    <div class="toggle-label-container">
+                        <label class="toggle-label">Profit (%)</label>
+                        <div class="info-icon-wrapper">
+                            <lightning-icon icon-name="utility:info" size="x-small" class="info-icon">
+                            </lightning-icon>
+                            <div class="tooltip">Enter the Profit percentage that will be default set everywhere for
+                                proposal.</div>
+                        </div>
+                    </div>
+                    <div class="custom-toggle-wrapper">
+                        <input type="number" min="0" max="100" step="0.01" value={profitValue}
+                            onchange={handleProfitChange} formatter="decimal" class="custom-input" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Proposal Warranty - Replace textarea with lightning-input-rich-text -->
+            <div class="toggle-section">
+                <div class="toggle-container-area">
+                    <div class="toggle-label-container">
+                        <label class="toggle-label">Proposal Warranty</label>
+                        <div class="info-icon-wrapper">
+                            <lightning-icon icon-name="utility:info" size="x-small" class="info-icon">
+                            </lightning-icon>
+                            <div class="tooltip">Enter the warranty details that will be default set everywhere for
+                                proposal.</div>
+                        </div>
+                    </div>
+                    <div class="custom-toggle-wrapper-area">
+                        <lightning-input-rich-text value={warrantyArea} onchange={handleWarrantyArea}
+                            placeholder="Enter warranty details..." class="rich-text-editor">
+                        </lightning-input-rich-text>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agreement - Replace textarea with lightning-input-rich-text -->
+            <div class="toggle-section">
+                <div class="toggle-container-area">
+                    <div class="toggle-label-container">
+                        <label class="toggle-label">Agreement</label>
+                        <div class="info-icon-wrapper">
+                            <lightning-icon icon-name="utility:info" size="x-small" class="info-icon">
+                            </lightning-icon>
+                            <div class="tooltip">Enter the Agreement details that will be default set everywhere for
+                                proposal.</div>
+                        </div>
+                    </div>
+                    <div class="custom-toggle-wrapper-area">
+                        <lightning-input-rich-text value={agreement} onchange={handleAgreement}
+                            placeholder="Enter agreement details..." class="rich-text-editor">
+                        </lightning-input-rich-text>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Limitations - Replace textarea with lightning-input-rich-text -->
+            <div class="toggle-section">
+                <div class="toggle-container-area">
+                    <div class="toggle-label-container">
+                        <label class="toggle-label">Limitations</label>
+                        <div class="info-icon-wrapper">
+                            <lightning-icon icon-name="utility:info" size="x-small" class="info-icon">
+                            </lightning-icon>
+                            <div class="tooltip">Enter the Limitations details that will be default set everywhere for
+                                proposal.</div>
+                        </div>
+                    </div>
+                    <div class="custom-toggle-wrapper-area">
+                        <lightning-input-rich-text value={limitations} onchange={handleLimitations}
+                            placeholder="Enter limitations details..." class="rich-text-editor">
+                        </lightning-input-rich-text>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Section -->
+            <div class="toggle-section">
+                <div class="toggle-container-area">
+                    <div class="toggle-label-container">
+                        <label class="toggle-label">Footer</label>
+                        <div class="info-icon-wrapper">
+                            <lightning-icon icon-name="utility:info" size="x-small" class="info-icon">
+                            </lightning-icon>
+                            <div class="tooltip">Enter the footer content that will appear at the bottom of proposals.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="custom-toggle-wrapper-area">
+                        <lightning-input-rich-text value={footerContent} onchange={handleFooterContent}
+                            placeholder="Enter footer content..." class="rich-text-editor">
+                        </lightning-input-rich-text>
+                    </div>
+                </div>
+            </div>
+
+        </div>
 
         <!-- Action Buttons -->
         <div class="action-buttons-container">
