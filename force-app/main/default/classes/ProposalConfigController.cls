@@ -1,63 +1,39 @@
 public with sharing class ProposalConfigController {
 
     @AuraEnabled(cacheable=true)
-    public static Map<String, Object> getProposalConfig() {
-        Map<String, Object> defaultResult = new Map<String, Object>{
-            'ohValue' => 0,
-            'warrantyValue' => 0,
-            'profitValue' => 0,
-            'warrantyArea' => '',
-            'agreement' => '',
-            'limitations' => ''
-        };
-        
+    public static ProposalConfigData getProposalConfig() {
         try {
-            Map<String, wfrecon__Proposal_Config__mdt> configMap = wfrecon__Proposal_Config__mdt.getAll();
+            ProposalConfigData result = new ProposalConfigData();
             
-            if (configMap.isEmpty()) {
-                return defaultResult;
+            List<wfrecon__Proposal_Config__mdt> configs = [
+                SELECT wfrecon__Config_JSON__c 
+                FROM wfrecon__Proposal_Config__mdt 
+                WHERE DeveloperName = 'ProposalConfig' 
+                LIMIT 1
+            ];
+            
+            if (!configs.isEmpty() && configs[0].wfrecon__Config_JSON__c != null) {
+                result.configJson = configs[0].wfrecon__Config_JSON__c;
+            } else {
+                result.configJson = '{}';
             }
             
-            wfrecon__Proposal_Config__mdt config = configMap.values().get(0);
-            
-            if (config == null || String.isBlank(config.wfrecon__Config_JSON__c)) {
-                return defaultResult;
-            }
-            
-            String jsonString = config.wfrecon__Config_JSON__c.trim();
-            
-            // Check if the value is Base64 encoded (doesn't start with { or [)
-            if (!jsonString.startsWith('{') && !jsonString.startsWith('[')) {
-                // Decode from Base64
-                jsonString = EncodingUtil.base64Decode(jsonString).toString();
-            }
-            
-            Map<String, Object> jsonData = (Map<String, Object>) JSON.deserializeUntyped(jsonString);
-            
-            // Merge with defaults
-            for (String key : defaultResult.keySet()) {
-                if (!jsonData.containsKey(key)) {
-                    jsonData.put(key, defaultResult.get(key));
-                }
-            }
-            
-            return jsonData;
-            
+            return result;
         } catch (Exception e) {
-            System.debug(LoggingLevel.ERROR, 'getProposalConfig Error: ' + e.getMessage());
-             ExceptionHandler.logException(new Map<String, Object>{
+            ExceptionHandler.logException(new Map<String, Object>{
                 'className' => 'ProposalConfigController', 
                 'methodName' => 'getProposalConfig', 
                 'exceptionObj' => e, 
                 'moreDetails' => e.getMessage()
             });
-            return defaultResult;
+            return null;
         }
     }
 
     @AuraEnabled
     public static void saveProposalConfig(String configJson) {
         try {
+            // Validate it's valid JSON before saving
             JSON.deserializeUntyped(configJson);
 
             Metadata.CustomMetadata mdata = new Metadata.CustomMetadata();
@@ -75,8 +51,7 @@ public with sharing class ProposalConfigController {
             Metadata.Operations.enqueueDeployment(container, null);
 
         } catch (Exception e) {
-            System.debug(LoggingLevel.ERROR, 'saveProposalConfig Error: ' + e.getMessage());
-             ExceptionHandler.logException(new Map<String, Object>{
+            ExceptionHandler.logException(new Map<String, Object>{
                 'className' => 'ProposalConfigController', 
                 'methodName' => 'saveProposalConfig', 
                 'exceptionObj' => e, 
@@ -84,5 +59,8 @@ public with sharing class ProposalConfigController {
             });
         }
     }
-    
+
+    public class ProposalConfigData {
+        @AuraEnabled public String configJson;
+    }
 }

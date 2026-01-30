@@ -47,7 +47,14 @@ export default class BidProposalModal extends LightningElement {
     wiredProposalConfig({ error, data }) {
         if (data) {
             try {
-                const config = data;
+                let config = {};
+                if (data.configJson) {
+                    try {
+                        config = JSON.parse(data.configJson);
+                    } catch (parseError) {
+                        console.error('Error parsing Proposal Configuration JSON:', parseError);
+                    }
+                }
 
                 // Percentages
                 this.ohValue = config.ohValue ?? 0;
