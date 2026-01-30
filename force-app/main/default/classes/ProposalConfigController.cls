@@ -13,19 +13,19 @@ public with sharing class ProposalConfigController {
         };
         
         try {
-            Map<String, Proposal_Config__mdt> configMap = Proposal_Config__mdt.getAll();
+            Map<String, wfrecon__Proposal_Config__mdt> configMap = wfrecon__Proposal_Config__mdt.getAll();
             
             if (configMap.isEmpty()) {
                 return defaultResult;
             }
             
-            Proposal_Config__mdt config = configMap.values().get(0);
+            wfrecon__Proposal_Config__mdt config = configMap.values().get(0);
             
-            if (config == null || String.isBlank(config.Config_JSON__c)) {
+            if (config == null || String.isBlank(config.wfrecon__Config_JSON__c)) {
                 return defaultResult;
             }
             
-            String jsonString = config.Config_JSON__c.trim();
+            String jsonString = config.wfrecon__Config_JSON__c.trim();
             
             // Check if the value is Base64 encoded (doesn't start with { or [)
             if (!jsonString.startsWith('{') && !jsonString.startsWith('[')) {
@@ -62,11 +62,11 @@ public with sharing class ProposalConfigController {
             JSON.deserializeUntyped(configJson);
 
             Metadata.CustomMetadata mdata = new Metadata.CustomMetadata();
-            mdata.fullName = 'Proposal_Config__mdt.ProposalConfig';
+            mdata.fullName = 'wfrecon__Proposal_Config__mdt.ProposalConfig';
             mdata.label = 'ProposalConfig';
 
             Metadata.CustomMetadataValue val = new Metadata.CustomMetadataValue();
-            val.field = 'Config_JSON__c';
+            val.field = 'wfrecon__Config_JSON__c';
             val.value = configJson;
 
             mdata.values.add(val);
