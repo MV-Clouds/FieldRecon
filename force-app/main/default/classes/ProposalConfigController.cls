@@ -1,6 +1,6 @@
 public with sharing class ProposalConfigController {
 
-    @AuraEnabled(cacheable=true)
+    @AuraEnabled
     public static Map<String, Object> getProposalConfig() {
         Map<String, Object> defaultResult = new Map<String, Object>{
             'ohValue' => 0,
