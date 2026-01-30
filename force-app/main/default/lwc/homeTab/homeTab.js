@@ -1089,6 +1089,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
         
         if (selectedMob) {
             this.selectedJobId = selectedMob.jobId;
+            this.selectedMobilizationId = mobId;
             this.showCrewModal = true;
         }
     }
@@ -1100,6 +1101,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     closeCrewModal() {
         this.showCrewModal = false;
         this.selectedJobId = null;
+        this.selectedMobilizationId = null;
         
         // Refresh the data to show updated status after crew action
         this.getMobilizationMembers();

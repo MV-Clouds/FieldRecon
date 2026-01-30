@@ -26,9 +26,15 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
     bidId;
     bidName = '';
     accountId;
+    jobStatus = 'Active';
     defaultJobName = '';
     defaultAmount;
     defaultDescription = '';
+    defaultBudgetedPerDiemCost;
+    defaultBudgetedMileageCost;
+    defaultBudgetedMaterialCost;
+    defaultBudgetedLabourCost;
+    defaultBudgetedHotelCost;
 
     // Page navigation
     @track currentPage = 'createLink'; // 'createLink' or 'proposals'
@@ -36,6 +42,7 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
 
     // Selected job for linking
     @track selectedJobId = '';
+    defaultjobId = '';
 
     // Bid/Proposal/Proposal Line properties
     @track displayedProposals = [];
@@ -65,7 +72,10 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
             this.bidName = getFieldValue(data, 'wfrecon__Bid__c.Name') || this.recordId;
             this.accountId = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__AccountId__c');
             this.defaultJobName = this.bidName;
-            this.selectedJobId = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Job__c');
+
+            const job = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Job__c');
+            this.selectedJobId = job;
+            this.defaultjobId = job;
             this.defaultAmount = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Amount__c');
             this.defaultDescription = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Description__c') || '';
 
@@ -238,7 +248,7 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
 
         // Set mode for create new job
         this.createLinkMode = 'create';
-        this.selectedJobId = null;
+         this.selectedJobId = '';
     }
 
     handleLinkExistingJob() {
@@ -250,10 +260,18 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
         }
         // Set mode for link existing job
         this.createLinkMode = 'link';
+        this.selectedJobId = this.defaultjobId;
     }
 
     handleJobSelection(event) {
+        const recordPicker = this.template.querySelector('lightning-record-picker');
         this.selectedJobId = event.detail.recordId;
+        if (this.selectedJobId) {
+             if (recordPicker) {
+                recordPicker.setCustomValidity('');
+                recordPicker.reportValidity();
+            }
+        } 
     }
 
     /**
@@ -279,6 +297,11 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
                         Type__c: proposal.Type__c,
                         Sales_Price__c: proposal.Sales_Price__c,
                         Status__c: proposal.Status__c,
+                        wfrecon__Budgeted_Per_Diem_Cost__c: proposal.wfrecon__Budgeted_Per_Diem_Cost__c,
+                        wfrecon__Budgeted_Mileage_Cost__c: proposal.wfrecon__Budgeted_Mileage_Cost__c,
+                        wfrecon__Budgeted_Material_Cost__c: proposal.wfrecon__Budgeted_Material_Cost__c,
+                        wfrecon__Budgeted_Labour_Cost__c: proposal.wfrecon__Budgeted_Labour_Cost__c,
+                        wfrecon__Budgeted_Hotel_Cost__c: proposal.wfrecon__Budgeted_Hotel_Cost__c,
                         recordUrl: proposal.recordUrl,
                         showLines: false,
                         isLoadingLines: false,
@@ -294,6 +317,21 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
                     }));
 
                     this.displayedProposals = [...this.originalProposals];
+                    if (this.originalProposals.length > 0 && this.originalProposals[0]) {
+                        const firstProposal = this.originalProposals[0];
+                        this.defaultBudgetedPerDiemCost = firstProposal.wfrecon__Budgeted_Per_Diem_Cost__c;
+                        this.defaultBudgetedMileageCost = firstProposal.wfrecon__Budgeted_Mileage_Cost__c;
+                        this.defaultBudgetedMaterialCost = firstProposal.wfrecon__Budgeted_Material_Cost__c;
+                        this.defaultBudgetedLabourCost = firstProposal.wfrecon__Budgeted_Labour_Cost__c;
+                        this.defaultBudgetedHotelCost = firstProposal.wfrecon__Budgeted_Hotel_Cost__c;
+                    } else {
+                        // Set default values if no proposals found
+                        this.defaultBudgetedPerDiemCost = null;
+                        this.defaultBudgetedMileageCost = null;
+                        this.defaultBudgetedMaterialCost = null;
+                        this.defaultBudgetedLabourCost = null;
+                        this.defaultBudgetedHotelCost = null;
+                    }
 
                     // Initialize proposal line selections
                     this.selectedProposalLines.clear();
@@ -382,6 +420,18 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
                     this.defaultDescription = value;
                 } else if (fieldName === 'wfrecon__Account__c') {
                     this.accountId = value;
+                } else if (fieldName === 'wfrecon__Status__c') {
+                    this.jobStatus = value;
+                } else if (fieldName === 'wfrecon__Budgeted_Labour_Cost__c') {
+                    this.defaultBudgetedLabourCost = value;
+                } else if (fieldName === 'wfrecon__Budgeted_Hotel_Cost__c') {
+                    this.defaultBudgetedHotelCost = value;
+                } else if (fieldName === 'wfrecon__Budgeted_Material_Cost__c') {
+                    this.defaultBudgetedMaterialCost = value;
+                } else if (fieldName === 'wfrecon__Budgeted_Mileage_Cost__c') {
+                    this.defaultBudgetedMileageCost = value;
+                } else if (fieldName === 'wfrecon__Budgeted_Per_Diem_Cost__c') {
+                    this.defaultBudgetedPerDiemCost = value;
                 }
             });
         }

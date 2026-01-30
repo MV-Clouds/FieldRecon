@@ -1,0 +1,34 @@
+<template>
+    <div class="wrapper">
+        <!-- Tab Navigation -->
+        <div class="tab-navigation">
+            <button class={bidsListTabClass} onclick={handleBidsListTab} data-tab="bidsList">
+                Bids List
+            </button>
+            <button class={bidCalendarTabClass} onclick={handleBidCalendarTab} data-tab="bidCalendar">
+                Bid Calendar
+            </button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Bids List Tab -->
+            <template if:true={isBidsListTabActive}>
+                <div class="tab-panel">
+                    <div class="placeholder-content">
+                        <c-bids-list></c-bids-list>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Bid Calendar Tab -->
+            <template if:true={isBidCalendarTabActive}>
+                <div class="tab-panel">
+                    <div class="placeholder-content">
+                        <c-bid-calendar></c-bid-calendar>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+</template>

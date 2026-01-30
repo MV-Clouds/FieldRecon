@@ -28,4 +28,37 @@ public with sharing class BidProposalController {
             return null;
         }
     }
+    
+    /**
+     * Method Name: getProposalConfig
+     * @description: Fetch default OH, Warranty, and Profit percentages from Custom Settings
+     * @return wfrecon__Proposal_Configuration__c record with default percentages
+     */
+    @AuraEnabled(cacheable=true)
+    public static wfrecon__Proposal_Configuration__c getProposalConfig() {
+        try {
+            // Query custom setting for default values
+            wfrecon__Proposal_Configuration__c config = wfrecon__Proposal_Configuration__c.getInstance();
+            
+            if (config == null) {
+                // Return default values if custom setting not configured
+                config = new wfrecon__Proposal_Configuration__c();
+                config.wfrecon__OH__c = 0;
+                config.wfrecon__Warranty__c = 0;
+                config.wfrecon__Profit__c = 0;
+            }
+            
+            return config;
+            
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'BidProposalController', 'methodName' => 'getProposalConfig', 'exceptionObj' => e, 'moreDetails' =>  e.getMessage()});
+            
+            // Return default values on error
+            wfrecon__Proposal_Configuration__c config = new wfrecon__Proposal_Configuration__c();
+            config.wfrecon__OH__c = 0;
+            config.wfrecon__Warranty__c = 0;
+            config.wfrecon__Profit__c = 0;
+            return config;
+        }
+    }
 }
