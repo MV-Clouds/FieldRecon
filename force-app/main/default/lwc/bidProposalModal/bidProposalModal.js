@@ -32,6 +32,10 @@ export default class BidProposalModal extends LightningElement {
     @track ohDisplay = '0%';
     @track warrantyDisplay = '0%';
     @track profitDisplay = '0%';
+    @track warrantyArea = '';
+    @track limitations = '';
+    @track agreement = '';
+    @track footerContent = '';
 
     // Expiration Date
     @track expirationDate = null;
@@ -65,6 +69,10 @@ export default class BidProposalModal extends LightningElement {
                 this.ohDisplay = `${this.ohValue}%`;
                 this.warrantyDisplay = `${this.warrantyValue}%`;
                 this.profitDisplay = `${this.profitValue}%`;
+                this.warrantyArea = config.warrantyArea ?? '';
+                this.limitations = config.limitations ?? '';
+                this.agreement = config.agreement ?? '';
+                this.footerContent = config.footerContent ?? '';
 
                 this._configLoaded = true;
 
