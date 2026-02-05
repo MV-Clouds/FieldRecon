@@ -8,6 +8,49 @@ public with sharing class QuoteEmailController {
         @AuraEnabled public String proposalStatus; // Added field for status
     }
 
+     public String warrantyArea { get; private set; }
+    public String limitations { get; private set; }
+    public String agreement { get; private set; }
+    public String footerContent { get; private set; }
+
+     public QuoteEmailController() {
+        loadConfig();
+    }
+
+       private void loadConfig() {
+        try {
+            // Get your custom metadata record
+            List<wfrecon__Proposal_Config__mdt> configs = [
+                SELECT wfrecon__Config_JSON__c 
+                FROM wfrecon__Proposal_Config__mdt 
+                WHERE DeveloperName = 'ProposalConfig'
+                LIMIT 1
+            ];
+
+            if(!configs.isEmpty() && String.isNotBlank(configs[0].wfrecon__Config_JSON__c)) {
+                // Parse JSON into Map
+                Map<String, Object> data = (Map<String, Object>) JSON.deserializeUntyped(configs[0].wfrecon__Config_JSON__c);
+
+                // Assign fields
+                warrantyArea  = (String) data.get('warrantyArea');
+                limitations   = (String) data.get('limitations');
+                agreement     = (String) data.get('agreement');
+                footerContent = (String) data.get('footerContent');
+            } else {
+                warrantyArea = '';
+                limitations  = '';
+                agreement    = '';
+                footerContent = '';
+            }
+        } catch(Exception e) {
+            // Fallback empty strings if something goes wrong
+            warrantyArea = '';
+            limitations  = '';
+            agreement    = '';
+            footerContent = '';
+        }
+    }
+
     @AuraEnabled
     public static InitData getInitialData(String recordId) {
         try {
