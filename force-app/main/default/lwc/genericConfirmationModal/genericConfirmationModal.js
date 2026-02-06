@@ -11,6 +11,8 @@ export default class GenericConfirmationModal extends LightningElement {
     @api icon = 'utility:info'; // Default info icon
     @api iconVariant = 'info'; // warning, error, success, info
     @api size = 'small'; // small, medium, large
+    @api showThreeButtons = false; // Show three buttons instead of two
+    @api thirdButtonLabel = 'Third Option'; // Label for third button
 
     @track internalShowModal = false;
 
@@ -105,6 +107,14 @@ export default class GenericConfirmationModal extends LightningElement {
      */
     handleConfirm() {
         this.dispatchEvent(new CustomEvent('confirm'));
+    }
+
+    /**
+     * Method Name: handleThirdOption
+     * @description: Handle third button click (for 3-button mode)
+     */
+    handleThirdOption() {
+        this.dispatchEvent(new CustomEvent('thirdoption'));
     }
 
     /**

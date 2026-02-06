@@ -35,6 +35,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     @track confirmationModalTitle = 'Confirm Action';
     @track confirmationModalMessage = 'Are you sure you want to proceed?';
     @track pendingDeleteRecordId = null;
+    @track deleteModalMode = 'confirm'; // 'confirm' or 'options'
 
     // Pagination properties
     @track currentPage = 1;
@@ -219,7 +220,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
 
     /**
      * Method Name: formatDate
-     * @description: Format date value to MM/DD/YYYY
+     * @description: Format date value to MMM D, YYYY (e.g., Feb 6, 2026)
      */
     formatDate(dateString) {
         if (!dateString) return '';
@@ -230,7 +231,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
                 return dateString;
             }
             
-            const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
             return date.toLocaleDateString('en-US', options);
         } catch (error) {
             console.error('Error formatting date:', error);
@@ -240,7 +241,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
 
     /**
      * Method Name: formatDateTime
-     * @description: Format datetime value to MM/DD/YYYY HH:MM AM/PM
+     * @description: Format datetime value to MMM D, YYYY, HH:MM AM/PM (e.g., Feb 6, 2026, 09:15 AM)
      */
     formatDateTime(dateTimeString) {
         if (!dateTimeString) return '';
@@ -251,13 +252,13 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
                 return dateTimeString;
             }
             
-            const dateOptions = { year: 'numeric', month: '2-digit', day: '2-digit' };
+            const dateOptions = { year: 'numeric', month: 'short', day: 'numeric' };
             const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: true };
             
             const formattedDate = date.toLocaleDateString('en-US', dateOptions);
             const formattedTime = date.toLocaleTimeString('en-US', timeOptions);
             
-            return `${formattedDate} ${formattedTime}`;
+            return `${formattedDate}, ${formattedTime}`;
         } catch (error) {
             console.error('Error formatting datetime:', error);
             return dateTimeString;
@@ -409,6 +410,22 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
      */
     get isDataAvailable() {
         return this.filteredContacts.length > 0;
+    }
+
+    /**
+     * Method Name: get isDeleteWithInactiveMode
+     * @description: Check if we should show 3-button mode for delete
+     */
+    get isDeleteWithInactiveMode() {
+        return this.deleteModalMode === 'options';
+    }
+
+    /**
+     * Method Name: get deleteConfirmLabel
+     * @description: Get the delete button label based on mode
+     */
+    get deleteConfirmLabel() {
+        return this.deleteModalMode === 'options' ? 'Only delete contact' : 'Delete';
     }
 
     /**
@@ -591,7 +608,6 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
      */
     handleCreateNew() {
         this.formValues = {
-            'wfrecon__Can_Clock_In_Out__c': true, // Default to checked
             'RecordTypeId': ''
         };
         this.isEditMode = false;
@@ -600,25 +616,6 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         this.recordIdToEdit = null;
         this.prepareDynamicFields();
         this.showCreateModal = true;
-
-        // Set default value for checkbox field after modal renders
-        setTimeout(() => {
-            this.setDefaultCheckboxValue();
-        }, 100);
-    }
-
-    /**
-     * Method Name: setDefaultCheckboxValue
-     * @description: Set default value for checkbox field after modal renders
-     *              This is needed because lightning-input-field doesn't respect value property
-     */
-    setDefaultCheckboxValue() {
-        const inputFields = this.template.querySelectorAll('lightning-input-field');
-        inputFields.forEach(field => {
-            if (field.fieldName === 'wfrecon__Can_Clock_In_Out__c') {
-                field.value = true;
-            }
-        });
     }
 
     /**
@@ -685,6 +682,12 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         event.preventDefault();
         event.stopPropagation();
 
+        // Validate custom required fields
+        const isValid = this.validateCustomRequiredFields();
+        if (!isValid) {
+            return;
+        }
+
         // Get the record edit form
         const recordEditForm = this.template.querySelector('lightning-record-edit-form');
         // Submit the form - this will trigger validation and standard save
@@ -692,6 +695,52 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
             // Optional: You can do pre-save validation here if needed
             recordEditForm.submit();
         }
+    }
+
+    /**
+     * Method Name: validateCustomRequiredFields
+     * @description: Validate custom required fields from metadata
+     */
+    validateCustomRequiredFields() {
+        let isValid = true;
+        const missingFields = [];
+
+        if (this.dynamicFields && this.dynamicFields.length > 0) {
+            this.dynamicFields.forEach(field => {
+                // Skip disabled fields and the record type field (handled separately)
+                if (field.isDisabled) {
+                    return;
+                }
+
+                // For record type field, check recordTypeId
+                if (field.isRecordType) {
+                    if (!this.recordTypeId) {
+                        isValid = false;
+                        missingFields.push(field.label);
+                    }
+                    return;
+                }
+
+                // For other required fields, check formValues
+                if (field.isRequired) {
+                    const fieldValue = this.formValues[field.fieldName];
+                    
+                    // Check if field is empty
+                    if (fieldValue === null || fieldValue === undefined || 
+                        fieldValue === '' || (typeof fieldValue === 'string' && fieldValue.trim() === '')) {
+                        isValid = false;
+                        missingFields.push(field.label);
+                    }
+                }
+            });
+        }
+
+        if (!isValid) {
+            const fieldsList = missingFields.length > 0 ? ': ' + missingFields.join(', ') : '';
+            this.showToast('Error', `Please fill all required fields${fieldsList}`, 'error');
+        }
+
+        return isValid;
     }
 
     /**
@@ -904,20 +953,23 @@ handleSuccess(event) {
 
         this.pendingDeleteRecordId = recordId;
         this.confirmationModalTitle = 'Delete Contact';
-        this.confirmationModalMessage = 'Are you sure you want to delete this contact? This action cannot be undone.';
+        this.confirmationModalMessage = 'Are you sure you want to delete this contact?';
         this.showConfirmationModal = true;
+        this.deleteModalMode = 'options'; // Set modal to show 3 button options
     }
 
     /**
      * Method Name: handleConfirmationModalConfirm
      * @description: Handle confirmation modal confirm action
      */
-    handleConfirmationModalConfirm() {
+    handleConfirmationModalConfirm(event) {
         this.showConfirmationModal = false;
         if (this.pendingDeleteRecordId) {
+            // Default delete - just delete the contact
             this.deleteContactRecord(this.pendingDeleteRecordId);
             this.pendingDeleteRecordId = null;
         }
+        this.deleteModalMode = 'confirm'; // Reset mode
     }
 
     /**
@@ -927,20 +979,53 @@ handleSuccess(event) {
     handleConfirmationModalCancel() {
         this.showConfirmationModal = false;
         this.pendingDeleteRecordId = null;
+        this.deleteModalMode = 'confirm'; // Reset mode
+    }
+
+    /**
+     * Method Name: handleDeleteWithInactiveUser
+     * @description: Handle delete contact and set user to inactive
+     */
+    handleDeleteWithInactiveUser() {
+        this.showConfirmationModal = false;
+        if (this.pendingDeleteRecordId) {
+            this.deleteContactRecord(this.pendingDeleteRecordId,true);
+            this.pendingDeleteRecordId = null;
+        }
+        this.deleteModalMode = 'confirm'; // Reset mode
+    }
+
+    /**
+     * Method Name: handleOnlyDeleteContact
+     * @description: Handle delete contact only (no user deactivation)
+     */
+    handleOnlyDeleteContact() {
+        this.showConfirmationModal = false;
+        if (this.pendingDeleteRecordId) {
+            this.deleteContactRecord(this.pendingDeleteRecordId,false);
+            this.pendingDeleteRecordId = null;
+        }
+        this.deleteModalMode = 'confirm'; // Reset mode
     }
 
     /**
      * Method Name: deleteContactRecord
      * @description: Delete contact record via Apex
      */
-    deleteContactRecord(recordId, showToastMessage = true) {
-    this.isLoading = true;
+    deleteContactRecord(recordId, deactivateUser = true, showToastMessage = true) {
+        this.isLoading = true;
 
-    deleteContact({ contactId: recordId })
+        deleteContact({ 
+            contactId: recordId, 
+            deactivateUser: deactivateUser 
+        })
         .then(result => {
             if (result === 'Success') {
                 if (showToastMessage) {
-                    this.showToast('Success', 'Contact deleted successfully', 'success');
+                    const message = deactivateUser 
+                        ? 'Contact deleted and user deactivated successfully' 
+                        : 'Contact deleted successfully';
+                    this.showToast('Success', message, 'success');
                 }
                 this.fetchContacts();
             } else {
@@ -962,8 +1047,7 @@ handleSuccess(event) {
         .finally(() => {
             this.isLoading = false;
         });
-}
-
+    }
 
     /**
      * Method Name: handlePrevious
@@ -1026,7 +1110,6 @@ handleSuccess(event) {
             { fieldName: 'FirstName', label: 'First Name', isEditable: true, fieldType: 'STRING', isRequired: true, isTableView: true },
             { fieldName: 'LastName', label: 'Last Name', isEditable: true, fieldType: 'STRING', isRequired: true, isTableView: true },
             { fieldName: 'Email', label: 'Email', isEditable: true, fieldType: 'EMAIL', isRequired: true, isTableView: true },
-            { fieldName: 'wfrecon__Can_Clock_In_Out__c', label: 'Can Clock In / Out', isEditable: true, fieldType: 'BOOLEAN', isRequired: true, isTableView: false }
         ];
     }
 
@@ -1088,18 +1171,11 @@ handleSuccess(event) {
         const dynamicOtherFields = otherFields.map(config => {
             const fieldName = config.fieldName;
 
-            // Set default value for Can Clock In/Out checkbox on create mode
+            // Set value from formValues
             let currentVal = this.formValues[fieldName] !== undefined ? this.formValues[fieldName] : null;
 
-            // Ensure checkbox field gets proper boolean value
-            if (!this.isEditMode && !this.isPreviewMode &&
-                fieldName === 'wfrecon__Can_Clock_In_Out__c' && currentVal === null) {
-                currentVal = true;
-            }
-
             const isDisabled = this.isPreviewMode ? true : !config.isEditable;
-            const isSystemRequired = ['FirstName', 'LastName', 'Email', 'wfrecon__Can_Clock_In_Out__c'].includes(fieldName);
-            const isRequired = isSystemRequired || (config.isRequired === true);
+            const isRequired = config.isRequired === true;
 
             return {
                 fieldName: fieldName,
@@ -1119,17 +1195,18 @@ handleSuccess(event) {
 
     /**
      * Method Name: handleCustomInputChange
-     * @description: Handle custom input changes (Record Type combobox)
+     * @description: Handle custom input changes from both lightning-combobox and lightning-input-field
      */
     handleCustomInputChange(event) {
-        const name = event.target.name;
-        const value = event.detail.value;
+        const target = event.target;
+        let fieldName = target.name || target.fieldName;
+        let value = event.detail.value;
 
-        if (name && value !== undefined) {
-            this.formValues[name] = value;
+        if (fieldName && value !== undefined) {
+            this.formValues[fieldName] = value;
 
             // If this is the RecordTypeId field, update the tracked property
-            if (name === 'RecordTypeId') {
+            if (fieldName === 'RecordTypeId') {
                 this.recordTypeId = value;
             }
         }

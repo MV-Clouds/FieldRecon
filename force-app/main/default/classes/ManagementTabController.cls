@@ -1090,17 +1090,17 @@ private static String generateAlias(String firstName, String lastName) {
                 existingValues = new List<MetadataService.CustomValue>();
             }
 
-            // 🟢 Add new values OR reactivate existing ones
+            // Add new values OR reactivate existing ones
             for (String newValue : valuesToAdd) {
                 
-                // ✅ CHANGED: We use this flag to check if we found it at all.
+                // CHANGED: We use this flag to check if we found it at all.
                 Boolean valueFound = false; 
 
                 for (MetadataService.CustomValue cv : existingValues) {
                     if (cv.fullName == newValue) {
                         valueFound = true; // Mark as found
 
-                        // ✅ CHANGED: If it's inactive, reactivate it.
+                        // CHANGED: If it's inactive, reactivate it.
                         if (!cv.isActive) {
                             cv.isActive = true; 
                         }
@@ -1108,7 +1108,7 @@ private static String generateAlias(String firstName, String lastName) {
                     }
                 }
 
-                // ✅ CHANGED: Only add a new value if it was *never* found.
+                // CHANGED: Only add a new value if it was *never* found.
                 if (!valueFound && String.isNotBlank(newValue)) {
                     MetadataService.CustomValue newPickVal = new MetadataService.CustomValue();
                     newPickVal.fullName = newValue;
@@ -1119,7 +1119,7 @@ private static String generateAlias(String firstName, String lastName) {
                 }
             }
 
-            // 🔴 Deactivate values (This logic was already correct)
+            // Deactivate values (This logic was already correct)
             for (String valToDeactivate : valuesToDeactivate) {
                 for (MetadataService.CustomValue cv : existingValues) {
                     if (cv.fullName == valToDeactivate) {
@@ -1132,7 +1132,7 @@ private static String generateAlias(String firstName, String lastName) {
             // Assign the modified list back
             globalValueSet.customValue = existingValues;
 
-            // 🧩 Update Metadata
+            // Update Metadata
             service.updateMetadata(
                 new MetadataService.Metadata[]{ globalValueSet }
             );
@@ -1235,14 +1235,41 @@ private static String generateAlias(String firstName, String lastName) {
     }
 
     @AuraEnabled
-    public static String deleteContact(String contactId) {
+    public static String deleteContact(String contactId, Boolean deactivateUser) {
         try {
-            Contact contactToDelete = [SELECT Id FROM Contact WHERE Id = :contactId WITH USER_MODE LIMIT 1];
+            // Query the contact with the User__c field
+            Contact contactToDelete = [SELECT Id, User__c FROM Contact WHERE Id = :contactId WITH USER_MODE LIMIT 1];
+            
+            // Store the user ID if we need to deactivate
+            Id userIdToDeactivate = contactToDelete.User__c;
+            
+            // Delete the contact
             delete as user contactToDelete;
+            
+            // Call future method to deactivate user if needed
+            if (deactivateUser && userIdToDeactivate != null) {
+                deactivateUserFuture(userIdToDeactivate);
+            }
+            
             return 'Success';
+            
         } catch (Exception e) {
             System.debug('Error in deleteContact: ' + e.getMessage());
-            return 'Error: ' + e.getMessage();
+            throw new AuraHandledException('Delete failed: ' + e.getMessage());
+        }
+    }
+
+    @Future
+    public static void deactivateUserFuture(Id userId) {
+        try {
+            User userToDeactivate = [SELECT Id, IsActive FROM User WHERE Id = :userId WITH USER_MODE LIMIT 1];
+            
+            if (userToDeactivate != null && userToDeactivate.IsActive) {
+                userToDeactivate.IsActive = false;
+                update as user userToDeactivate;
+            }
+        } catch (Exception e) {
+            System.debug('Error in deactivateUserFuture: ' + e.getMessage());
         }
     }
     

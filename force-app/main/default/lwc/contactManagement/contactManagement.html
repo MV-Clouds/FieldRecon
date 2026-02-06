@@ -251,7 +251,8 @@
                                     <lightning-input-field
                                         field-name={field.fieldName}
                                         required={field.isRequired}
-                                        disabled={field.isDisabled}>
+                                        disabled={field.isDisabled}
+                                        onchange={handleCustomInputChange}>
                                     </lightning-input-field>
                                 </template>
 
@@ -279,9 +280,13 @@
         show-modal={showConfirmationModal}
         title={confirmationModalTitle}
         message={confirmationModalMessage}
-        confirm-button-label="Delete"
+        confirm-button-label={deleteConfirmLabel}
+        cancel-button-label="Cancel"
         confirm-button-variant="destructive"
-        onconfirm={handleConfirmationModalConfirm}
+        show-three-buttons={isDeleteWithInactiveMode}
+        third-button-label="Delete and inactive user"
+        onconfirm={handleOnlyDeleteContact}
+        onthirdoption={handleDeleteWithInactiveUser}
         oncancel={handleConfirmationModalCancel}>
     </c-generic-confirmation-modal>
 
