@@ -2,10 +2,120 @@ public with sharing class ManagementTabController {
 
     public static final String CLASSNAME = 'ManagementTabController';
 
-    @AuraEnabled
+//     @AuraEnabled
+// public static Map<String, Object> createUserFromContact(Id contactId) {
+//     Map<String, Object> response = new Map<String, Object>();
+    
+//     try {
+//         if (contactId == null) {
+//             throw new AuraHandledException('Contact Id is required');
+//         }
+
+//         // Fetch Contact
+//         Contact con = [
+//             SELECT Id, FirstName, LastName, Email,Phone, RecordTypeId
+//             FROM Contact
+//             WHERE Id = :contactId
+//             LIMIT 1
+//         ];
+
+//         // Validate email
+//         if (String.isBlank(con.Email)) {
+//             throw new AuraHandledException('Contact email is required to create user');
+//         }
+
+//         // Employee Record Type check
+//         Id employeeRecTypeId =
+//             Schema.SObjectType.Contact
+//                 .getRecordTypeInfosByDeveloperName()
+//                 .get('Employee_WF_Recon')
+//                 .getRecordTypeId();
+
+//         if (con.RecordTypeId != employeeRecTypeId) {
+//             throw new AuraHandledException('Contact is not an employee');
+//         }
+
+//         // Check if user already exists with this email
+//         List<User> existingUsers = [
+//             SELECT Id FROM User WHERE Email = :con.Email LIMIT 1
+//         ];
+        
+//         if (!existingUsers.isEmpty()) {
+//             throw new AuraHandledException('A user already exists with this email address');
+//         }
+
+//         // Get Standard Platform User profile
+//         Profile p = [
+//             SELECT Id
+//             FROM Profile
+//             WHERE Name = 'Standard Platform User'
+//             LIMIT 1
+//         ];
+
+//         // Build username & alias
+//         String domainName = 'recon.com';
+//         String userName =
+//             (con.FirstName == null
+//                 ? con.LastName.replaceAll(' ', '')
+//                 : con.FirstName.replaceAll(' ', '') + con.LastName.replaceAll(' ', '')
+//             ) + '@' + domainName;
+
+//         String alias;
+//         if (con.FirstName != null) {
+//             alias = con.FirstName.length() > 8 ? con.FirstName.substring(0, 8) : con.FirstName;
+//         } else {
+//             alias = con.LastName.length() > 8 ? con.LastName.substring(0, 8) : con.LastName;
+//         }
+
+//         User newUser = new User(
+//             FirstName = con.FirstName,
+//             LastName = con.LastName,
+//             Email = con.Email,
+//             Phone = con.Phone || '',
+//             Username = userName,
+//             ProfileId = p.Id,
+//             TimeZoneSidKey = UserInfo.getTimeZone().getID(),
+//             LanguageLocaleKey = 'en_US',
+//             EmailEncodingKey = 'UTF-8',
+//             LocaleSidKey = 'en_US',
+//             Alias = alias
+//         );
+
+//         insert newUser;
+        
+//         // Success response
+//         response.put('success', true);
+//         response.put('message', 'User created successfully');
+//         response.put('userId', newUser.Id);
+//         response.put('userName', newUser.Username);
+        
+//     } catch (Exception e) {
+//         String errorMessage = 'Error creating user: ' + e.getMessage();
+        
+//         // Log exception
+//         ExceptionHandler.logException(new Map<String, Object>{
+//             'className' => CLASSNAME, 
+//             'methodName' => 'createUserFromContact', 
+//             'isApiException' => false, 
+//             'statusCode' => null, 
+//             'exceptionObj' => e,
+//             'moreDetails' => 'Error creating user from contact: ' + e.getMessage(), 
+//             'apiResponse' => null
+//         });
+        
+//         // Error response
+//         response.put('success', false);
+//         response.put('message', errorMessage);
+//         response.put('errorCode', e.getTypeName());
+//     }
+    
+//     return response;
+// }
+
+@AuraEnabled
 public static Map<String, Object> createUserFromContact(Id contactId) {
     Map<String, Object> response = new Map<String, Object>();
-    
+
     try {
         if (contactId == null) {
             throw new AuraHandledException('Contact Id is required');
@@ -13,7 +123,7 @@ public static Map<String, Object> createUserFromContact(Id contactId) {
 
         // Fetch Contact
         Contact con = [
-            SELECT Id, FirstName, LastName, Email, RecordTypeId
+            SELECT Id, FirstName, LastName, Email, Phone, RecordTypeId, User__c
             FROM Contact
             WHERE Id = :contactId
             LIMIT 1
@@ -21,15 +131,14 @@ public static Map<String, Object> createUserFromContact(Id contactId) {
 
         // Validate email
         if (String.isBlank(con.Email)) {
-            throw new AuraHandledException('Contact email is required to create user');
+            throw new AuraHandledException('Contact email is required');
         }
 
         // Employee Record Type check
-        Id employeeRecTypeId =
-            Schema.SObjectType.Contact
-                .getRecordTypeInfosByDeveloperName()
-                .get('Employee_WF_Recon')
-                .getRecordTypeId();
+        Id employeeRecTypeId = Schema.SObjectType.Contact
+            .getRecordTypeInfosByDeveloperName()
+            .get('Employee_WF_Recon')
+            .getRecordTypeId();
 
         if (con.RecordTypeId != employeeRecTypeId) {
             throw new AuraHandledException('Contact is not an employee');
@@ -37,78 +146,103 @@ public static Map<String, Object> createUserFromContact(Id contactId) {
 
         // Check if user already exists with this email
         List<User> existingUsers = [
-            SELECT Id FROM User WHERE Email = :con.Email LIMIT 1
-        ];
-        
-        if (!existingUsers.isEmpty()) {
-            throw new AuraHandledException('A user already exists with this email address');
-        }
-
-        // Get Standard Platform User profile
-        Profile p = [
-            SELECT Id
-            FROM Profile
-            WHERE Name = 'Standard Platform User'
+            SELECT Id, Email
+            FROM User
+            WHERE Email = :con.Email
             LIMIT 1
         ];
 
-        // Build username & alias
-        String domainName = 'recon.com';
-        String userName =
-            (con.FirstName == null
-                ? con.LastName.replaceAll(' ', '')
-                : con.FirstName.replaceAll(' ', '') + con.LastName.replaceAll(' ', '')
-            ) + '@' + domainName;
+        User linkedUser;
 
-        String alias;
-        if (con.FirstName != null) {
-            alias = con.FirstName.length() > 8 ? con.FirstName.substring(0, 8) : con.FirstName;
+        if (!existingUsers.isEmpty()) {
+            // User exists → link directly
+            linkedUser = existingUsers[0];
         } else {
-            alias = con.LastName.length() > 8 ? con.LastName.substring(0, 8) : con.LastName;
+            // Create new user
+
+            Profile p = [
+                SELECT Id
+                FROM Profile
+                WHERE Name = 'Standard Platform User'
+                LIMIT 1
+            ];
+
+            String domainName = 'recon.com';
+            String userName =
+                ((con.FirstName != null ? con.FirstName : '') +
+                 (con.LastName != null ? con.LastName : '')
+                ).replaceAll(' ', '') + '@' + domainName;
+
+            String alias = (con.FirstName != null ? con.FirstName : con.LastName);
+            alias = alias.length() > 8 ? alias.substring(0, 8) : alias;
+
+            linkedUser = new User(
+                FirstName = con.FirstName,
+                LastName = con.LastName,
+                Email = con.Email,
+                Phone = con.Phone,
+                Username = userName,
+                ProfileId = p.Id,
+                TimeZoneSidKey = UserInfo.getTimeZone().getID(),
+                LanguageLocaleKey = 'en_US',
+                EmailEncodingKey = 'UTF-8',
+                LocaleSidKey = 'en_US',
+                Alias = alias
+            );
+
+            insert linkedUser;
         }
 
-        User newUser = new User(
-            FirstName = con.FirstName,
-            LastName = con.LastName,
-            Email = con.Email,
-            Username = userName,
-            ProfileId = p.Id,
-            TimeZoneSidKey = UserInfo.getTimeZone().getID(),
-            LanguageLocaleKey = 'en_US',
-            EmailEncodingKey = 'UTF-8',
-            LocaleSidKey = 'en_US',
-            Alias = alias
-        );
+        // Link User to Contact
+        con.User__c = linkedUser.Id;
+        update con;
 
-        insert newUser;
-        
         // Success response
         response.put('success', true);
-        response.put('message', 'User created successfully');
-        response.put('userId', newUser.Id);
-        response.put('userName', newUser.Username);
-        
+        response.put('message', 'User linked successfully');
+        response.put('userId', linkedUser.Id);
+        response.put('email', linkedUser.Email);
+
     } catch (Exception e) {
-        String errorMessage = 'Error creating user: ' + e.getMessage();
-        
-        // Log exception
+
         ExceptionHandler.logException(new Map<String, Object>{
-            'className' => CLASSNAME, 
-            'methodName' => 'createUserFromContact', 
-            'isApiException' => false, 
-            'statusCode' => null, 
+            'className' => CLASSNAME,
+            'methodName' => 'createOrLinkUserFromContact',
+            'isApiException' => false,
+            'statusCode' => null,
             'exceptionObj' => e,
-            'moreDetails' => 'Error creating user from contact: ' + e.getMessage(), 
+            'moreDetails' => e.getMessage(),
             'apiResponse' => null
         });
-        
-        // Error response
+
         response.put('success', false);
-        response.put('message', errorMessage);
+        response.put('message', e.getMessage());
         response.put('errorCode', e.getTypeName());
     }
-    
+
     return response;
+}
+
+
+// Helper method to generate username
+private static String generateUsername(String firstName, String lastName, String domain) {
+    String cleanFirstName = firstName != null ? firstName.replaceAll('\\s+', '') : '';
+    String cleanLastName = lastName != null ? lastName.replaceAll('\\s+', '') : '';
+    
+    if (String.isBlank(cleanFirstName)) {
+        return cleanLastName + '@' + domain;
+    }
+    
+    return cleanFirstName + cleanLastName + '@' + domain;
+}
+
+// Helper method to generate alias
+private static String generateAlias(String firstName, String lastName) {
+    if (String.isNotBlank(firstName)) {
+        return firstName.length() > 8 ? firstName.substring(0, 8) : firstName;
+    } else {
+        return lastName.length() > 8 ? lastName.substring(0, 8) : lastName;
+    }
 }
 
     @AuraEnabled

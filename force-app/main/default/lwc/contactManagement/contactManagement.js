@@ -562,18 +562,19 @@ handleSuccess(event) {
                 // Check if it's a license limit error
                 if (result.message && result.message.includes('LICENSE_LIMIT_EXCEEDED')) {
                     this.showToast('Error', 'Cannot create user: No available licenses as limit exceeded.', 'error');
-                    deleteContact({ contactId: contactId });
+                    // deleteContact({ contactId: contactId });
+                    this.deleteContactRecord(contactId,false);
                 } else if (result.message && !result.message.includes('LICENSE_LIMIT_EXCEEDED')) {
                     // For other errors, delete the contact
                     this.showToast('Error', 'User creation failed: ' + result.message, 'error');
-                    deleteContact({ contactId: contactId });
+                    // deleteContact({ contactId: contactId });
+                    this.deleteContactRecord(contactId,false);
                 }
             }
         })
-        .catch(error => {
-            // This catches unexpected JavaScript errors
-            
-            deleteContact({ contactId: contactId });
+        .catch(error => {            
+            // deleteContact({ contactId: contactId });
+            this.deleteContactRecord(contactId,false);
         })
         .finally(() => {
             this.isLoading = false;
@@ -779,26 +780,37 @@ handleSuccess(event) {
      * Method Name: deleteContactRecord
      * @description: Delete contact record via Apex
      */
-    deleteContactRecord(recordId) {
-        this.isLoading = true;
+    deleteContactRecord(recordId, showToastMessage = true) {
+    this.isLoading = true;
 
-        deleteContact({ contactId: recordId })
-            .then(result => {
-                if (result === 'Success') {
+    deleteContact({ contactId: recordId })
+        .then(result => {
+            if (result === 'Success') {
+                if (showToastMessage) {
                     this.showToast('Success', 'Contact deleted successfully', 'success');
-                    this.fetchContacts();
-                } else {
+                }
+                this.fetchContacts();
+            } else {
+                if (showToastMessage) {
                     this.showToast('Error', result, 'error');
                 }
-            })
-            .catch(error => {
-                console.error('Error deleting contact:', error);
-                this.showToast('Error', error.body?.message || 'Failed to delete contact', 'error');
-            })
-            .finally(() => {
-                this.isLoading = false;
-            });
-    }
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting contact:', error);
+            if (showToastMessage) {
+                this.showToast(
+                    'Error',
+                    error.body?.message || 'Failed to delete contact',
+                    'error'
+                );
+            }
+        })
+        .finally(() => {
+            this.isLoading = false;
+        });
+}
+
 
     /**
      * Method Name: handlePrevious
