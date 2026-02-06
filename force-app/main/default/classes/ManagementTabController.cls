@@ -3,6 +3,115 @@ public with sharing class ManagementTabController {
     public static final String CLASSNAME = 'ManagementTabController';
 
     @AuraEnabled
+public static Map<String, Object> createUserFromContact(Id contactId) {
+    Map<String, Object> response = new Map<String, Object>();
+    
+    try {
+        if (contactId == null) {
+            throw new AuraHandledException('Contact Id is required');
+        }
+
+        // Fetch Contact
+        Contact con = [
+            SELECT Id, FirstName, LastName, Email, RecordTypeId
+            FROM Contact
+            WHERE Id = :contactId
+            LIMIT 1
+        ];
+
+        // Validate email
+        if (String.isBlank(con.Email)) {
+            throw new AuraHandledException('Contact email is required to create user');
+        }
+
+        // Employee Record Type check
+        Id employeeRecTypeId =
+            Schema.SObjectType.Contact
+                .getRecordTypeInfosByDeveloperName()
+                .get('Employee_WF_Recon')
+                .getRecordTypeId();
+
+        if (con.RecordTypeId != employeeRecTypeId) {
+            throw new AuraHandledException('Contact is not an employee');
+        }
+
+        // Check if user already exists with this email
+        List<User> existingUsers = [
+            SELECT Id FROM User WHERE Email = :con.Email LIMIT 1
+        ];
+        
+        if (!existingUsers.isEmpty()) {
+            throw new AuraHandledException('A user already exists with this email address');
+        }
+
+        // Get Standard Platform User profile
+        Profile p = [
+            SELECT Id
+            FROM Profile
+            WHERE Name = 'Standard Platform User'
+            LIMIT 1
+        ];
+
+        // Build username & alias
+        String domainName = 'recon.com';
+        String userName =
+            (con.FirstName == null
+                ? con.LastName.replaceAll(' ', '')
+                : con.FirstName.replaceAll(' ', '') + con.LastName.replaceAll(' ', '')
+            ) + '@' + domainName;
+
+        String alias;
+        if (con.FirstName != null) {
+            alias = con.FirstName.length() > 8 ? con.FirstName.substring(0, 8) : con.FirstName;
+        } else {
+            alias = con.LastName.length() > 8 ? con.LastName.substring(0, 8) : con.LastName;
+        }
+
+        User newUser = new User(
+            FirstName = con.FirstName,
+            LastName = con.LastName,
+            Email = con.Email,
+            Username = userName,
+            ProfileId = p.Id,
+            TimeZoneSidKey = UserInfo.getTimeZone().getID(),
+            LanguageLocaleKey = 'en_US',
+            EmailEncodingKey = 'UTF-8',
+            LocaleSidKey = 'en_US',
+            Alias = alias
+        );
+
+        insert newUser;
+        
+        // Success response
+        response.put('success', true);
+        response.put('message', 'User created successfully');
+        response.put('userId', newUser.Id);
+        response.put('userName', newUser.Username);
+        
+    } catch (Exception e) {
+        String errorMessage = 'Error creating user: ' + e.getMessage();
+        
+        // Log exception
+        ExceptionHandler.logException(new Map<String, Object>{
+            'className' => CLASSNAME, 
+            'methodName' => 'createUserFromContact', 
+            'isApiException' => false, 
+            'statusCode' => null, 
+            'exceptionObj' => e,
+            'moreDetails' => 'Error creating user from contact: ' + e.getMessage(), 
+            'apiResponse' => null
+        });
+        
+        // Error response
+        response.put('success', false);
+        response.put('message', errorMessage);
+        response.put('errorCode', e.getTypeName());
+    }
+    
+    return response;
+}
+
+    @AuraEnabled
     public static List<wfrecon__Process__c> getProcessLibraries() {
         List<wfrecon__Process__c> processLibraries = new List<wfrecon__Process__c>();
         
@@ -907,7 +1016,7 @@ public with sharing class ManagementTabController {
         
         try {
             contacts = [
-                SELECT Id, FirstName, LastName, Name, Email, RecordType,
+                SELECT Id, FirstName, LastName, Name, Email, 
                        RecordType.DeveloperName, wfrecon__Can_Clock_In_Out__c
                 FROM Contact
                 WHERE RecordType.DeveloperName IN ('Employee_WF_Recon', 'Sub_Contractor_WF_Recon')
@@ -943,129 +1052,6 @@ public with sharing class ManagementTabController {
             return false;
         }
     }
-
-    // @AuraEnabled
-    // public static Contact upsertContact(Map<String, Object> contactData) {
-    //     try {
-    //         if (contactData == null || contactData.isEmpty()) {
-    //             throw new AuraHandledException('Contact data is required.');
-    //         }
-
-    //         // Extract RecordTypeDeveloperName before creating Contact record
-    //         String recordTypeDeveloperName = (String) contactData.get('RecordTypeDeveloperName');
-            
-    //         // Remove the custom field from the map so it doesn't cause issues
-    //         contactData.remove('RecordTypeDeveloperName');
-            
-    //         // Remove Id temporarily to handle it separately
-    //         Id contactId = null;
-    //         if (contactData.containsKey('Id') && contactData.get('Id') != null) {
-    //             Object idValue = contactData.get('Id');
-    //             contactId = idValue instanceof Id ? (Id)idValue : Id.valueOf(String.valueOf(idValue));
-    //             contactData.remove('Id');
-    //         }
-            
-    //         // Create Contact record from the remaining data
-    //         Contact contactRecord = new Contact();
-            
-    //         // Set Id if it exists (for updates)
-    //         if (contactId != null) {
-    //             contactRecord.Id = contactId;
-    //         }
-            
-    //         // Dynamically set all fields from the map
-    //         for (String fieldName : contactData.keySet()) {
-    //             Object fieldValue = contactData.get(fieldName);
-                
-    //             // Skip null values
-    //             if (fieldValue == null) {
-    //                 continue;
-    //             }
-                
-    //             // Skip internal fields
-    //             if (fieldName.equalsIgnoreCase('RecordType.DeveloperName') || 
-    //                 fieldName.equalsIgnoreCase('RecordTypeId') ||
-    //                 fieldName.equalsIgnoreCase('Name')) {
-    //                 continue;
-    //             }
-                
-    //             try {
-    //                 // Check if this is a Date field
-    //                 Schema.DescribeFieldResult fieldDescribe = Contact.getSObjectType()
-    //                     .getDescribe()
-    //                     .fields.getMap()
-    //                     .get(fieldName)
-    //                     ?.getDescribe();
-                    
-    //                 if (fieldDescribe != null) {
-    //                     Schema.DisplayType fieldType = fieldDescribe.getType();
-                        
-    //                     // Handle Date fields specifically
-    //                     if (fieldType == Schema.DisplayType.Date && fieldValue instanceof String) {
-    //                         String dateStr = (String)fieldValue;
-    //                         // Parse the date string (expecting format like '2024-01-01')
-    //                         Date parsedDate = Date.valueOf(dateStr);
-    //                         contactRecord.put(fieldName, parsedDate);
-    //                     }
-    //                     // Handle DateTime fields
-    //                     else if (fieldType == Schema.DisplayType.DateTime && fieldValue instanceof String) {
-    //                         String datetimeStr = (String)fieldValue;
-    //                         // Parse ISO 8601 format (e.g., '2024-01-01T10:00:00Z')
-    //                         DateTime parsedDateTime = DateTime.valueOfGmt(datetimeStr.replace('T', ' ').replace('Z', ''));
-    //                         contactRecord.put(fieldName, parsedDateTime);
-    //                     }
-    //                     // Handle other field types
-    //                     else {
-    //                         contactRecord.put(fieldName, fieldValue);
-    //                     }
-    //                 } else {
-    //                     // For custom fields or if describe info not available, try direct assignment
-    //                     contactRecord.put(fieldName, fieldValue);
-    //                 }
-    //             } catch (Exception fieldEx) {
-    //                 System.debug('Warning: Could not set field ' + fieldName + ': ' + fieldEx.getMessage());
-    //                 // Continue with other fields if one fails
-    //             }
-    //         }
-            
-    //         // Handle RecordType assignment for new records
-    //         if (contactRecord.Id == null && String.isNotBlank(recordTypeDeveloperName)) {
-    //             List<RecordType> recordTypes = [
-    //                 SELECT Id 
-    //                 FROM RecordType 
-    //                 WHERE DeveloperName = :recordTypeDeveloperName 
-    //                 AND SObjectType = 'Contact' 
-    //                 LIMIT 1
-    //             ];
-                
-    //             if (!recordTypes.isEmpty()) {
-    //                 contactRecord.RecordTypeId = recordTypes[0].Id;
-    //             } else {
-    //                 throw new AuraHandledException('Invalid Record Type: ' + recordTypeDeveloperName);
-    //             }
-    //         }
-            
-    //         upsert as user contactRecord;
-            
-    //         // Return the full contact record with RecordType info
-    //         return [
-    //             SELECT Id, FirstName, LastName, Name, Email, 
-    //                 RecordType.DeveloperName, wfrecon__Can_Clock_In_Out__c
-    //             FROM Contact
-    //             WHERE Id = :contactRecord.Id
-    //             WITH USER_MODE
-    //         ];
-    //     } catch (Exception e) {
-    //         System.debug('Error in upsertContact: ' + e.getMessage() + ' Stack trace: ' + e.getStackTraceString());
-    //         ExceptionHandler.logException(new Map<String, Object>{
-    //             'className' => 'YourClassNameHere', 
-    //             'methodName' => 'upsertContact', 
-    //             'exceptionObj' => e, 
-    //             'moreDetails' => e.getMessage()
-    //         });
-    //         throw new AuraHandledException('Error processing contact: ' + e.getMessage());
-    //     }
-    // }
 
     @AuraEnabled
     public static String deleteContact(String contactId) {
