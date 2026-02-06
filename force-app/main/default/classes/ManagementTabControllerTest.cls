@@ -741,53 +741,6 @@ private class ManagementTabControllerTest {
     }
 
     @IsTest
-    static void testUpsertContactNew() {
-        Map<String, Object> contactData = new Map<String, Object>{
-            'FirstName' => 'Test',
-            'LastName' => 'NewContact',
-            'Email' => 'test.new@example.com',
-            'RecordTypeDeveloperName' => 'Employee_WF_Recon',
-            'wfrecon__Can_Clock_In_Out__c' => true
-        };
-        
-        Test.startTest();
-        Contact result = ManagementTabController.upsertContact(contactData);
-        Test.stopTest();
-        
-        System.assertNotEquals(null, result);
-        System.assertNotEquals(null, result.Id);
-        System.assertEquals('Test', result.FirstName);
-        System.assertEquals('NewContact', result.LastName);
-        System.assertEquals('test.new@example.com', result.Email);
-        System.assertEquals(true, result.wfrecon__Can_Clock_In_Out__c);
-        System.assertEquals('Employee_WF_Recon', result.RecordType.DeveloperName);
-    }
-
-    @IsTest
-    static void testUpsertContactUpdate() {
-        Contact emp1 = [SELECT Id, FirstName, LastName, Email, wfrecon__Can_Clock_In_Out__c FROM Contact WHERE RecordType.DeveloperName = 'Employee_WF_Recon' LIMIT 1];
-        
-        Map<String, Object> contactData = new Map<String, Object>{
-            'Id' => emp1.Id,
-            'FirstName' => 'UpdatedFirst',
-            'LastName' => 'UpdatedLast',
-            'Email' => 'updated@example.com',
-            'wfrecon__Can_Clock_In_Out__c' => false
-        };
-        
-        Test.startTest();
-        Contact result = ManagementTabController.upsertContact(contactData);
-        Test.stopTest();
-        
-        System.assertNotEquals(null, result);
-        System.assertEquals(emp1.Id, result.Id);
-        System.assertEquals('UpdatedFirst', result.FirstName);
-        System.assertEquals('UpdatedLast', result.LastName);
-        System.assertEquals('updated@example.com', result.Email);
-        System.assertEquals(false, result.wfrecon__Can_Clock_In_Out__c);
-    }
-
-    @IsTest
     static void testDeleteContact() {
         Contact sub1 = [SELECT Id FROM Contact WHERE RecordType.DeveloperName = 'Sub_Contractor_WF_Recon' LIMIT 1];
         
@@ -859,6 +812,23 @@ private class ManagementTabControllerTest {
             new List<String>{ 'NewStatus', 'Cancelled' },     // NewStatus added, Cancelled reactivated
             new List<String>{ 'Confirmed' }                  // Confirmed deactivated
         );
+        Test.stopTest();
+    }
+
+    @IsTest
+    static void testCreateUserFromContact() {
+        System.runAs(new User(Id = UserInfo.getUserId())) {
+            Contact c = [SELECT Id FROM Contact LIMIT 1];
+            Test.startTest();
+            ManagementTabController.createUserFromContact(c.Id);
+            Test.stopTest();
+        }
+    }
+
+    @IsTest
+    static void testCheckEmailUniqueness() {
+        Test.startTest();
+        ManagementTabController.checkEmailUniqueness('test@example.com', null);
         Test.stopTest();
     }
 

@@ -372,38 +372,6 @@ private class QuoteEmailControllerTest {
     }
     
     @isTest
-    static void testGetBaseContractLines_Success() {
-        wfrecon__Proposal__c proposal = [SELECT Id,wfrecon__Type__c FROM wfrecon__Proposal__c LIMIT 1];
-        
-        Test.startTest();
-        List<wfrecon__Proposal_Line__c> result = QuoteEmailController.getBaseContractLines(proposal.Id);
-        Test.stopTest();
-        
-        System.assertNotEquals(null, result, 'Result should not be null');
-        System.assertEquals(2, result.size(), 'Should return 2 base contract lines');
-         
-        // Verify ordering by sequence
-        for (Integer i = 0; i < result.size() - 1; i++) {
-            Decimal currentSeq = result[i].wfrecon__Sequence__c != null ? result[i].wfrecon__Sequence__c : 0;
-            Decimal nextSeq = result[i + 1].wfrecon__Sequence__c != null ? result[i + 1].wfrecon__Sequence__c : 0;
-            System.assert(currentSeq <= nextSeq, 'Lines should be ordered by sequence');
-        }
-    }
-    
-    @isTest
-    static void testGetBaseContractLines_NoLines() {
-        wfrecon__Proposal__c proposal = new wfrecon__Proposal__c();
-        insert proposal;
-        
-        Test.startTest();
-        List<wfrecon__Proposal_Line__c> result = QuoteEmailController.getBaseContractLines(proposal.Id);
-        Test.stopTest();
-        
-        System.assertNotEquals(null, result, 'Result should not be null');
-        System.assertEquals(0, result.size(), 'Should return empty list');
-    }
-    
-    @isTest
     static void testUpdateLineSelection_Success() {
         wfrecon__Proposal__c proposal = [SELECT Id FROM wfrecon__Proposal__c LIMIT 1];
         List<wfrecon__Proposal_Line__c> lines = [

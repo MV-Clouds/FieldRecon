@@ -1,4 +1,3 @@
-
 public with sharing class ProposalConfigController {
 
     @AuraEnabled(cacheable=true)
@@ -21,12 +20,7 @@ public with sharing class ProposalConfigController {
             
             return result;
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => 'ProposalConfigController', 
-                'methodName' => 'getProposalConfig', 
-                'exceptionObj' => e, 
-                'moreDetails' => e.getMessage()
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ProposalConfigController', 'methodName' => 'getProposalConfig', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
             return null;
         }
     }
@@ -52,17 +46,11 @@ public with sharing class ProposalConfigController {
             Metadata.Operations.enqueueDeployment(container, null);
 
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => 'ProposalConfigController', 
-                'methodName' => 'saveProposalConfig', 
-                'exceptionObj' => e, 
-                'moreDetails' => e.getMessage()
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ProposalConfigController', 'methodName' => 'saveProposalConfig', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
         }
     }
 
     public class ProposalConfigData {
         @AuraEnabled public String configJson;
     }
-    
 }

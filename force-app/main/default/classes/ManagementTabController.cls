@@ -3,113 +3,101 @@ public with sharing class ManagementTabController {
     public static final String CLASSNAME = 'ManagementTabController';
 
     @AuraEnabled
-public static Map<String, Object> createUserFromContact(Id contactId) {
-    Map<String, Object> response = new Map<String, Object>();
-    
-    try {
-        if (contactId == null) {
-            throw new AuraHandledException('Contact Id is required');
-        }
-
-        // Fetch Contact
-        Contact con = [
-            SELECT Id, FirstName, LastName, Email, RecordTypeId
-            FROM Contact
-            WHERE Id = :contactId
-            LIMIT 1
-        ];
-
-        // Validate email
-        if (String.isBlank(con.Email)) {
-            throw new AuraHandledException('Contact email is required to create user');
-        }
-
-        // Employee Record Type check
-        Id employeeRecTypeId =
-            Schema.SObjectType.Contact
-                .getRecordTypeInfosByDeveloperName()
-                .get('Employee_WF_Recon')
-                .getRecordTypeId();
-
-        if (con.RecordTypeId != employeeRecTypeId) {
-            throw new AuraHandledException('Contact is not an employee');
-        }
-
-        // Check if user already exists with this email
-        List<User> existingUsers = [
-            SELECT Id FROM User WHERE Email = :con.Email LIMIT 1
-        ];
+    public static Map<String, Object> createUserFromContact(Id contactId) {
+        Map<String, Object> response = new Map<String, Object>();
         
-        if (!existingUsers.isEmpty()) {
-            throw new AuraHandledException('A user already exists with this email address');
+        try {
+            if (contactId == null) {
+                throw new AuraHandledException('Contact Id is required');
+            }
+
+            // Fetch Contact
+            Contact con = [
+                SELECT Id, FirstName, LastName, Email, RecordTypeId
+                FROM Contact
+                WHERE Id = :contactId
+                LIMIT 1
+            ];
+
+            // Validate email
+            if (String.isBlank(con.Email)) {
+                throw new AuraHandledException('Contact email is required to create user');
+            }
+
+            // Employee Record Type check
+            Id employeeRecTypeId = Schema.SObjectType.Contact.getRecordTypeInfosByDeveloperName().get('Employee_WF_Recon').getRecordTypeId();
+
+            if (con.RecordTypeId != employeeRecTypeId) {
+                throw new AuraHandledException('Contact is not an employee');
+            }
+
+            // Check if user already exists with this email
+            List<User> existingUsers = [
+                SELECT Id FROM User WHERE Email = :con.Email LIMIT 1
+            ];
+            
+            if (!existingUsers.isEmpty()) {
+                throw new AuraHandledException('A user already exists with this email address');
+            }
+
+            // Get Standard Platform User profile
+            Profile p = [
+                SELECT Id
+                FROM Profile
+                WHERE Name = 'Standard Platform User'
+                LIMIT 1
+            ];
+
+            // Build username & alias
+            String domainName = 'recon.com';
+            String userName =
+                (con.FirstName == null
+                    ? con.LastName.replaceAll(' ', '')
+                    : con.FirstName.replaceAll(' ', '') + con.LastName.replaceAll(' ', '')
+                ) + '@' + domainName;
+
+            String alias;
+            if (con.FirstName != null) {
+                alias = con.FirstName.length() > 8 ? con.FirstName.substring(0, 8) : con.FirstName;
+            } else {
+                alias = con.LastName.length() > 8 ? con.LastName.substring(0, 8) : con.LastName;
+            }
+
+            User newUser = new User(
+                FirstName = con.FirstName,
+                LastName = con.LastName,
+                Email = con.Email,
+                Username = userName,
+                ProfileId = p.Id,
+                TimeZoneSidKey = UserInfo.getTimeZone().getID(),
+                LanguageLocaleKey = 'en_US',
+                EmailEncodingKey = 'UTF-8',
+                LocaleSidKey = 'en_US',
+                Alias = alias
+            );
+
+            insert newUser;
+            
+            // Success response
+            response.put('success', true);
+            response.put('message', 'User created successfully');
+            response.put('userId', newUser.Id);
+            response.put('userName', newUser.Username);
+            
+        } catch (Exception e) {
+            String errorMessage = 'Error creating user: ' + e.getMessage();
+            
+            // Log exception
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'createUserFromContact', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error creating user from contact: ' + e.getMessage(), 'apiResponse' => null});
+            
+            // Error response
+            response.put('success', false);
+            response.put('message', errorMessage);
+            response.put('errorCode', e.getTypeName());
         }
-
-        // Get Standard Platform User profile
-        Profile p = [
-            SELECT Id
-            FROM Profile
-            WHERE Name = 'Standard Platform User'
-            LIMIT 1
-        ];
-
-        // Build username & alias
-        String domainName = 'recon.com';
-        String userName =
-            (con.FirstName == null
-                ? con.LastName.replaceAll(' ', '')
-                : con.FirstName.replaceAll(' ', '') + con.LastName.replaceAll(' ', '')
-            ) + '@' + domainName;
-
-        String alias;
-        if (con.FirstName != null) {
-            alias = con.FirstName.length() > 8 ? con.FirstName.substring(0, 8) : con.FirstName;
-        } else {
-            alias = con.LastName.length() > 8 ? con.LastName.substring(0, 8) : con.LastName;
-        }
-
-        User newUser = new User(
-            FirstName = con.FirstName,
-            LastName = con.LastName,
-            Email = con.Email,
-            Username = userName,
-            ProfileId = p.Id,
-            TimeZoneSidKey = UserInfo.getTimeZone().getID(),
-            LanguageLocaleKey = 'en_US',
-            EmailEncodingKey = 'UTF-8',
-            LocaleSidKey = 'en_US',
-            Alias = alias
-        );
-
-        insert newUser;
         
-        // Success response
-        response.put('success', true);
-        response.put('message', 'User created successfully');
-        response.put('userId', newUser.Id);
-        response.put('userName', newUser.Username);
-        
-    } catch (Exception e) {
-        String errorMessage = 'Error creating user: ' + e.getMessage();
-        
-        // Log exception
-        ExceptionHandler.logException(new Map<String, Object>{
-            'className' => CLASSNAME, 
-            'methodName' => 'createUserFromContact', 
-            'isApiException' => false, 
-            'statusCode' => null, 
-            'exceptionObj' => e,
-            'moreDetails' => 'Error creating user from contact: ' + e.getMessage(), 
-            'apiResponse' => null
-        });
-        
-        // Error response
-        response.put('success', false);
-        response.put('message', errorMessage);
-        response.put('errorCode', e.getTypeName());
+        return response;
     }
-    
-    return response;
-}
 
     @AuraEnabled
     public static List<wfrecon__Process__c> getProcessLibraries() {
@@ -1287,15 +1275,7 @@ public static Map<String, Object> createUserFromContact(Id contactId) {
         } catch (Exception e) {
             response.put('status', 'ERROR');
             response.put('message', 'Error fetching configuration: ' + e.getMessage());
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME, 
-                'methodName' => 'getLogEntryApprovers', 
-                'isApiException' => false, 
-                'statusCode' => null, 
-                'exceptionObj' => e,
-                'moreDetails' => 'Error fetching log entry approvers: ' + e.getMessage(), 
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getLogEntryApprovers', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error fetching log entry approvers: ' + e.getMessage(), 'apiResponse' => null});
         }
 
         return response;
@@ -1339,15 +1319,7 @@ public static Map<String, Object> createUserFromContact(Id contactId) {
             
         } catch (Exception e) {
             response.put('message', 'Error saving approvers: ' + e.getMessage());
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME, 
-                'methodName' => 'saveLogEntryApprovers', 
-                'isApiException' => false, 
-                'statusCode' => null, 
-                'exceptionObj' => e,
-                'moreDetails' => 'Error saving log entry approvers: ' + e.getMessage(), 
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'saveLogEntryApprovers', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error saving log entry approvers: ' + e.getMessage(), 'apiResponse' => null});
         }
 
         return response;

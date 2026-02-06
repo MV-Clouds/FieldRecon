@@ -7,14 +7,14 @@ public with sharing class BidsListController {
     @return          : List<BidData> - List of bids
     ********************************************************
     */
-    @AuraEnabled
-    public static List<BidData> getAllBids(Boolean filterByRecentlyViewed) {
+    @AuraEnabled(cacheable=true)
+    public static List<BidData> getAllBids(String viewFilter) {
         List<BidData> bidDataList = new List<BidData>();
         Set<Id> bidIdsToQuery = new Set<Id>();
         
         try {
             // If filtering by recently viewed, get the recently viewed bid IDs
-            if (filterByRecentlyViewed) {
+            if (viewFilter == 'recently_viewed') {
                 bidIdsToQuery = getRecentlyViewedBidIds();
                 if (bidIdsToQuery.isEmpty()) {
                     return bidDataList;
@@ -26,9 +26,22 @@ public with sharing class BidsListController {
                           'wfrecon__AccountId__r.Name, wfrecon__AccountId__r.Id, wfrecon__Amount__c, wfrecon__Bid_Due_Date__c ' +
                           'FROM wfrecon__Bid__c ';
             
+            List<String> whereClauses = new List<String>();
+            
             // Add WHERE clause if filtering by recently viewed
-            if (filterByRecentlyViewed && !bidIdsToQuery.isEmpty()) {
-                query += 'WHERE Id IN :bidIdsToQuery ';
+            if (viewFilter == 'recently_viewed' && !bidIdsToQuery.isEmpty()) {
+                whereClauses.add('Id IN :bidIdsToQuery');
+            }
+            
+            // Add WHERE clause if filtering by next 7 days
+            if (viewFilter == 'next_7_days') {
+                Date today = Date.today();
+                Date nextWeek = today.addDays(7);
+                whereClauses.add('wfrecon__Bid_Due_Date__c >= :today AND wfrecon__Bid_Due_Date__c <= :nextWeek');
+            }
+            
+            if (!whereClauses.isEmpty()) {
+                query += 'WHERE ' + String.join(whereClauses, ' AND ') + ' ';
             }
             
             query += 'ORDER BY LastViewedDate DESC NULLS LAST, Name ASC';

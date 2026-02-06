@@ -55,7 +55,14 @@ public with sharing class BidsListControllerTest {
     @isTest
     static void testGetAllBidsWithoutFilter() {
         Test.startTest();
-        List<BidsListController.BidData> result = BidsListController.getAllBids(false);
+        List<BidsListController.BidData> result = BidsListController.getAllBids('recently_viewed');
+        Test.stopTest();
+    }
+
+    @isTest
+    static void testGetAllBidsNext7days() {
+        Test.startTest();
+        List<BidsListController.BidData> result = BidsListController.getAllBids('next_7_days');
         Test.stopTest();
     }
     
@@ -69,7 +76,7 @@ public with sharing class BidsListControllerTest {
         }
         
         Test.startTest();
-        List<BidsListController.BidData> result = BidsListController.getAllBids(true);
+        List<BidsListController.BidData> result = BidsListController.getAllBids('recently_viewed');
         Test.stopTest();
     }
     
