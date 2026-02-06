@@ -1145,21 +1145,68 @@ private static String generateAlias(String firstName, String lastName) {
     }
 
     @AuraEnabled
-    public static List<Contact> getContacts() {
+    public static List<Contact> getContacts(List<String> tableViewFields) {
         List<Contact> contacts = new List<Contact>();
         
         try {
-            contacts = [
-                SELECT Id, FirstName, LastName, Name, Email, 
-                       RecordType.DeveloperName, wfrecon__Can_Clock_In_Out__c
-                FROM Contact
-                WHERE RecordType.DeveloperName IN ('Employee_WF_Recon', 'Sub_Contractor_WF_Recon')
-                WITH USER_MODE
-                ORDER BY Name ASC
-            ];
+            // Build dynamic field list from parameter
+            Set<String> fieldsToSelect = new Set<String>{'Id', 'Name', 'RecordTypeId', 'RecordType.DeveloperName'};
+            
+            // Add fields from parameter if provided
+            if (tableViewFields != null && !tableViewFields.isEmpty()) {
+                for (String fieldName : tableViewFields) {
+                    if (String.isNotBlank(fieldName)) {
+                        fieldsToSelect.add(fieldName);
+                    }
+                }
+            } else {
+                // Fallback to metadata configuration if no fields provided
+                List<wfrecon__ContactConfigration__mdt> mdt = [
+                    SELECT wfrecon__FieldValue__c 
+                    FROM wfrecon__ContactConfigration__mdt 
+                    WHERE DeveloperName = 'RecordConfig' 
+                    WITH USER_MODE
+                    LIMIT 1
+                ];
+
+                if (!mdt.isEmpty() && String.isNotBlank(mdt[0].wfrecon__FieldValue__c)) {
+                    try {
+                        List<Map<String, Object>> configuredFields = (List<Map<String, Object>>) JSON.deserialize(
+                            mdt[0].wfrecon__FieldValue__c, 
+                            List<Map<String, Object>>.class
+                        );
+                        
+                        // Add fields where isTableView is true
+                        for (Map<String, Object> field : configuredFields) {
+                            String fieldName = (String) field.get('fieldName');
+                            Boolean isTableView = field.get('isTableView') == true;
+                            
+                            if (isTableView && String.isNotBlank(fieldName)) {
+                                fieldsToSelect.add(fieldName);
+                            }
+                        }
+                    } catch (Exception configError) {
+                        System.debug('Error parsing metadata configuration: ' + configError.getMessage());
+                        // Fallback to default fields
+                        fieldsToSelect.addAll(new List<String>{'FirstName', 'LastName', 'Email', 'wfrecon__Can_Clock_In_Out__c'});
+                    }
+                } else {
+                    // Fallback to default fields if no metadata found
+                    fieldsToSelect.addAll(new List<String>{'FirstName', 'LastName', 'Email', 'wfrecon__Can_Clock_In_Out__c'});
+                }
+            }
+
+            // Build SOQL query dynamically
+            String query = 'SELECT ' + String.join(new List<String>(fieldsToSelect), ', ') + 
+                          ' FROM Contact ' +
+                          ' WHERE RecordType.DeveloperName IN (\'Employee_WF_Recon\', \'Sub_Contractor_WF_Recon\') ' +
+                          ' WITH USER_MODE ' +
+                          ' ORDER BY Name ASC';
+            
+            contacts = Database.query(query);
         } catch (Exception e) {
             System.debug('Error in getContacts: ' + e.getMessage());
-            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getContacts', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error upserting Cost Code : ' + e.getMessage(), 'apiResponse' => null});            
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getContacts', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error fetching contacts: ' + e.getMessage(), 'apiResponse' => null});            
         }
 
         return contacts;

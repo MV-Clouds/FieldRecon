@@ -17,6 +17,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     @track isEditMode = false;
     @track recordIdToEdit = null;
     @track recordTypeId = '';
+    @track showConfigModal = false;
 
 
     // Form fields
@@ -41,23 +42,91 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     @track visiblePages = 5;
     @track shownContactData = [];
 
-    // Contact table columns configuration
-    @track contactTableColumns = [
-        { label: 'Sr. No.', fieldName: 'SerialNumber', type: 'text', isSerialNumber: true, sortable: false, headerClass: 'header-cell header-index non-sortable-header' },
-        { label: 'Actions', fieldName: 'Actions', type: 'text', isActions: true, sortable: false, headerClass: 'header-cell non-sortable-header' },
-        { label: 'Name', fieldName: 'Name', type: 'text', sortable: true, headerClass: 'header-cell sortable-header' },
-        { label: 'Type', fieldName: 'RecordType.DeveloperName', type: 'text', sortable: true, headerClass: 'header-cell sortable-header' },
-        { label: 'Can Clock In / Out', fieldName: 'wfrecon__Can_Clock_In_Out__c', type: 'checkbox', isCheckboxField: true, sortable: true, headerClass: 'header-cell sortable-header' }
-    ];
-
-    // Modal & Mode States
-    @track showConfigModal = false;
-    @track isPreviewMode = false;
-
-    // Dynamic Form Data
-    @track dynamicFields = [];
-    @track formValues = {};
+    // Contact table columns configuration - will be populated dynamically from metadata
     @track configuredMetadata = [];
+
+    /**
+     * Method Name: get contactTableColumns
+     * @description: Generate table columns dynamically from metadata with isTableView = true
+     */
+    get contactTableColumns() {
+        try {
+            const columns = [];
+
+            // Add Serial Number column
+            columns.push({
+                label: 'Sr. No.',
+                fieldName: 'SerialNumber',
+                type: 'text',
+                isSerialNumber: true,
+                sortable: false,
+                headerClass: 'header-cell header-index non-sortable-header'
+            });
+
+            // Add Actions column
+            columns.push({
+                label: 'Actions',
+                fieldName: 'Actions',
+                type: 'text',
+                isActions: true,
+                sortable: false,
+                headerClass: 'header-cell non-sortable-header'
+            });
+
+            // Add fields from metadata where isTableView = true
+            if (this.configuredMetadata && this.configuredMetadata.length > 0) {
+                this.configuredMetadata.forEach(field => {
+                    if (field.isTableView === true) {
+                        const isBooleanField = field.fieldType === 'BOOLEAN';
+                        const columnType = this.getColumnType(field.fieldType);
+                        
+                        columns.push({
+                            label: field.label || field.fieldName,
+                            fieldName: field.fieldName,
+                            type: columnType,
+                            fieldType: field.fieldType,
+                            isCheckboxField: isBooleanField,
+                            sortable: true,
+                            headerClass: 'header-cell sortable-header'
+                        });
+                    }
+                });
+            }
+
+            return columns;
+        } catch (error) {
+            console.error('Error generating contact table columns:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Method Name: getColumnType
+     * @description: Get the Lightning data-table column type from field type
+     */
+    getColumnType(fieldType) {
+        switch (fieldType) {
+            case 'DATE':
+                return 'date';
+            case 'DATETIME':
+                return 'date';
+            case 'BOOLEAN':
+                return 'checkbox';
+            case 'NUMBER':
+            case 'CURRENCY':
+                return 'number';
+            case 'PERCENT':
+                return 'percent';
+            case 'EMAIL':
+                return 'email';
+            case 'URL':
+                return 'url';
+            case 'PHONE':
+                return 'phone';
+            default:
+                return 'text';
+        }
+    }
 
     /**
      * Method Name: get displayedContacts
@@ -101,6 +170,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
                     return {
                         key,
                         isRegularField: true,
+                        fieldType: col.fieldType,
                         value: this.formatFieldValue(contact, col)
                     };
                 });
@@ -123,6 +193,10 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     formatFieldValue(contact, column) {
         const fieldValue = this.getFieldValue(contact, column.fieldName);
 
+        if (!fieldValue && fieldValue !== false && fieldValue !== 0) {
+            return '';
+        }
+
         // Handle RecordType.DeveloperName specially
         if (column.fieldName === 'RecordType.DeveloperName') {
             if (fieldValue === 'Employee_WF_Recon') return 'Employee';
@@ -130,7 +204,64 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
             return fieldValue || '';
         }
 
+        // Handle DATE fields (YYYY-MM-DD format)
+        if (column.fieldType === 'DATE') {
+            return this.formatDate(fieldValue);
+        }
+
+        // Handle DATETIME fields (ISO 8601 format)
+        if (column.fieldType === 'DATETIME') {
+            return this.formatDateTime(fieldValue);
+        }
+
         return fieldValue || '';
+    }
+
+    /**
+     * Method Name: formatDate
+     * @description: Format date value to MM/DD/YYYY
+     */
+    formatDate(dateString) {
+        if (!dateString) return '';
+        
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+                return dateString;
+            }
+            
+            const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+            return date.toLocaleDateString('en-US', options);
+        } catch (error) {
+            console.error('Error formatting date:', error);
+            return dateString;
+        }
+    }
+
+    /**
+     * Method Name: formatDateTime
+     * @description: Format datetime value to MM/DD/YYYY HH:MM AM/PM
+     */
+    formatDateTime(dateTimeString) {
+        if (!dateTimeString) return '';
+        
+        try {
+            const date = new Date(dateTimeString);
+            if (isNaN(date.getTime())) {
+                return dateTimeString;
+            }
+            
+            const dateOptions = { year: 'numeric', month: '2-digit', day: '2-digit' };
+            const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: true };
+            
+            const formattedDate = date.toLocaleDateString('en-US', dateOptions);
+            const formattedTime = date.toLocaleTimeString('en-US', timeOptions);
+            
+            return `${formattedDate} ${formattedTime}`;
+        } catch (error) {
+            console.error('Error formatting datetime:', error);
+            return dateTimeString;
+        }
     }
 
     /**
@@ -302,7 +433,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
      * @description: Load contacts on component load
      */
     connectedCallback() {
-        this.fetchContacts();
+        // this.fetchContacts();
         this.fetchConfiguration();
     }
 
@@ -311,9 +442,12 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
   * @description: Fetch all contacts from the server and extract record types
   */
     fetchContacts() {
-        this.isLoading = true;
+        // this.isLoading = true;
 
-        getContacts()
+        // Extract fields with isTableView = true from configuration
+        const tableViewFields = this.getTableViewFields();
+
+        getContacts({ tableViewFields: tableViewFields })
             .then(result => {
                 this.contacts = result || [];
                 // Extract unique record types from contacts
@@ -328,8 +462,27 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
                 this.filteredContacts = [];
             })
             .finally(() => {
+                // this.isLoading = true;
                 this.isLoading = false;
             });
+    }
+
+    /**
+     * Method Name: getTableViewFields
+     * @description: Extract field names that have isTableView = true from configuration
+     */
+    getTableViewFields() {
+        const fields = [];
+        
+        if (this.configuredMetadata && this.configuredMetadata.length > 0) {
+            this.configuredMetadata.forEach(field => {
+                if (field.isTableView === true) {
+                    fields.push(field.fieldName);
+                }
+            });
+        }
+        
+        return fields;
     }
 
     /**
@@ -588,7 +741,7 @@ handleSuccess(event) {
      * @description: Handle error from lightning-record-edit-form
      */
     handleError(event) {
-        this.isLoading = false;
+        this.isLoading = true;
 
         // Extract error message
         const error = event.detail;
@@ -847,6 +1000,8 @@ handleSuccess(event) {
     fetchConfiguration() {
         getContactFields()
             .then(result => {
+                console.log('Config result', result);
+                
                 if (result && result.metadataRecords && result.metadataRecords.length > 0) {
                     try {
                         this.configuredMetadata = JSON.parse(result.metadataRecords[0]);
@@ -856,31 +1011,37 @@ handleSuccess(event) {
                 } else {
                     this.setDefaultConfiguration();
                 }
+                this.fetchContacts();
             })
             .catch(error => {
                 console.error('Error fetching config', error);
                 this.setDefaultConfiguration();
+                this.isLoading = false;
             });
     }
 
     setDefaultConfiguration() {
         this.configuredMetadata = [
-            { fieldName: 'FirstName', label: 'First Name', isEditable: true, fieldType: 'STRING' },
-            { fieldName: 'LastName', label: 'Last Name', isEditable: true, fieldType: 'STRING' },
-            { fieldName: 'Email', label: 'Email', isEditable: true, fieldType: 'EMAIL' },
-            { fieldName: 'RecordType.DeveloperName', label: 'Type', isEditable: true, fieldType: 'PICKLIST' },
-            { fieldName: 'wfrecon__Can_Clock_In_Out__c', label: 'Can Clock In / Out', isEditable: true, fieldType: 'BOOLEAN' }
+            { fieldName: 'RecordType.DeveloperName', label: 'Type', isEditable: true, fieldType: 'PICKLIST', isRequired: true, isTableView: true },
+            { fieldName: 'FirstName', label: 'First Name', isEditable: true, fieldType: 'STRING', isRequired: true, isTableView: true },
+            { fieldName: 'LastName', label: 'Last Name', isEditable: true, fieldType: 'STRING', isRequired: true, isTableView: true },
+            { fieldName: 'Email', label: 'Email', isEditable: true, fieldType: 'EMAIL', isRequired: true, isTableView: true },
+            { fieldName: 'wfrecon__Can_Clock_In_Out__c', label: 'Can Clock In / Out', isEditable: true, fieldType: 'BOOLEAN', isRequired: true, isTableView: false }
         ];
     }
 
     // --- Configuration Modal Handlers ---
     handleOpenConfig() {
+
         this.showConfigModal = true;
+        console.log('Open config modal');
+        
     }
 
     handleConfigUpdated(event) {
         this.showConfigModal = false;
         if (event.detail && event.detail.success) {
+            console.log('Success', 'Configuration updated successfully', 'success');
             this.fetchConfiguration(); // Reload config if saved
         }
     }
