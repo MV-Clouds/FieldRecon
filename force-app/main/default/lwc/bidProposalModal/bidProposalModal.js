@@ -32,6 +32,10 @@ export default class BidProposalModal extends LightningElement {
     @track ohDisplay = '0%';
     @track warrantyDisplay = '0%';
     @track profitDisplay = '0%';
+    @track warrantyArea = '';
+    @track limitations = '';
+    @track agreement = '';
+    @track footerContent = '';
 
     // Expiration Date
     @track expirationDate = null;
@@ -52,22 +56,28 @@ export default class BidProposalModal extends LightningElement {
     wiredProposalConfig({ error, data }) {
         if (data) {
             try {
-                const config = data;
+                let config = {};
+                if (data.configJson) {
+                    try {
+                        config = JSON.parse(data.configJson);
+                    } catch (parseError) {
+                        console.error('Error parsing Proposal Configuration JSON:', parseError);
+                    }
+                }
 
                 // Percentages
                 this.ohValue = config.ohValue ?? 0;
                 this.warrantyValue = config.warrantyValue ?? 0;
                 this.profitValue = config.profitValue ?? 0;
 
-                // Textareas
-                this.warrantyArea = (config.warrantyArea || '').replace(/\\n/g, '\n');
-                this.agreement = (config.agreement || '').replace(/\\n/g, '\n');
-                this.limitations = (config.limitations || '').replace(/\\n/g, '\n');
-
                 // Display values
                 this.ohDisplay = `${this.ohValue}%`;
                 this.warrantyDisplay = `${this.warrantyValue}%`;
                 this.profitDisplay = `${this.profitValue}%`;
+                this.warrantyArea = config.warrantyArea ?? '';
+                this.limitations = config.limitations ?? '';
+                this.agreement = config.agreement ?? '';
+                this.footerContent = config.footerContent ?? '';
 
                 this._configLoaded = true;
 
@@ -300,18 +310,6 @@ export default class BidProposalModal extends LightningElement {
 
     }
 
-    handleWarrantyAreaChange(event) {
-        this.warrantyArea = event.target.value;
-    }
-
-    handleAgreementChange(event) {
-        this.agreement = event.target.value;
-    }
-
-    handleLimitationsChange(event) {
-        this.limitations = event.target.value;
-    }
-
     handleExpirationDateChange(event) {
         this.expirationDate = event.target.value;
     }
@@ -325,13 +323,29 @@ export default class BidProposalModal extends LightningElement {
         event.preventDefault();
         event.stopPropagation();
 
-        // First validate profit - this is the key fix
-        const maxAllowed = 100 - this.ohValue - this.warrantyValue - 1;
-        if (this.profitValue > maxAllowed) {
-            this.showToast('Invalid Profit', `Profit cannot exceed ${maxAllowed}%`, 'error');
-            return; // Make sure to return early
+        if(this.ohValue + this.warrantyValue + this.profitValue >= 100) {
+            this.showToast('Invalid Input', 'Sum of OH, Warranty and Profit should be less than 100%', 'error');
+            return;
         }
 
+        // Expiration date validation 
+        if (this.expirationDate) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const expDate = new Date(this.expirationDate);
+            expDate.setHours(0, 0, 0, 0);
+
+            if (expDate < today) {
+                this.showToast(
+                    'Invalid Date',
+                    'Expiration Date cannot be in the past.',
+                    'error'
+                );
+                return;
+            }
+        }
+        
         const inputFields = this.template.querySelectorAll('lightning-input-field');
         const customInputs = this.template.querySelectorAll('lightning-input');
         let isValid = true;
