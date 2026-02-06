@@ -57,10 +57,10 @@ export default class ContactConfigBody extends LightningElement {
                         value: fieldApiname,
                         fieldType: item.fieldType,
                         isEditable: isMandatory ? true : (isSystemLocked ? false : item.isEditable),
-                        isRequired: isMandatory ? true : (item.isRequired === true),
+                        isRequired: isMandatory ? true : (isSystemLocked ? false : item.isRequired),
                         isTableView: isMandatory ? true : (item.isTableView === true),
                         isEditableDisabled: isMandatory || isSystemLocked,
-                        isRequiredDisabled: isMandatory,
+                        isRequiredDisabled: isMandatory || isSystemLocked,
                         isTableViewDisabled: isMandatory,
                         isDeleteDisabled: isMandatory,
                         isDropdownDisabled: isMandatory,
@@ -245,7 +245,7 @@ export default class ContactConfigBody extends LightningElement {
             label: label,
             fieldType: type,
             isEditableDisabled: isLocked,
-            isRequiredDisabled: false, // New selection isn't mandatory
+            isRequiredDisabled: isLocked ? true : false, // New selection isn't mandatory
             isTableViewDisabled: false,
             isTableView: false,
             isDeleteDisabled: false,

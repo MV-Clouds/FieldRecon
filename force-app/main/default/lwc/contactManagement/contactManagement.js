@@ -676,6 +676,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     handleSave(event) {
         event.preventDefault();
         event.stopPropagation();
+        this.isLoading = true;
 
         // Validate custom required fields
         const isValid = this.validateCustomRequiredFields();
