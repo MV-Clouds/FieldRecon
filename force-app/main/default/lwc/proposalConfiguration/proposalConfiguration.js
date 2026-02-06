@@ -156,6 +156,8 @@ export default class ProposalConfiguration extends LightningElement {
         this.limitations = this.originalLimitations;
         this.footerContent = this.originalFooterContent;
         this.hasChanges = false;
+        
+        this.updateTextareaValues();
     }
 
     async handleSave() {

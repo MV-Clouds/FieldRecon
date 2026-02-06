@@ -1,3 +1,4 @@
+
 public with sharing class ProposalConfigController {
 
     @AuraEnabled(cacheable=true)
@@ -63,4 +64,5 @@ public with sharing class ProposalConfigController {
     public class ProposalConfigData {
         @AuraEnabled public String configJson;
     }
+    
 }

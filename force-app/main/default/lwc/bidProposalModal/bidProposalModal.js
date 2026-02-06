@@ -40,6 +40,11 @@ export default class BidProposalModal extends LightningElement {
     // Expiration Date
     @track expirationDate = null;
 
+    // Textarea fields
+    @track warrantyArea = '';
+    @track agreement = '';
+    @track limitations = '';
+
     // Track if we need to fetch contact
     currentContactId = null;
 
@@ -123,6 +128,31 @@ export default class BidProposalModal extends LightningElement {
     connectedCallback() {
         this.isLoading = true;
         this.overrideSLDS();
+    }
+
+    renderedCallback() {
+        // Update textarea values after render
+        // This is needed because textarea value binding doesn't work reactively in LWC
+        if (this._configLoaded) {
+            this.updateTextareaValues();
+            this._configLoaded = false; // Reset flag to avoid repeated updates
+        }
+    }
+
+    updateTextareaValues() {
+        const textareas = this.template.querySelectorAll('textarea');
+        textareas.forEach(textarea => {
+            const field = textarea.dataset.field;
+            if (field) {
+                if (field === 'warrantyArea') {
+                    textarea.value = this.warrantyArea;
+                } else if (field === 'agreement') {
+                    textarea.value = this.agreement;
+                } else if (field === 'limitations') {
+                    textarea.value = this.limitations;
+                }
+            }
+        });
     }
 
     /** 
@@ -357,6 +387,22 @@ export default class BidProposalModal extends LightningElement {
         const expirationField = this.template.querySelector('lightning-input-field[field-name="wfrecon__Expiration_Date__c"]');
         if (expirationField) {
             expirationField.value = this.expirationDate;
+        }
+
+        // Update textarea fields
+        const warrantyAreaField = this.template.querySelector('lightning-input-field[field-name="wfrecon__Proposal_Warranty__c"]');
+        if (warrantyAreaField) {
+            warrantyAreaField.value = this.warrantyArea;
+        }
+
+        const agreementField = this.template.querySelector('lightning-input-field[field-name="wfrecon__Aggrement__c"]');
+        if (agreementField) {
+            agreementField.value = this.agreement;
+        }
+
+        const limitationsField = this.template.querySelector('lightning-input-field[field-name="wfrecon__Limitations__c"]');
+        if (limitationsField) {
+            limitationsField.value = this.limitations;
         }
 
         // Submit the form
