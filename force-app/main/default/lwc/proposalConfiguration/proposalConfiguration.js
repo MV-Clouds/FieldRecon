@@ -14,6 +14,7 @@ export default class ProposalConfiguration extends LightningElement {
     @track warrantyArea = '';
     @track agreement = '';
     @track limitations = '';
+     @track footerContent = '';
 
     // originals
     originalOhValue = 0;
@@ -22,6 +23,7 @@ export default class ProposalConfiguration extends LightningElement {
     originalWarrantyArea = '';
     originalAgreement = '';
     originalLimitations = '';
+    originalFooterContent = '';
 
     get isButtonDisabled() {
         return !this.hasChanges;
@@ -31,42 +33,30 @@ export default class ProposalConfiguration extends LightningElement {
         this.loadConfiguration();
     }
 
-    renderedCallback() {
-        if (!this._initialized && !this.isLoading) {
-            this._initialized = true;
-            this.updateTextareaValues();
-        }
-    }
-
-    updateTextareaValues() {
-        const textareas = this.template.querySelectorAll('textarea');
-        textareas.forEach(textarea => {
-            const field = textarea.dataset.field;
-            if (field) {
-                if (field === 'warrantyArea') {
-                    textarea.value = this.warrantyArea || '';
-                } else if (field === 'agreement') {
-                    textarea.value = this.agreement || '';
-                } else if (field === 'limitations') {
-                    textarea.value = this.limitations || '';
-                }
-            }
-        });
-    }
-
     async loadConfiguration() {
         this.isLoading = true;
         try {
-            const result = await getProposalConfig();
-            console.log('Result from Apex:', result);
+            const data = await getProposalConfig();
+            console.log('Result from Apex:', data);
             
-            // Result is already a JavaScript object (Map from Apex)
+            let result = {};
+            if (data && data.configJson) {
+                try {
+                    result = JSON.parse(data.configJson);
+                } catch (e) {
+                    console.error('JSON Parse Error:', data.configJson);
+                    // It might be corrupted JSON due to truncation
+                    this.showToast('Error', 'Something went wrong while loading configuration', 'error');
+                }
+            }
+            
             this.ohValue = result.ohValue || 0;
             this.warrantyValue = result.warrantyValue || 0;
             this.profitValue = result.profitValue || 0;
             this.warrantyArea = result.warrantyArea || '';
             this.agreement = result.agreement || '';
             this.limitations = result.limitations || '';
+            this.footerContent = result.footerContent || '';
 
             // Store originals
             this.originalOhValue = this.ohValue;
@@ -75,13 +65,14 @@ export default class ProposalConfiguration extends LightningElement {
             this.originalWarrantyArea = this.warrantyArea;
             this.originalAgreement = this.agreement;
             this.originalLimitations = this.limitations;
+            this.originalFooterContent = this.footerContent;
 
             this.hasChanges = false;
-            this._initialized = false;
+            this._initialized = true;
             
         } catch (error) {
             console.error('Error loading configuration:', error);
-            this.showToast('Error', 'Failed to load configuration. Using default values.', 'error');
+            this.showToast('Error', 'Failed to load configuration.', 'error');
             this.setDefaultValues();
         } finally {
             this.isLoading = false;
@@ -95,6 +86,7 @@ export default class ProposalConfiguration extends LightningElement {
         this.warrantyArea = '';
         this.agreement = '';
         this.limitations = '';
+        this.footerContent = '';
         
         // Store originals
         this.originalOhValue = this.ohValue;
@@ -103,6 +95,7 @@ export default class ProposalConfiguration extends LightningElement {
         this.originalWarrantyArea = this.warrantyArea;
         this.originalAgreement = this.agreement;
         this.originalLimitations = this.limitations;
+        this.originalFooterContent = this.footerContent;
         
         this.hasChanges = false;
         this._initialized = false;
@@ -138,6 +131,11 @@ export default class ProposalConfiguration extends LightningElement {
         this.checkForChanges();
     }
 
+     handleFooterContent(event) {
+        this.footerContent = event.target.value;
+        this.checkForChanges();
+    }
+    
     checkForChanges() {
         this.hasChanges =
             this.ohValue !== this.originalOhValue ||
@@ -145,7 +143,8 @@ export default class ProposalConfiguration extends LightningElement {
             this.profitValue !== this.originalProfitValue ||
             this.warrantyArea !== this.originalWarrantyArea ||
             this.agreement !== this.originalAgreement ||
-            this.limitations !== this.originalLimitations;
+            this.limitations !== this.originalLimitations ||
+            this.footerContent !== this.originalFooterContent;
     }
 
     handleCancel() {
@@ -155,6 +154,7 @@ export default class ProposalConfiguration extends LightningElement {
         this.warrantyArea = this.originalWarrantyArea;
         this.agreement = this.originalAgreement;
         this.limitations = this.originalLimitations;
+        this.footerContent = this.originalFooterContent;
         this.hasChanges = false;
         
         this.updateTextareaValues();
@@ -174,13 +174,6 @@ export default class ProposalConfiguration extends LightningElement {
             this.showToast('Invalid Input', 'Sum of OH, Warranty and Profit should be less than 100%', 'error');
             return;
         }
-        
-        // const maxAllowed = 100 - this.ohValue - this.warrantyValue;
-        // if (this.profitValue >= maxAllowed) {
-        //     this.showToast('Invalid Profit', `Profit cannot exceed ${maxAllowed}%`, 'error');
-        //     return;
-        // }
-
         this.isLoading = true;
 
         try {
@@ -190,8 +183,12 @@ export default class ProposalConfiguration extends LightningElement {
                 profitValue: this.profitValue,
                 warrantyArea: this.warrantyArea,
                 agreement: this.agreement,
-                limitations: this.limitations
+                limitations: this.limitations,
+                footerContent: this.footerContent,
             });
+
+            // Log size for debugging
+            console.log('Saving JSON length:', configJson.length, 'JSON:', configJson);
 
             await saveProposalConfig({ configJson });
 
@@ -202,6 +199,7 @@ export default class ProposalConfiguration extends LightningElement {
             this.originalWarrantyArea = this.warrantyArea;
             this.originalAgreement = this.agreement;
             this.originalLimitations = this.limitations;
+            this.originalFooterContent = this.footerContent;
 
 
             this.hasChanges = false;
