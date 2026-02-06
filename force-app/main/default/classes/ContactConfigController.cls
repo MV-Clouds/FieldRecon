@@ -21,17 +21,17 @@ public with sharing class ContactConfigController {
             recordData.fieldDetailsList = fieldDetailsList;
 
             // Fetch Metadata
-            List<ContactConfigration__mdt> mdt = [
-                SELECT FieldValue__c, PageSize__c 
-                FROM ContactConfigration__mdt 
+            List<wfrecon__ContactConfigration__mdt> mdt = [
+                SELECT wfrecon__FieldValue__c, wfrecon__PageSize__c 
+                FROM wfrecon__ContactConfigration__mdt 
                 WHERE DeveloperName = 'RecordConfig' 
                 LIMIT 1
             ];
 
             List<String> metaValues = new List<String>();
             if (!mdt.isEmpty()) {
-                metaValues.add(mdt[0].FieldValue__c != null ? mdt[0].FieldValue__c : '[]');
-                metaValues.add(String.valueOf(mdt[0].PageSize__c));
+                metaValues.add(mdt[0].wfrecon__FieldValue__c != null ? mdt[0].wfrecon__FieldValue__c : '[]');
+                metaValues.add(String.valueOf(mdt[0].wfrecon__PageSize__c));
             } else {
                 metaValues.add('[]'); 
                 metaValues.add('30'); 
@@ -42,17 +42,17 @@ public with sharing class ContactConfigController {
         } catch (Exception e) {
             throw new AuraHandledException(e.getMessage());
         }
-    }
+    }       
 
     @AuraEnabled
     public static void saveContactConfig(String itemsData, Integer totalPages) {
         try {
             Metadata.CustomMetadata mdata = new Metadata.CustomMetadata();
-            mdata.fullName = 'ContactConfigration__mdt.RecordConfig';
+            mdata.fullName = 'wfrecon__ContactConfigration__mdt.RecordConfig';
             mdata.label = 'RecordConfig';
 
             Metadata.CustomMetadataValue val = new Metadata.CustomMetadataValue();
-            val.field = 'FieldValue__c';
+            val.field = 'wfrecon__FieldValue__c';
             val.value = itemsData;
             mdata.values.add(val);
 

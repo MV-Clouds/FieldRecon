@@ -8,7 +8,6 @@ const MANDATORY_FIELD_DETAILS = [
     { fieldName: 'FirstName', label: 'First Name', fieldType: 'STRING' },
     { fieldName: 'LastName', label: 'Last Name', fieldType: 'STRING' },
     { fieldName: 'Email', label: 'Email', fieldType: 'EMAIL' },
-    { fieldName: 'wfrecon__Can_Clock_In_Out__c', label: 'Can Clock In / Out', fieldType: 'BOOLEAN' }
 ];
 
 export default class ContactConfigBody extends LightningElement {
@@ -59,8 +58,10 @@ export default class ContactConfigBody extends LightningElement {
                         fieldType: item.fieldType,
                         isEditable: isMandatory ? true : (isSystemLocked ? false : item.isEditable),
                         isRequired: isMandatory ? true : (item.isRequired === true),
+                        isTableView: isMandatory ? true : (item.isTableView === true),
                         isEditableDisabled: isMandatory || isSystemLocked,
                         isRequiredDisabled: isMandatory,
+                        isTableViewDisabled: isMandatory,
                         isDeleteDisabled: isMandatory,
                         isDropdownDisabled: isMandatory,
                         dropdownClass: `combobox-input ${isMandatory ? 'disabled' : ''}`,
@@ -85,8 +86,10 @@ export default class ContactConfigBody extends LightningElement {
                             fieldType: mandatory.fieldType,
                             isEditable: true,
                             isRequired: true,
+                            isTableView: true,
                             isEditableDisabled: true,
                             isRequiredDisabled: true,
+                            isTableViewDisabled: true,
                             isDeleteDisabled: true,
                             isDropdownDisabled: true,
                             dropdownClass: 'combobox-input disabled',
@@ -119,6 +122,8 @@ export default class ContactConfigBody extends LightningElement {
             isEditable: false,
             isEditableDisabled: false,
             isRequired: false, // Default
+            isTableView: false,
+            isTableViewDisabled: false,
             isRequiredDisabled: false,
             isDeleteDisabled: false,
             isDropdownDisabled: false,
@@ -241,6 +246,8 @@ export default class ContactConfigBody extends LightningElement {
             fieldType: type,
             isEditableDisabled: isLocked,
             isRequiredDisabled: false, // New selection isn't mandatory
+            isTableViewDisabled: false,
+            isTableView: false,
             isDeleteDisabled: false,
             isDropdownDisabled: false,
             dropdownClass: 'combobox-input',
@@ -257,6 +264,11 @@ export default class ContactConfigBody extends LightningElement {
     handleEditableChange(event) {
         const index = parseInt(event.target.dataset.index, 10);
         this.items[index].isEditable = event.target.checked;
+    }
+
+    handleTableView(event) {
+        const index = parseInt(event.target.dataset.index, 10);
+        this.items[index].isTableView = event.target.checked;
     }
 
     // NEW: Handle Required Checkbox Change
@@ -356,7 +368,8 @@ export default class ContactConfigBody extends LightningElement {
             label: item.label,
             fieldType: item.fieldType,
             isEditable: item.isEditable,
-            isRequired: item.isRequired
+            isRequired: item.isRequired,
+            isTableView: item.isTableView
         }));
 
         saveContactConfig({ 
