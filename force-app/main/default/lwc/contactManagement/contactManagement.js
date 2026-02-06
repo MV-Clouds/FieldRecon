@@ -25,7 +25,6 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     @track lastName = '';
     @track email = '';
     @track recordType = '';
-    @track canClockInOut = false;
 
     // Record type options
     @track recordTypeOptions = [];
@@ -639,7 +638,6 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         this.lastName = '';
         this.email = '';
         this.recordType = '';
-        this.canClockInOut = false;
     }
 
     /**
@@ -651,7 +649,6 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         this.lastName = this.getFieldValue(contactRecord, 'LastName');
         this.email = this.getFieldValue(contactRecord, 'Email');
         this.recordType = this.getFieldValue(contactRecord, 'RecordType.DeveloperName');
-        this.canClockInOut = this.getFieldValue(contactRecord, 'wfrecon__Can_Clock_In_Out__c') || false;
     }
 
     /**
@@ -669,9 +666,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
             this.email = event.target.value;
         } else if (fieldName === 'RecordTypeId') {
             this.recordType = event.target.value;
-        } else if (fieldName === 'canClockInOut') {
-            this.canClockInOut = event.target.checked;
-        }
+        } 
     }
 
     /**
