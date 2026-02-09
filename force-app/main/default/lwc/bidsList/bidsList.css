@@ -140,33 +140,6 @@
     padding: 1rem;
 }
 
-/* Recently Viewed Button */
-.recently-viewed-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    border: 1px solid #5e5adb;
-    border-radius: 4px;
-    background: #5e5adb;
-    color: white;
-    font-size: 13px;
-    font-weight: 400;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    height: 40px;
-    white-space: nowrap;
-}
-
-.recently-viewed-btn svg {
-    stroke: white;
-}
-
-.recently-viewed-btn:hover {
-    background: #4a48b8;
-    border-color: #4a48b8;
-}
-
 /* Data Table Container */
 .data-table-container {
     flex: 1;
@@ -853,8 +826,7 @@
         width: 100%;
     }
     
-    .clear-filters-btn,
-    .recently-viewed-btn {
+    .clear-filters-btn {
         width: 100%;
         justify-content: center;
     }

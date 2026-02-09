@@ -36,7 +36,7 @@ public with sharing class MobSchedulerController {
             // Instruction: Query mobilizations and shape data for LWC consumption.
     
             List<wfrecon__Mobilization__c> mobilizations = [
-                SELECT Id, Name, wfrecon__Job__c, wfrecon__Job__r.Name, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.wfrecon__Description__c, wfrecon__Mobilization_Group__r.Name,
+                SELECT Id, Name, wfrecon__Job__c, wfrecon__Job__r.Name, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.wfrecon__Description__c, wfrecon__Mobilization_Group__r.Name,wfrecon__Mobilization_Group__r.wfrecon__Include_Saturday__c,wfrecon__Mobilization_Group__r.wfrecon__Include_Sunday__c,
                        wfrecon__Start_Date__c, wfrecon__End_Date__c, wfrecon__Mobilization_Status__c,
                        wfrecon__Job__r.wfrecon__Address__c,
                        (SELECT Id, wfrecon__Contact__r.RecordType.DeveloperName, wfrecon__Contact__c, wfrecon__Contact__r.Name, wfrecon__Crew__c, wfrecon__Crew__r.Name, wfrecon__Crew__r.wfrecon__Color_Code__c
@@ -53,6 +53,8 @@ public with sharing class MobSchedulerController {
                 ORDER BY wfrecon__Start_Date__c
             ];
     
+            System.debug('@@@ mobilizations: ' + mobilizations);
+            
             List<Map<String,Object>> weekEvents = new List<Map<String,Object>>();
     
             for(wfrecon__Mobilization__c mob : mobilizations){
@@ -113,6 +115,10 @@ public with sharing class MobSchedulerController {
             }
     
             result.put('weekEvents', weekEvents);
+
+            System.debug('@@@ weekEvents: ' + weekEvents);
+            System.debug('@@@ result: ' + result);
+
         }catch (Exception e){
             ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getMobilizationDetails', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching mobilization details for calendar.', 'apiResponse' => null});
         }

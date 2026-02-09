@@ -114,9 +114,9 @@ export default class QuoteEmailComposer extends LightningElement {
                     }
         
                     // Auto-populate To address if a contact is found on the Bid
-                    if(data.defaultContactId) {
-                        this.selectedToId = data.defaultContactId;
-                    }
+                    // if(data.defaultContactId) {
+                    //     this.selectedToId = data.defaultContactId;
+                    // }
         
                     console.log('Initial Data Loaded:', JSON.stringify(data));
                     
@@ -213,10 +213,12 @@ export default class QuoteEmailComposer extends LightningElement {
                         // const salesPrice = line.wfrecon__Sales_Price__c || 0;
                         // const qty = line.wfrecon__Quantity__c || 0;
                         const unitPrice = line.wfrecon__Unit_Price__c || 0;
+                        const salesPrice = line.wfrecon__Sales_Price__c || 0;
 
                         return {
                             ...line,
-                            unitPrice: unitPrice
+                            unitPrice: unitPrice,
+                            wfrecon__Sales_Price__c: salesPrice
                             // Selected__c is handled by Apex result usually, unless undefined
                         };
                     });
@@ -360,6 +362,8 @@ export default class QuoteEmailComposer extends LightningElement {
         this.selectedToId = event.detail.recordId;
         
         if (this.selectedTemplateId) {
+            console.log('Fetching template for To change');
+            
             this.fetchAndRenderTemplate();
         }
 
@@ -405,6 +409,7 @@ export default class QuoteEmailComposer extends LightningElement {
                 this.subject = result.subject;
                 // Only update the Preview variable, NOT the emailBody input
                 this.templatePreviewHtml = result.body;
+                console.log('Template Preview HTML:', this.templatePreviewHtml);
             })
             .catch(error => this.showToast('Error', 'Error rendering template', 'error'))
             .finally(() => this.isLoading = false);

@@ -4,7 +4,6 @@ import { loadScript, loadStyle } from 'lightning/platformResourceLoader';
 import FULL_CALENDAR from '@salesforce/resourceUrl/FullCalendarJS3';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getEvents from '@salesforce/apex/BidCalendarController.getEvents';
-import getTimeZoneOffset from '@salesforce/apex/BidCalendarController.getTimeZoneOffset';
 import SaveBidRecord from '@salesforce/apex/BidCalendarController.SaveBidRecord';
 import getBid from '@salesforce/apex/BidCalendarController.getBid';
 import deleteBid from '@salesforce/apex/BidCalendarController.deleteBid';
@@ -12,34 +11,37 @@ import getBidStatusOptions from '@salesforce/apex/BidCalendarController.getBidSt
 import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 
 export default class BidCalendar extends NavigationMixin(LightningElement) {
-    fullCalendarLoaded = false;
+    @track fullCalendarLoaded = false;
     @track events = {};
-    isSpinner = false;
-    openModal = false;
-    Heading = 'Create Bid';
-    bidId;
-    jobId;
-    bidName = '';
-    dueDate;
-    status;
-    description;
+    @track isSpinner = false;
+    @track openModal = false;
+    @track Heading = 'Create Bid';
+    @track bidId;
+    @track jobId;
+    @track bidName = '';
+    @track dueDate;
+    @track status;
+    @track contact;
+    @track description;
     @track statusOptions = [];
-    confirmationPopup;
-    showConfirmationPopup;
-    confirmationTitle;
-    confirmationMessage;
-    event;
-    filterStatus = [];
-    filterBid;
+    @track confirmationPopup;
+    @track showConfirmationPopup;
+    @track confirmationTitle;
+    @track confirmationMessage;
+    @track event;
+    @track filterStatus = [];
+    @track filterBid;
     _oldEvent = {};
-    revertFunc = new function() {};
+    @track revertFunc = new function() {};
     displayBids = {
         primaryField: 'Name',
+        additionalFields: ['wfrecon__Status__c']
     }
     matchingBids = {
-        primaryField: { fieldPath: 'Name' }
+        primaryField: { fieldPath: 'Name' }, 
+        additionalFields: [{ fieldPath: 'wfrecon__Status__c' }]
     }
-    hasFullAccess = false;
+    @track hasFullAccess = false;
     @track isEdit = false;
 
     get bidLink() {
@@ -47,41 +49,42 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
     }
 
     connectedCallback() {
-        this.isSpinner = true;
-        this.fetchTimeZoneOffset();
-        this.fetchPermissions();
-        loadScript(this, FULL_CALENDAR + '/fullcalendar3/jquery.min.js')
-            .then(() => loadScript(this, FULL_CALENDAR + '/fullcalendar3/moment.js'))
-            .then(() => loadScript(this, FULL_CALENDAR + '/fullcalendar3/fullcalendar.js'))
-            .then(() => loadStyle(this, FULL_CALENDAR + '/fullcalendar3/fullcalendar.min.css'))
-            .then(() => loadStyle(this, FULL_CALENDAR + '/fullcalendar3/fullcalendar.css'))
-            .then(() => {
-                this.fullCalendarLoaded = true;
-                this.loadStatusOptions();
-                return getEvents();
-            })
-            .then(result => {
-                console.log('results vents:', result);
-                
-                if (result && Array.isArray(result)) {
-                    this.events = result.map(ev => ({
-                        ...ev,
-                        id: ev.id,
-                        start: ev.start,
-                        end: ev.end,
-                        allDay: true
-                    }));
-                } else {
-                    this.events = [];
-                }
-                
-                this.initialiseCalendarJs();
-            })
-            .catch(error => {
-                this.showToast('Error', 'Failed to load calendar or events', 'error');
-                console.error('Error in BidCalendar.connectedCallback > loadScript', error?.body?.message || error?.message);
-                this.isSpinner = false;
-            });
+        try {
+            this.isSpinner = true;
+            this.fetchPermissions();
+            loadScript(this, FULL_CALENDAR + '/fullcalendar3/jquery.min.js')
+                .then(() => loadScript(this, FULL_CALENDAR + '/fullcalendar3/moment.js'))
+                .then(() => loadScript(this, FULL_CALENDAR + '/fullcalendar3/fullcalendar.js'))
+                .then(() => loadStyle(this, FULL_CALENDAR + '/fullcalendar3/fullcalendar.min.css'))
+                .then(() => loadStyle(this, FULL_CALENDAR + '/fullcalendar3/fullcalendar.css'))
+                .then(() => {
+                    this.fullCalendarLoaded = true;
+                    this.loadStatusOptions();
+                    return getEvents();
+                })
+                .then(result => {
+                    if (result && Array.isArray(result)) {
+                        this.events = result.map(ev => ({
+                            ...ev,
+                            id: ev.id,
+                            start: ev.start,
+                            end: ev.end,
+                            allDay: true
+                        }));
+                    } else {
+                        this.events = [];
+                    }
+                    
+                    this.initialiseCalendarJs();
+                })
+                .catch(error => {
+                    this.showToast('Error', 'Failed to load calendar or events', 'error');
+                    console.error('Error in BidCalendar.connectedCallback > loadScript', error);
+                    this.isSpinner = false;
+                });
+        } catch (error) {
+            console.error('Error in BidCalendar.connectedCallback', error);
+        }
     }
 
     fetchPermissions(){
@@ -94,103 +97,93 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
                     console.error('Error in BidCalendar.fetchPermissions > checkPermissionSetsAssigned', e?.body?.message || e?.message);
                 })
         } catch(e){
-            console.error('Error in function BidCalendar.fetchPermissions:::', e?.message);
+            console.error('Error in function BidCalendar.fetchPermissions:::', e);
         }
     }
-
-    fetchTimeZoneOffset(){
-        try {
-            getTimeZoneOffset()
-                .then((result) => {
-                    this.tzOffset = result;
-                })
-                .catch((e) => {
-                    console.error('Error in BidCalendar.fetchTimeZoneOffset > getTimeZoneOffset :: ', e?.body?.message || e?.message);
-                })
-        } catch (e) {
-            console.error('Error in BidCalendar.fetchTimeZoneOffset :: ', e?.message);
-        }
-    }
-    
 
     initialiseCalendarJs() {
-        const ele = this.template.querySelector('div.fullcalendarjs');
-        this.$cal = $(ele);
+        try {
+            const ele = this.template.querySelector('div.fullcalendarjs');
+            this.$cal = $(ele);
 
-        $(ele).fullCalendar({
-            header: {
-                left: 'today',
-                center: 'prev title next',
-                right: 'basicDay,month,basicWeek,listMonth'
-            },
-            defaultView: 'basicWeek',
-            defaultDate: new Date(),
-            navLinks: true,
-            editable: true,
-            eventLimit: true,
-            events: this.events,
-            dragScroll: true,
-            droppable: true,
-            weekNumbers: false,
-            selectable: true,
-            selectMirror: true,
-            timezone: 'UTC',
-            select: this.handleDateRangeSelect.bind(this),
-            eventClick: function (calEvent) {        
-                this.handleEventClick(calEvent.id);
-            }.bind(this),
-            eventDrop: this.getConfirmation.bind(this),
-            eventResize: this.getConfirmation.bind(this),
-            eventDragStart: function(event) {
-                this._oldEvent = $.extend(true, {}, event);
-            }.bind(this),
-            eventResizeStart: function(event) {
-                this._oldEvent = $.extend(true, {}, event);
-            }.bind(this),
-            businessHours: false,
-            draggable: false,
-            eventResizableFromStart: false,
-            eventDurationEditable:false,
-            eventOrder: '-status',
-            eventRender: function(event, element, view) {
-                // Format start and end times
-                if (view.name.startsWith('list')){
-                    const startTime = event.allDay ? 'All Day' : moment(event.start).format('hh:mm A');
-                    const endTime = event.allDay ? '' : (event.end ? moment(event.end).format('hh:mm A') : '');
+            $(ele).fullCalendar({
+                header: {
+                    left: 'today',
+                    center: 'prev title next',
+                    right: 'basicDay,month,basicWeek,listMonth'
+                },
+                defaultView: 'basicWeek',
+                defaultDate: new Date(),
+                navLinks: true,
+                editable: false,
+                eventLimit: true,
+                events: this.events,
+                dragScroll: false,
+                droppable: false,
+                weekNumbers: false,
+                selectable: true,
+                selectMirror: true,
+                timezone: 'UTC',
+                select: this.handleDateRangeSelect.bind(this),
+                eventClick: function (calEvent) {        
+                    this.handleEventClick(calEvent.id);
+                }.bind(this),
+                eventDrop: this.getConfirmation.bind(this),
+                eventResize: this.getConfirmation.bind(this),
+                eventDragStart: function(event) {
+                    this._oldEvent = $.extend(true, {}, event);
+                }.bind(this),
+                eventResizeStart: function(event) {
+                    this._oldEvent = $.extend(true, {}, event);
+                }.bind(this),
+                businessHours: false,
+                draggable: false,
+                eventResizableFromStart: false,
+                eventDurationEditable:false,
+                eventOrder: '-status',
+                eventRender: function(event, element, view) {
+                    // Format start and end times
+                    if (view.name.startsWith('list')){
+                        const startTime = event.allDay ? 'All Day' : moment(event.start).format('hh:mm A');
+                        const endTime = event.allDay ? '' : (event.end ? moment(event.end).format('hh:mm A') : '');
 
-                    const isMobile = window.innerWidth < 768;
+                        const isMobile = window.innerWidth < 768;
 
-                    
-                    let rowHtml = `
-                    <div class="fc-row-columns" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                        <span class="fc-col title" style="width:${isMobile ? '70%' : '30%'}; font-weight:bold;">
-                            ${event.title}
-                        </span>
-                `;
-
-                // Only add location and status if not mobile
-                if (!isMobile) {
-                    rowHtml += `
-                        <span class="fc-col location" style="width:35%;">${event.jobLocation || ''}</span>
-                        <span class="fc-col status" style="width:15%; text-align:center;">Status - ${event.status || ''}</span>
+                        
+                        let rowHtml = `
+                        <div class="fc-row-columns" style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                            <span class="fc-col title" style="width:${isMobile ? '70%' : '30%'}; font-weight:bold;">
+                                ${event.title}
+                            </span>
                     `;
-                }
 
-                rowHtml += `<span class="fc-col time" style="width:${isMobile ? '30%' : '20%'}; text-align:center;">
-                            ${startTime}${endTime ? ' - ' + endTime : ''}
-                        </span></div>`;
+                    // Only add location and status if not mobile
+                    if (!isMobile) {
+                        rowHtml += `
+                            <span class="fc-col location" style="width:35%;">${event.jobLocation || ''}</span>
+                            <span class="fc-col status" style="width:15%; text-align:center;">Status - ${event.status || ''}</span>
+                        `;
+                    }
 
-            // Replace title content
-            element.find('.fc-list-item-title').html(rowHtml);
-                    element.css({
-                        'background-color': '#fff',
-                        'color': event.textColor || '#000',
-                        'border-left': `4px solid ${event.backgroundColor || '#000'}`
-                    });
+                    rowHtml += `<span class="fc-col time" style="width:${isMobile ? '30%' : '20%'}; text-align:center;">
+                                ${startTime}${endTime ? ' - ' + endTime : ''}
+                            </span></div>`;
+
+                // Replace title content
+                element.find('.fc-list-item-title').html(rowHtml);
+                        element.css({
+                            'background-color': '#fff',
+                            'color': event.textColor || '#000',
+                            'border-left': `4px solid ${event.backgroundColor || '#000'}`
+                        });
+                    }
                 }
-            }
-        });
-        this.isSpinner = false;
+            });
+            this.isSpinner = false;
+        } catch (error) {
+            console.error('Error in BidCalendar.initialiseCalendarJs', error);
+            this.isSpinner = false;
+        }
     }
 
     getConfirmation(event, delta, revertFunc) {
@@ -215,18 +208,6 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
             const oldStartLocal = mergeDateAndTime(eventOldStartDate);
 
             let nowLocal = new Date();
-
-            if(startLocal.getTime() != oldStartLocal.getTime()){
-                if(oldStartLocal.getTime() < nowLocal.getTime()){
-                    this.showToast('Error', 'Can not change the start date/time for in-progress mobilization group.', 'error');
-                    revertFunc(); 
-                    return;
-                }if(startLocal.getTime() < nowLocal.getTime()){
-                    this.showToast('Error', 'Start date/time can not be set in the past.', 'error');
-                    revertFunc(); 
-                    return;
-                }
-            }
     
             this.showConfirmationPopup = true;
             this.confirmationTitle = 'Confirm'
@@ -235,7 +216,7 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
             this.revertFunc = revertFunc;
             this.isDropOrExpand = true;
         } catch (e) {
-            console.error('Error in function BidCalendar.getConfirmation:::', e?.message);
+            console.error('Error in function BidCalendar.getConfirmation:::', e);
             this.showToast('Error', 'Something went wrong! Please try again.', 'error');
             revertFunc();
         }
@@ -293,7 +274,7 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
                     this.isSpinner = false;
                 });
         }catch (e) {
-            console.error('Error in function BidCalendar.handleEventDrop:::', e?.message);
+            console.error('Error in function BidCalendar.handleEventDrop:::', e);
             this.showToast('Error', 'Something went wrong! Please try again.', 'error');
             this.revertFunc();
         }
@@ -310,10 +291,10 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
                 this.filterStatus = this.statusOptions?.filter(opt => opt.isSelected)?.map(opt => opt.value) || [];
             })
             .catch(error => {
-                console.error('Error in function BidCalendar.loadStatusOptions:::', error?.body?.message || error?.message);
+                console.error('Error in function BidCalendar.loadStatusOptions:::', error);
             })
         } catch (e) {
-            console.error('Error in function BidCalendar.loadStatusOptions:::', e?.message);
+            console.error('Error in function BidCalendar.loadStatusOptions:::', e);
         }
     }
 
@@ -322,7 +303,7 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
             let name = event.currentTarget.name;            
             this[name] = event.detail.recordId;            
         } catch (e) {
-            console.error('Error in function BidCalendar.handleResourceItemUpdate:::', e?.message);
+            console.error('Error in function BidCalendar.handleResourceItemUpdate:::', e);
         }
     }
 
@@ -330,7 +311,6 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
         this.isSpinner = true;
         getEvents({bidId: this.filterBid, status: this.filterStatus})
         .then((result) => {
-            console.log('result :: ', result);
             
             if (result && Array.isArray(result)) {                
                 this.events = result.map(ev => ({
@@ -354,7 +334,7 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
             this.isSpinner = false;
         })
         .catch((e) => {
-            console.error('Error in function BidCalendar.refreshCalendar:::', e?.message);
+            console.error('Error in function BidCalendar.refreshCalendar:::', e);
             this.isSpinner = false;
         });
     }
@@ -419,34 +399,40 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
             this.isSpinner = false;
         } catch (e) {
             this.isSpinner = false;
-            console.error('Error in function BidCalendar.handleDateRangeSelect:::', e?.message);
-            
+            console.error('Error in function BidCalendar.handleDateRangeSelect:::', e);
         }
     }
 
     handleEventClick(recordId) {
-        if(!this.hasFullAccess){
-            this.showToast('Warning', 'You do not have permission to edit this event.','error');
-            return;
+        try {
+            if(!this.hasFullAccess){
+                this.showToast('Warning', 'You do not have permission to edit this event.','error');
+                return;
+            }
+            this.isSpinner = true;
+            getBid({recordId: recordId})
+                .then((result)=>{
+                    this.isSpinner = false;
+                    this.bidName = result.name;
+                    this.bidId = result.id;
+                    this.dueDate = result.dueDate;
+                    this.status = result.status;
+                    this.contact = result.contactId;
+                    this.description = result.description;
+                    this.Heading = 'Edit Bid';
+                    this.isEdit = true;
+                    this.openModal = true;
+                    this.template.querySelector('.header').scrollIntoView({block: 'end'});
+                    this.selectedEventId = recordId;
+                })
+                .catch((e)=>{
+                    console.error('Error in function BidCalendar.handleEventClick:::', e);
+                    this.isSpinner = false;
+                });
+        } catch (error) {
+            console.error('Error in BidCalendar.handleEventClick:', error);
+            
         }
-        this.isSpinner = true;
-        getBid({recordId: recordId})
-            .then((result)=>{
-                this.isSpinner = false;
-                this.bidName = result.name;
-                this.bidId = result.id;
-                this.status = result.status;
-                this.description = result.description;
-                this.Heading = 'Edit Bid';
-                this.isEdit = true;
-                this.openModal = true;
-                this.template.querySelector('.header').scrollIntoView({block: 'end'});
-                this.selectedEventId = recordId;
-            })
-            .catch((e)=>{
-                console.error('Error in function BidCalendar.handleEventClick:::', e?.message);
-                this.isSpinner = false;
-            });
     }
 
     handleSuccess(){
@@ -461,36 +447,12 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
             this.isSpinner = true;
             event.preventDefault();
             let details = event.detail.fields;
-            console.log('Details :: ', details);
-            
-            const dueDateValue = details.wfrecon__Bid_Due_Date__c;
-            const dueDate = new Date(dueDateValue);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            // Normalize dueDate to start of day for comparison
-            const dueDateNormalized = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-
-            // Validate due date is not in the past
-            if (dueDateNormalized < today) {
-                this.showToast('Error', 'Due date cannot be in the past. Please select today or a future date.', 'error');
-                this.isSpinner = false;
-                return;
-            }
 
             this.template.querySelector('lightning-record-edit-form.mob-group-form').submit(details);
         } catch (e) {
-            console.error('BidCalendar.handleFormSubmitted error:', e?.message);
+            console.error('BidCalendar.handleFormSubmitted error:', e);
             this.isSpinner = false;
         }
-    }
-
-    removeOrgTimeZone(utcDateStr) {
-        const d = new Date(utcDateStr);
-        const orgOffset = this.tzOffset * 60; // Salesforce user zone (UTC−5)
-        const deviceOffset = d.getTimezoneOffset(); // Niue = +660 (minutes)
-        const diffMs = (deviceOffset + orgOffset) * 60 * 1000;
-        return new Date(d.getTime() + diffMs);
     }
 
     normalizeDate(date) {
@@ -500,6 +462,7 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
     resetTempVariables() {
         this.bidId = '';
         this.status = '';
+        this.contact = '';
         this.description = '';
         this.bidName = '';
         this.selectedEventId = '';
@@ -510,7 +473,12 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
     handleDeleteBid() {
         this.isSpinner = true;
         deleteBid({recordId: this.selectedEventId})
-            .then(()=>{
+            .then((result)=>{
+                if(result !== 'SUCCESS'){
+                    this.showToast('Error', result, 'error');
+                    this.isSpinner = false;
+                    return;
+                }
                 this.showToast('Success', 'Bid Deleted', 'success');
                 this.handleModalClose();
                 this.refreshCalendar();
@@ -518,7 +486,7 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
                 this.isEdit = false;
             })
             .catch((error)=>{
-                this.showToast('Error', 'Error Deleting Bid', 'error');
+                this.showToast('Error', error?.body?.message || 'Error Deleting Bid ::' + error, 'error');
                 this.isSpinner = false;
             })
     }
@@ -536,7 +504,7 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
             }
             this.refreshCalendar();
         } catch (e) {
-            console.error('Error in function BidCalendar.handleFilter:::', e?.message);
+            console.error('Error in function BidCalendar.handleFilter:::', e);
         }
     }
 
@@ -585,7 +553,7 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
             this.confirmationMessage = 'Are you sure, you want to proceed';
             this.confirmationBtnLabel = 'Proceed';
         } catch (e) {
-            console.error('MobScheduler.handleConfirmationAction error:', e?.message);
+            console.error('MobScheduler.handleConfirmationAction error:', e);
         }
     }
 
@@ -600,7 +568,7 @@ export default class BidCalendar extends NavigationMixin(LightningElement) {
                 },
             });
         } catch (e) {
-            console.error('error in navigateToRecord:', e.message);
+            console.error('error in navigateToRecord:', e);
         }
     }
 }

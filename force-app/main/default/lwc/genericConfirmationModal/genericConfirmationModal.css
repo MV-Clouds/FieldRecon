@@ -227,6 +227,12 @@
     gap: 1rem;
 }
 
+.three-button-option {
+    background: #ffffff;
+    color: #585858;
+    border: 1px solid #d0d0ff;
+}
+
 /* 1. Mobile Devices (up to 767px) */
 @media only screen and (max-width: 767px) {
     .generic-modal.slds-modal {

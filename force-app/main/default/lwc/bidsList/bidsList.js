@@ -17,7 +17,7 @@ export default class BidsList extends NavigationMixin(LightningElement) {
     
     @track searchTerm = '';
     @track selectedStatuses = [];
-    @track showRecentlyViewed = true;
+    @track viewFilter = 'all';
     
     // Status filter properties
     @track showStatusDropdown = false;
@@ -98,6 +98,14 @@ export default class BidsList extends NavigationMixin(LightningElement) {
         }));
     }
     
+    get viewFilterOptions() {
+        return [
+            { label: 'All Bids', value: 'all' },
+            { label: 'Recently Viewed Bids', value: 'recently_viewed' },
+            { label: 'Bid Due Date in next 7 days', value: 'next_7_days' }
+        ];
+    }
+    
     get selectedStatusText() {
         if (this.selectedStatuses.length === 0) {
             return 'All Statuses';
@@ -122,10 +130,6 @@ export default class BidsList extends NavigationMixin(LightningElement) {
         return `${this.selectedStatuses.length} Statuses Selected`;
     }
     
-    get recentlyViewedButtonLabel() {
-        return this.showRecentlyViewed ? 'Show All Bids' : 'Show Recently Viewed';
-    }
-
     get saveButtonLabel() {
         return this.isSavingProposal ? 'Saving...' : 'Save Proposal';
     }
@@ -167,7 +171,7 @@ export default class BidsList extends NavigationMixin(LightningElement) {
     async loadBidData() {
         this.isLoading = true;
         try {
-            const data = await getAllBids({ filterByRecentlyViewed: this.showRecentlyViewed });
+            const data = await getAllBids({ viewFilter: this.viewFilter });
             this.allBidData = data.map(bid => ({ ...bid }));
             this.applyFilters();
         } catch (error) {
@@ -290,12 +294,12 @@ export default class BidsList extends NavigationMixin(LightningElement) {
         }
     }
     
-    toggleRecentlyViewed() {
+    handleViewFilterChange(event) {
         try {
-            this.showRecentlyViewed = !this.showRecentlyViewed;
+            this.viewFilter = event.detail.value;
             this.loadBidData();
         } catch (error) {
-            console.error("Error in toggleRecentlyViewed :: ", error);
+            console.error("Error in handleViewFilterChange :: ", error);
         }
     }
     

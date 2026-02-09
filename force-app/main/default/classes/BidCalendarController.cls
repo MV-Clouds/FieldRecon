@@ -33,9 +33,6 @@ public with sharing class BidCalendarController {
             // Execute dynamic query
             List<wfrecon__Bid__c> bids = Database.query(baseQuery);
 
-            // Fetch all custom setting records for status colors
-            // Map<String, wfrecon__Mobilization_Status_Color__c> colorMap = wfrecon__Mobilization_Status_Color__c.getAll();
-
             List<Map<String, Object>> result = new List<Map<String, Object>>();
             for (wfrecon__Bid__c bid : bids) {
 
@@ -86,13 +83,13 @@ public with sharing class BidCalendarController {
                     ev.put('textColor', textColor);
                 }
 
-
                 result.add(ev);
             }
             return result;
 
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getEvents', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => e.getMessage(), 'apiResponse' => null}); return new List<Map<String, Object>>();
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getEvents', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => e.getMessage(), 'apiResponse' => null}); 
+            return new List<Map<String, Object>>();
         }
     }
 
@@ -100,12 +97,18 @@ public with sharing class BidCalendarController {
     // Delete Bid
     // ==============================
     @AuraEnabled
-    public static void deleteBid(Id recordId){
-        List<wfrecon__Bid__c> bids = [
-            SELECT Id FROM wfrecon__Bid__c WHERE Id = :recordId
-        ];
-        if (!bids.isEmpty()) {
-            delete bids;
+    public static String deleteBid(Id recordId){
+        try {
+            List<wfrecon__Bid__c> bids = [
+                SELECT Id FROM wfrecon__Bid__c WHERE Id = :recordId
+            ];
+            if (!bids.isEmpty()) {
+                delete bids;
+            }
+            return 'SUCCESS';
+        } catch (Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'deleteBid', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => e.getMessage(), 'apiResponse' => null});
+            return e.getMessage();
         }
     }
 
@@ -124,33 +127,8 @@ public with sharing class BidCalendarController {
         return result;
     }
 
-    // ==============================
-    // Utility Methods
-    // ==============================
-    private static Datetime updateDateFromTime(Time target, Datetime source) {
-        return Datetime.newInstance(
-            source.year(), source.month(), source.day(),
-            target.hour(), target.minute(), target.second()
-        );
-    }
-
-    @AuraEnabled
-    public static Decimal getTimeZoneOffset(){
-        Decimal offsetHours = 0;
-        try {
-            TimeZone userTimeZone = UserInfo.getTimeZone();
-            DateTime currentTime = DateTime.now();
-            Integer offsetMilliseconds = userTimeZone.getOffset(currentTime);
-            offsetHours = (Decimal)offsetMilliseconds / (1000 * 60 * 60);
-        } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getTimeZoneOffset', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => e.getMessage(), 'apiResponse' => null });
-        }
-        return offsetHours;
-    }
-
     @AuraEnabled
     public static String SaveBidRecord(Map<String, String> bidMap) {
-
         try{
             wfrecon__Bid__c bid = new wfrecon__Bid__c(
                 Id = bidMap.get('id'),
@@ -169,7 +147,7 @@ public with sharing class BidCalendarController {
 
     @AuraEnabled
     public static BidWrapper getBid(Id recordId){
-        List<wfrecon__Bid__c> bids = [SELECT Id, wfrecon__Description__c,Name, wfrecon__Job__c,wfrecon__Job__r.wfrecon__Job_Name__c,wfrecon__Job__r.Name, wfrecon__Bid_Due_Date__c, wfrecon__Status__c,toLabel(wfrecon__Status__c) bidStatus FROM wfrecon__Bid__c WHERE Id = :recordId LIMIT 1];
+        List<wfrecon__Bid__c> bids = [SELECT Id, wfrecon__Description__c,Name, wfrecon__Job__c,wfrecon__Job__r.wfrecon__Job_Name__c,wfrecon__Job__r.Name, wfrecon__Bid_Due_Date__c, wfrecon__Status__c,wfrecon__Contact__c,toLabel(wfrecon__Status__c) bidStatus FROM wfrecon__Bid__c WHERE Id = :recordId LIMIT 1];
         return new BidWrapper(bids[0]);
     }   
 
@@ -197,6 +175,8 @@ public with sharing class BidCalendarController {
         public String jobRealName{get;set;}
         @AuraEnabled
         public String status{get;set;}
+        @AuraEnabled
+        public String contactId{get;set;}
 
         public BidWrapper() {}
 
@@ -208,6 +188,7 @@ public with sharing class BidCalendarController {
             this.jobRealName = bid.wfrecon__Job__r?.wfrecon__Job_Name__c;
             this.jobName = bid.wfrecon__Job__r?.Name;
             this.status = bid.wfrecon__Status__c;
+            this.contactId = bid.wfrecon__Contact__c;
             this.description = bid.wfrecon__Description__c;
         }
 

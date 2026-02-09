@@ -4,6 +4,7 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getContacts from '@salesforce/apex/ManagementTabController.getContacts';
 import deleteContact from '@salesforce/apex/ManagementTabController.deleteContact';
 import getContactFields from '@salesforce/apex/ContactConfigController.getContactFields';
+import createUserFromContact from '@salesforce/apex/ManagementTabController.createUserFromContact';
 
 export default class ContactManagement extends NavigationMixin(LightningElement) {
     @track isLoading = true;
@@ -16,6 +17,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     @track isEditMode = false;
     @track recordIdToEdit = null;
     @track recordTypeId = '';
+    @track showConfigModal = false;
 
 
     // Form fields
@@ -23,7 +25,6 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     @track lastName = '';
     @track email = '';
     @track recordType = '';
-    @track canClockInOut = false;
 
     // Record type options
     @track recordTypeOptions = [];
@@ -33,6 +34,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     @track confirmationModalTitle = 'Confirm Action';
     @track confirmationModalMessage = 'Are you sure you want to proceed?';
     @track pendingDeleteRecordId = null;
+    @track deleteModalMode = 'confirm'; // 'confirm' or 'options'
 
     // Pagination properties
     @track currentPage = 1;
@@ -40,23 +42,91 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     @track visiblePages = 5;
     @track shownContactData = [];
 
-    // Contact table columns configuration
-    @track contactTableColumns = [
-        { label: 'Sr. No.', fieldName: 'SerialNumber', type: 'text', isSerialNumber: true, sortable: false, headerClass: 'header-cell header-index non-sortable-header' },
-        { label: 'Actions', fieldName: 'Actions', type: 'text', isActions: true, sortable: false, headerClass: 'header-cell non-sortable-header' },
-        { label: 'Name', fieldName: 'Name', type: 'text', sortable: true, headerClass: 'header-cell sortable-header' },
-        { label: 'Type', fieldName: 'RecordType.DeveloperName', type: 'text', sortable: true, headerClass: 'header-cell sortable-header' },
-        { label: 'Can Clock In / Out', fieldName: 'wfrecon__Can_Clock_In_Out__c', type: 'checkbox', isCheckboxField: true, sortable: true, headerClass: 'header-cell sortable-header' }
-    ];
-
-    // Modal & Mode States
-    @track showConfigModal = false;
-    @track isPreviewMode = false;
-
-    // Dynamic Form Data
-    @track dynamicFields = [];
-    @track formValues = {};
+    // Contact table columns configuration - will be populated dynamically from metadata
     @track configuredMetadata = [];
+
+    /**
+     * Method Name: get contactTableColumns
+     * @description: Generate table columns dynamically from metadata with isTableView = true
+     */
+    get contactTableColumns() {
+        try {
+            const columns = [];
+
+            // Add Serial Number column
+            columns.push({
+                label: 'Sr. No.',
+                fieldName: 'SerialNumber',
+                type: 'text',
+                isSerialNumber: true,
+                sortable: false,
+                headerClass: 'header-cell header-index non-sortable-header'
+            });
+
+            // Add Actions column
+            columns.push({
+                label: 'Actions',
+                fieldName: 'Actions',
+                type: 'text',
+                isActions: true,
+                sortable: false,
+                headerClass: 'header-cell non-sortable-header'
+            });
+
+            // Add fields from metadata where isTableView = true
+            if (this.configuredMetadata && this.configuredMetadata.length > 0) {
+                this.configuredMetadata.forEach(field => {
+                    if (field.isTableView === true) {
+                        const isBooleanField = field.fieldType === 'BOOLEAN';
+                        const columnType = this.getColumnType(field.fieldType);
+                        
+                        columns.push({
+                            label: field.label || field.fieldName,
+                            fieldName: field.fieldName,
+                            type: columnType,
+                            fieldType: field.fieldType,
+                            isCheckboxField: isBooleanField,
+                            sortable: true,
+                            headerClass: 'header-cell sortable-header'
+                        });
+                    }
+                });
+            }
+
+            return columns;
+        } catch (error) {
+            console.error('Error generating contact table columns:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Method Name: getColumnType
+     * @description: Get the Lightning data-table column type from field type
+     */
+    getColumnType(fieldType) {
+        switch (fieldType) {
+            case 'DATE':
+                return 'date';
+            case 'DATETIME':
+                return 'date';
+            case 'BOOLEAN':
+                return 'checkbox';
+            case 'NUMBER':
+            case 'CURRENCY':
+                return 'number';
+            case 'PERCENT':
+                return 'percent';
+            case 'EMAIL':
+                return 'email';
+            case 'URL':
+                return 'url';
+            case 'PHONE':
+                return 'phone';
+            default:
+                return 'text';
+        }
+    }
 
     /**
      * Method Name: get displayedContacts
@@ -100,6 +170,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
                     return {
                         key,
                         isRegularField: true,
+                        fieldType: col.fieldType,
                         value: this.formatFieldValue(contact, col)
                     };
                 });
@@ -122,6 +193,10 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     formatFieldValue(contact, column) {
         const fieldValue = this.getFieldValue(contact, column.fieldName);
 
+        if (!fieldValue && fieldValue !== false && fieldValue !== 0) {
+            return '';
+        }
+
         // Handle RecordType.DeveloperName specially
         if (column.fieldName === 'RecordType.DeveloperName') {
             if (fieldValue === 'Employee_WF_Recon') return 'Employee';
@@ -129,7 +204,64 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
             return fieldValue || '';
         }
 
+        // Handle DATE fields (YYYY-MM-DD format)
+        if (column.fieldType === 'DATE') {
+            return this.formatDate(fieldValue);
+        }
+
+        // Handle DATETIME fields (ISO 8601 format)
+        if (column.fieldType === 'DATETIME') {
+            return this.formatDateTime(fieldValue);
+        }
+
         return fieldValue || '';
+    }
+
+    /**
+     * Method Name: formatDate
+     * @description: Format date value to MMM D, YYYY (e.g., Feb 6, 2026)
+     */
+    formatDate(dateString) {
+        if (!dateString) return '';
+        
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+                return dateString;
+            }
+            
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return date.toLocaleDateString('en-US', options);
+        } catch (error) {
+            console.error('Error formatting date:', error);
+            return dateString;
+        }
+    }
+
+    /**
+     * Method Name: formatDateTime
+     * @description: Format datetime value to MMM D, YYYY, HH:MM AM/PM (e.g., Feb 6, 2026, 09:15 AM)
+     */
+    formatDateTime(dateTimeString) {
+        if (!dateTimeString) return '';
+        
+        try {
+            const date = new Date(dateTimeString);
+            if (isNaN(date.getTime())) {
+                return dateTimeString;
+            }
+            
+            const dateOptions = { year: 'numeric', month: 'short', day: 'numeric' };
+            const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: true };
+            
+            const formattedDate = date.toLocaleDateString('en-US', dateOptions);
+            const formattedTime = date.toLocaleTimeString('en-US', timeOptions);
+            
+            return `${formattedDate}, ${formattedTime}`;
+        } catch (error) {
+            console.error('Error formatting datetime:', error);
+            return dateTimeString;
+        }
     }
 
     /**
@@ -280,6 +412,22 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     }
 
     /**
+     * Method Name: get isDeleteWithInactiveMode
+     * @description: Check if we should show 3-button mode for delete
+     */
+    get isDeleteWithInactiveMode() {
+        return this.deleteModalMode === 'options';
+    }
+
+    /**
+     * Method Name: get deleteConfirmLabel
+     * @description: Get the delete button label based on mode
+     */
+    get deleteConfirmLabel() {
+        return this.deleteModalMode === 'options' ? 'Only delete contact' : 'Delete';
+    }
+
+    /**
      * Method Name: get modalTitle
      * @description: Get modal title based on mode
      */
@@ -301,7 +449,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
      * @description: Load contacts on component load
      */
     connectedCallback() {
-        this.fetchContacts();
+        // this.fetchContacts();
         this.fetchConfiguration();
     }
 
@@ -310,9 +458,12 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
   * @description: Fetch all contacts from the server and extract record types
   */
     fetchContacts() {
-        this.isLoading = true;
+        // this.isLoading = true;
 
-        getContacts()
+        // Extract fields with isTableView = true from configuration
+        const tableViewFields = this.getTableViewFields();
+
+        getContacts({ tableViewFields: tableViewFields })
             .then(result => {
                 this.contacts = result || [];
                 // Extract unique record types from contacts
@@ -327,8 +478,27 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
                 this.filteredContacts = [];
             })
             .finally(() => {
+                // this.isLoading = true;
                 this.isLoading = false;
             });
+    }
+
+    /**
+     * Method Name: getTableViewFields
+     * @description: Extract field names that have isTableView = true from configuration
+     */
+    getTableViewFields() {
+        const fields = [];
+        
+        if (this.configuredMetadata && this.configuredMetadata.length > 0) {
+            this.configuredMetadata.forEach(field => {
+                if (field.isTableView === true) {
+                    fields.push(field.fieldName);
+                }
+            });
+        }
+        
+        return fields;
     }
 
     /**
@@ -437,7 +607,6 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
      */
     handleCreateNew() {
         this.formValues = {
-            'wfrecon__Can_Clock_In_Out__c': true, // Default to checked
             'RecordTypeId': ''
         };
         this.isEditMode = false;
@@ -446,25 +615,6 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         this.recordIdToEdit = null;
         this.prepareDynamicFields();
         this.showCreateModal = true;
-
-        // Set default value for checkbox field after modal renders
-        setTimeout(() => {
-            this.setDefaultCheckboxValue();
-        }, 100);
-    }
-
-    /**
-     * Method Name: setDefaultCheckboxValue
-     * @description: Set default value for checkbox field after modal renders
-     *              This is needed because lightning-input-field doesn't respect value property
-     */
-    setDefaultCheckboxValue() {
-        const inputFields = this.template.querySelectorAll('lightning-input-field');
-        inputFields.forEach(field => {
-            if (field.fieldName === 'wfrecon__Can_Clock_In_Out__c') {
-                field.value = true;
-            }
-        });
     }
 
     /**
@@ -488,7 +638,6 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         this.lastName = '';
         this.email = '';
         this.recordType = '';
-        this.canClockInOut = false;
     }
 
     /**
@@ -500,7 +649,6 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         this.lastName = this.getFieldValue(contactRecord, 'LastName');
         this.email = this.getFieldValue(contactRecord, 'Email');
         this.recordType = this.getFieldValue(contactRecord, 'RecordType.DeveloperName');
-        this.canClockInOut = this.getFieldValue(contactRecord, 'wfrecon__Can_Clock_In_Out__c') || false;
     }
 
     /**
@@ -518,9 +666,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
             this.email = event.target.value;
         } else if (fieldName === 'RecordTypeId') {
             this.recordType = event.target.value;
-        } else if (fieldName === 'canClockInOut') {
-            this.canClockInOut = event.target.checked;
-        }
+        } 
     }
 
     /**
@@ -529,6 +675,14 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
  */
     handleSave(event) {
         event.preventDefault();
+        event.stopPropagation();
+        this.isLoading = true;
+
+        // Validate custom required fields
+        const isValid = this.validateCustomRequiredFields();
+        if (!isValid) {
+            return;
+        }
 
         // Get the record edit form
         const recordEditForm = this.template.querySelector('lightning-record-edit-form');
@@ -540,26 +694,99 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     }
 
     /**
-     * Method Name: handleSuccess
-     * @description: Handle successful save from lightning-record-edit-form
+     * Method Name: validateCustomRequiredFields
+     * @description: Validate custom required fields from metadata
      */
-    handleSuccess(event) {
-        this.isLoading = false;
+    validateCustomRequiredFields() {
+        let isValid = true;
+        const missingFields = [];
 
-        const msg = this.isEditMode ? 'Contact updated successfully' : 'Contact created successfully';
-        this.showToast('Success', msg, 'success');
+        if (this.dynamicFields && this.dynamicFields.length > 0) {
+            this.dynamicFields.forEach(field => {
+                // Skip disabled fields and the record type field (handled separately)
+                if (field.isDisabled) {
+                    return;
+                }
 
-        // Close modal and refresh contacts
-        this.handleCloseModal();
-        this.fetchContacts();
+                // For record type field, check recordTypeId
+                if (field.isRecordType) {
+                    if (!this.recordTypeId) {
+                        isValid = false;
+                        missingFields.push(field.label);
+                    }
+                    return;
+                }
+
+                // For other required fields, check formValues
+                if (field.isRequired) {
+                    const fieldValue = this.formValues[field.fieldName];
+                    
+                    // Check if field is empty
+                    if (fieldValue === null || fieldValue === undefined || 
+                        fieldValue === '' || (typeof fieldValue === 'string' && fieldValue.trim() === '')) {
+                        isValid = false;
+                        missingFields.push(field.label);
+                    }
+                }
+            });
+        }
+
+        if (!isValid) {
+            const fieldsList = missingFields.length > 0 ? ': ' + missingFields.join(', ') : '';
+            this.showToast('Error', `Please fill all required fields${fieldsList}`, 'error');
+        }
+
+        return isValid;
     }
+
+    /**
+ * Method Name: handleSuccess
+ * @description: Handle successful save from lightning-record-edit-form
+ */
+handleSuccess(event) {
+    const contactId = event.detail.id;
+    const msg = this.isEditMode ? 'Contact and User updated successfully' : 'Contact and User created successfully';
+
+    createUserFromContact({ contactId: contactId })
+        .then(result => {
+            console.log('result', result);
+            
+            if (result.success) {
+                // Success case - user was created
+                this.showToast('Success', msg, 'success');
+                console.log('User created with ID:', result.userId);
+            } else {
+                // Error case from Apex                
+                // Check if it's a license limit error
+                if (result.message && result.message.includes('LICENSE_LIMIT_EXCEEDED')) {
+                    this.showToast('Error', 'Cannot create user: No available licenses as limit exceeded.', 'error');
+                    // deleteContact({ contactId: contactId });
+                    this.deleteContactRecord(contactId,false);
+                } else if (result.message && !result.message.includes('LICENSE_LIMIT_EXCEEDED')) {
+                    // For other errors, delete the contact
+                    this.showToast('Error', 'User creation failed: ' + result.message, 'error');
+                    // deleteContact({ contactId: contactId });
+                    this.deleteContactRecord(contactId,false);
+                }
+            }
+        })
+        .catch(error => {            
+            // deleteContact({ contactId: contactId });
+            this.deleteContactRecord(contactId,false);
+        })
+        .finally(() => {
+            this.isLoading = false;
+            this.handleCloseModal();
+            this.fetchContacts();
+        });
+}
 
     /**
      * Method Name: handleError
      * @description: Handle error from lightning-record-edit-form
      */
     handleError(event) {
-        this.isLoading = false;
+        this.isLoading = true;
 
         // Extract error message
         const error = event.detail;
@@ -569,6 +796,9 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         if (error.detail) {
             if (error?.detail && error.detail.toLowerCase().includes('required')) {
                 errorMessage = 'Please fill all required fields.';
+            }
+            if (error?.detail && error.detail.toLowerCase().includes('duplicate')) {
+                errorMessage = 'Contact with this email already exists.';
             }
         } else if (error.message) {
             errorMessage = error.detail;
@@ -719,20 +949,23 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
 
         this.pendingDeleteRecordId = recordId;
         this.confirmationModalTitle = 'Delete Contact';
-        this.confirmationModalMessage = 'Are you sure you want to delete this contact? This action cannot be undone.';
+        this.confirmationModalMessage = 'Are you sure you want to delete this contact?';
         this.showConfirmationModal = true;
+        this.deleteModalMode = 'options'; // Set modal to show 3 button options
     }
 
     /**
      * Method Name: handleConfirmationModalConfirm
      * @description: Handle confirmation modal confirm action
      */
-    handleConfirmationModalConfirm() {
+    handleConfirmationModalConfirm(event) {
         this.showConfirmationModal = false;
         if (this.pendingDeleteRecordId) {
+            // Default delete - just delete the contact
             this.deleteContactRecord(this.pendingDeleteRecordId);
             this.pendingDeleteRecordId = null;
         }
+        this.deleteModalMode = 'confirm'; // Reset mode
     }
 
     /**
@@ -742,31 +975,74 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     handleConfirmationModalCancel() {
         this.showConfirmationModal = false;
         this.pendingDeleteRecordId = null;
+        this.deleteModalMode = 'confirm'; // Reset mode
+    }
+
+    /**
+     * Method Name: handleDeleteWithInactiveUser
+     * @description: Handle delete contact and set user to inactive
+     */
+    handleDeleteWithInactiveUser() {
+        this.showConfirmationModal = false;
+        if (this.pendingDeleteRecordId) {
+            this.deleteContactRecord(this.pendingDeleteRecordId,true);
+            this.pendingDeleteRecordId = null;
+        }
+        this.deleteModalMode = 'confirm'; // Reset mode
+    }
+
+    /**
+     * Method Name: handleOnlyDeleteContact
+     * @description: Handle delete contact only (no user deactivation)
+     */
+    handleOnlyDeleteContact() {
+        this.showConfirmationModal = false;
+        if (this.pendingDeleteRecordId) {
+            this.deleteContactRecord(this.pendingDeleteRecordId,false);
+            this.pendingDeleteRecordId = null;
+        }
+        this.deleteModalMode = 'confirm'; // Reset mode
     }
 
     /**
      * Method Name: deleteContactRecord
      * @description: Delete contact record via Apex
      */
-    deleteContactRecord(recordId) {
+    deleteContactRecord(recordId, deactivateUser = true, showToastMessage = true) {
         this.isLoading = true;
 
-        deleteContact({ contactId: recordId })
-            .then(result => {
-                if (result === 'Success') {
-                    this.showToast('Success', 'Contact deleted successfully', 'success');
-                    this.fetchContacts();
-                } else {
+        deleteContact({ 
+            contactId: recordId, 
+            deactivateUser: deactivateUser 
+        })
+        .then(result => {
+            if (result === 'Success') {
+                if (showToastMessage) {
+                    const message = deactivateUser 
+                        ? 'Contact deleted and user deactivated successfully' 
+                        : 'Contact deleted successfully';
+                    this.showToast('Success', message, 'success');
+                }
+                this.fetchContacts();
+            } else {
+                if (showToastMessage) {
                     this.showToast('Error', result, 'error');
                 }
-            })
-            .catch(error => {
-                console.error('Error deleting contact:', error);
-                this.showToast('Error', error.body?.message || 'Failed to delete contact', 'error');
-            })
-            .finally(() => {
-                this.isLoading = false;
-            });
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting contact:', error);
+            if (showToastMessage) {
+                this.showToast(
+                    'Error',
+                    error.body?.message || 'Failed to delete contact',
+                    'error'
+                );
+            }
+        })
+        .finally(() => {
+            this.isLoading = false;
+        });
     }
 
     /**
@@ -804,6 +1080,8 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
     fetchConfiguration() {
         getContactFields()
             .then(result => {
+                console.log('Config result', result);
+                
                 if (result && result.metadataRecords && result.metadataRecords.length > 0) {
                     try {
                         this.configuredMetadata = JSON.parse(result.metadataRecords[0]);
@@ -813,31 +1091,36 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
                 } else {
                     this.setDefaultConfiguration();
                 }
+                this.fetchContacts();
             })
             .catch(error => {
                 console.error('Error fetching config', error);
                 this.setDefaultConfiguration();
+                this.isLoading = false;
             });
     }
 
     setDefaultConfiguration() {
         this.configuredMetadata = [
-            { fieldName: 'FirstName', label: 'First Name', isEditable: true, fieldType: 'STRING' },
-            { fieldName: 'LastName', label: 'Last Name', isEditable: true, fieldType: 'STRING' },
-            { fieldName: 'Email', label: 'Email', isEditable: true, fieldType: 'EMAIL' },
-            { fieldName: 'RecordType.DeveloperName', label: 'Type', isEditable: true, fieldType: 'PICKLIST' },
-            { fieldName: 'wfrecon__Can_Clock_In_Out__c', label: 'Can Clock In / Out', isEditable: true, fieldType: 'BOOLEAN' }
+            { fieldName: 'RecordType.DeveloperName', label: 'Type', isEditable: true, fieldType: 'PICKLIST', isRequired: true, isTableView: true },
+            { fieldName: 'FirstName', label: 'First Name', isEditable: true, fieldType: 'STRING', isRequired: true, isTableView: true },
+            { fieldName: 'LastName', label: 'Last Name', isEditable: true, fieldType: 'STRING', isRequired: true, isTableView: true },
+            { fieldName: 'Email', label: 'Email', isEditable: true, fieldType: 'EMAIL', isRequired: true, isTableView: true },
         ];
     }
 
     // --- Configuration Modal Handlers ---
     handleOpenConfig() {
+
         this.showConfigModal = true;
+        console.log('Open config modal');
+        
     }
 
     handleConfigUpdated(event) {
         this.showConfigModal = false;
         if (event.detail && event.detail.success) {
+            console.log('Success', 'Configuration updated successfully', 'success');
             this.fetchConfiguration(); // Reload config if saved
         }
     }
@@ -884,18 +1167,11 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         const dynamicOtherFields = otherFields.map(config => {
             const fieldName = config.fieldName;
 
-            // Set default value for Can Clock In/Out checkbox on create mode
+            // Set value from formValues
             let currentVal = this.formValues[fieldName] !== undefined ? this.formValues[fieldName] : null;
 
-            // Ensure checkbox field gets proper boolean value
-            if (!this.isEditMode && !this.isPreviewMode &&
-                fieldName === 'wfrecon__Can_Clock_In_Out__c' && currentVal === null) {
-                currentVal = true;
-            }
-
             const isDisabled = this.isPreviewMode ? true : !config.isEditable;
-            const isSystemRequired = ['FirstName', 'LastName', 'Email', 'wfrecon__Can_Clock_In_Out__c'].includes(fieldName);
-            const isRequired = isSystemRequired || (config.isRequired === true);
+            const isRequired = config.isRequired === true;
 
             return {
                 fieldName: fieldName,
@@ -915,17 +1191,18 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
 
     /**
      * Method Name: handleCustomInputChange
-     * @description: Handle custom input changes (Record Type combobox)
+     * @description: Handle custom input changes from both lightning-combobox and lightning-input-field
      */
     handleCustomInputChange(event) {
-        const name = event.target.name;
-        const value = event.detail.value;
+        const target = event.target;
+        let fieldName = target.name || target.fieldName;
+        let value = event.detail.value;
 
-        if (name && value !== undefined) {
-            this.formValues[name] = value;
+        if (fieldName && value !== undefined) {
+            this.formValues[fieldName] = value;
 
             // If this is the RecordTypeId field, update the tracked property
-            if (name === 'RecordTypeId') {
+            if (fieldName === 'RecordTypeId') {
                 this.recordTypeId = value;
             }
         }

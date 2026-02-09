@@ -2,45 +2,164 @@ public with sharing class ManagementTabController {
 
     public static final String CLASSNAME = 'ManagementTabController';
 
-    @AuraEnabled
-    public static Map<String, Object> createUserFromContact(Id contactId) {
-        Map<String, Object> response = new Map<String, Object>();
+//     @AuraEnabled
+// public static Map<String, Object> createUserFromContact(Id contactId) {
+//     Map<String, Object> response = new Map<String, Object>();
+    
+//     try {
+//         if (contactId == null) {
+//             throw new AuraHandledException('Contact Id is required');
+//         }
+
+//         // Fetch Contact
+//         Contact con = [
+//             SELECT Id, FirstName, LastName, Email,Phone, RecordTypeId
+//             FROM Contact
+//             WHERE Id = :contactId
+//             LIMIT 1
+//         ];
+
+//         // Validate email
+//         if (String.isBlank(con.Email)) {
+//             throw new AuraHandledException('Contact email is required to create user');
+//         }
+
+//         // Employee Record Type check
+//         Id employeeRecTypeId =
+//             Schema.SObjectType.Contact
+//                 .getRecordTypeInfosByDeveloperName()
+//                 .get('Employee_WF_Recon')
+//                 .getRecordTypeId();
+
+//         if (con.RecordTypeId != employeeRecTypeId) {
+//             throw new AuraHandledException('Contact is not an employee');
+//         }
+
+//         // Check if user already exists with this email
+//         List<User> existingUsers = [
+//             SELECT Id FROM User WHERE Email = :con.Email LIMIT 1
+//         ];
         
-        try {
-            if (contactId == null) {
-                throw new AuraHandledException('Contact Id is required');
-            }
+//         if (!existingUsers.isEmpty()) {
+//             throw new AuraHandledException('A user already exists with this email address');
+//         }
 
-            // Fetch Contact
-            Contact con = [
-                SELECT Id, FirstName, LastName, Email, RecordTypeId
-                FROM Contact
-                WHERE Id = :contactId
-                LIMIT 1
-            ];
+//         // Get Standard Platform User profile
+//         Profile p = [
+//             SELECT Id
+//             FROM Profile
+//             WHERE Name = 'Standard Platform User'
+//             LIMIT 1
+//         ];
 
-            // Validate email
-            if (String.isBlank(con.Email)) {
-                throw new AuraHandledException('Contact email is required to create user');
-            }
+//         // Build username & alias
+//         String domainName = 'recon.com';
+//         String userName =
+//             (con.FirstName == null
+//                 ? con.LastName.replaceAll(' ', '')
+//                 : con.FirstName.replaceAll(' ', '') + con.LastName.replaceAll(' ', '')
+//             ) + '@' + domainName;
 
-            // Employee Record Type check
-            Id employeeRecTypeId = Schema.SObjectType.Contact.getRecordTypeInfosByDeveloperName().get('Employee_WF_Recon').getRecordTypeId();
+//         String alias;
+//         if (con.FirstName != null) {
+//             alias = con.FirstName.length() > 8 ? con.FirstName.substring(0, 8) : con.FirstName;
+//         } else {
+//             alias = con.LastName.length() > 8 ? con.LastName.substring(0, 8) : con.LastName;
+//         }
 
-            if (con.RecordTypeId != employeeRecTypeId) {
-                throw new AuraHandledException('Contact is not an employee');
-            }
+//         User newUser = new User(
+//             FirstName = con.FirstName,
+//             LastName = con.LastName,
+//             Email = con.Email,
+//             Phone = con.Phone || '',
+//             Username = userName,
+//             ProfileId = p.Id,
+//             TimeZoneSidKey = UserInfo.getTimeZone().getID(),
+//             LanguageLocaleKey = 'en_US',
+//             EmailEncodingKey = 'UTF-8',
+//             LocaleSidKey = 'en_US',
+//             Alias = alias
+//         );
 
-            // Check if user already exists with this email
-            List<User> existingUsers = [
-                SELECT Id FROM User WHERE Email = :con.Email LIMIT 1
-            ];
-            
-            if (!existingUsers.isEmpty()) {
-                throw new AuraHandledException('A user already exists with this email address');
-            }
+//         insert newUser;
+        
+//         // Success response
+//         response.put('success', true);
+//         response.put('message', 'User created successfully');
+//         response.put('userId', newUser.Id);
+//         response.put('userName', newUser.Username);
+        
+//     } catch (Exception e) {
+//         String errorMessage = 'Error creating user: ' + e.getMessage();
+        
+//         // Log exception
+//         ExceptionHandler.logException(new Map<String, Object>{
+//             'className' => CLASSNAME, 
+//             'methodName' => 'createUserFromContact', 
+//             'isApiException' => false, 
+//             'statusCode' => null, 
+//             'exceptionObj' => e,
+//             'moreDetails' => 'Error creating user from contact: ' + e.getMessage(), 
+//             'apiResponse' => null
+//         });
+        
+//         // Error response
+//         response.put('success', false);
+//         response.put('message', errorMessage);
+//         response.put('errorCode', e.getTypeName());
+//     }
+    
+//     return response;
+// }
 
-            // Get Standard Platform User profile
+@AuraEnabled
+public static Map<String, Object> createUserFromContact(Id contactId) {
+    Map<String, Object> response = new Map<String, Object>();
+
+    try {
+        if (contactId == null) {
+            throw new AuraHandledException('Contact Id is required');
+        }
+
+        // Fetch Contact
+        Contact con = [
+            SELECT Id, FirstName, LastName, Email, Phone, RecordTypeId, User__c
+            FROM Contact
+            WHERE Id = :contactId
+            LIMIT 1
+        ];
+
+        // Validate email
+        if (String.isBlank(con.Email)) {
+            throw new AuraHandledException('Contact email is required');
+        }
+
+        // Employee Record Type check
+        Id employeeRecTypeId = Schema.SObjectType.Contact
+            .getRecordTypeInfosByDeveloperName()
+            .get('Employee_WF_Recon')
+            .getRecordTypeId();
+
+        if (con.RecordTypeId != employeeRecTypeId) {
+            throw new AuraHandledException('Contact is not an employee');
+        }
+
+        // Check if user already exists with this email
+        List<User> existingUsers = [
+            SELECT Id, Email
+            FROM User
+            WHERE Email = :con.Email
+            LIMIT 1
+        ];
+
+        User linkedUser;
+
+        if (!existingUsers.isEmpty()) {
+            // User exists → link directly
+            linkedUser = existingUsers[0];
+        } else {
+            // Create new user
+
             Profile p = [
                 SELECT Id
                 FROM Profile
@@ -48,25 +167,20 @@ public with sharing class ManagementTabController {
                 LIMIT 1
             ];
 
-            // Build username & alias
             String domainName = 'recon.com';
             String userName =
-                (con.FirstName == null
-                    ? con.LastName.replaceAll(' ', '')
-                    : con.FirstName.replaceAll(' ', '') + con.LastName.replaceAll(' ', '')
-                ) + '@' + domainName;
+                ((con.FirstName != null ? con.FirstName : '') +
+                 (con.LastName != null ? con.LastName : '')
+                ).replaceAll(' ', '') + '@' + domainName;
 
-            String alias;
-            if (con.FirstName != null) {
-                alias = con.FirstName.length() > 8 ? con.FirstName.substring(0, 8) : con.FirstName;
-            } else {
-                alias = con.LastName.length() > 8 ? con.LastName.substring(0, 8) : con.LastName;
-            }
+            String alias = (con.FirstName != null ? con.FirstName : con.LastName);
+            alias = alias.length() > 8 ? alias.substring(0, 8) : alias;
 
-            User newUser = new User(
+            linkedUser = new User(
                 FirstName = con.FirstName,
                 LastName = con.LastName,
                 Email = con.Email,
+                Phone = con.Phone,
                 Username = userName,
                 ProfileId = p.Id,
                 TimeZoneSidKey = UserInfo.getTimeZone().getID(),
@@ -76,28 +190,60 @@ public with sharing class ManagementTabController {
                 Alias = alias
             );
 
-            insert newUser;
-            
-            // Success response
-            response.put('success', true);
-            response.put('message', 'User created successfully');
-            response.put('userId', newUser.Id);
-            response.put('userName', newUser.Username);
-            
-        } catch (Exception e) {
-            String errorMessage = 'Error creating user: ' + e.getMessage();
-            
-            // Log exception
-            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'createUserFromContact', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error creating user from contact: ' + e.getMessage(), 'apiResponse' => null});
-            
-            // Error response
-            response.put('success', false);
-            response.put('message', errorMessage);
-            response.put('errorCode', e.getTypeName());
+            insert linkedUser;
         }
-        
-        return response;
+
+        // Link User to Contact
+        con.User__c = linkedUser.Id;
+        update con;
+
+        // Success response
+        response.put('success', true);
+        response.put('message', 'User linked successfully');
+        response.put('userId', linkedUser.Id);
+        response.put('email', linkedUser.Email);
+
+    } catch (Exception e) {
+
+        ExceptionHandler.logException(new Map<String, Object>{
+            'className' => CLASSNAME,
+            'methodName' => 'createOrLinkUserFromContact',
+            'isApiException' => false,
+            'statusCode' => null,
+            'exceptionObj' => e,
+            'moreDetails' => e.getMessage(),
+            'apiResponse' => null
+        });
+
+        response.put('success', false);
+        response.put('message', e.getMessage());
+        response.put('errorCode', e.getTypeName());
     }
+
+    return response;
+}
+
+
+// Helper method to generate username
+private static String generateUsername(String firstName, String lastName, String domain) {
+    String cleanFirstName = firstName != null ? firstName.replaceAll('\\s+', '') : '';
+    String cleanLastName = lastName != null ? lastName.replaceAll('\\s+', '') : '';
+    
+    if (String.isBlank(cleanFirstName)) {
+        return cleanLastName + '@' + domain;
+    }
+    
+    return cleanFirstName + cleanLastName + '@' + domain;
+}
+
+// Helper method to generate alias
+private static String generateAlias(String firstName, String lastName) {
+    if (String.isNotBlank(firstName)) {
+        return firstName.length() > 8 ? firstName.substring(0, 8) : firstName;
+    } else {
+        return lastName.length() > 8 ? lastName.substring(0, 8) : lastName;
+    }
+}
 
     @AuraEnabled
     public static List<wfrecon__Process__c> getProcessLibraries() {
@@ -999,21 +1145,68 @@ public with sharing class ManagementTabController {
     }
 
     @AuraEnabled
-    public static List<Contact> getContacts() {
+    public static List<Contact> getContacts(List<String> tableViewFields) {
         List<Contact> contacts = new List<Contact>();
         
         try {
-            contacts = [
-                SELECT Id, FirstName, LastName, Name, Email, 
-                       RecordType.DeveloperName, wfrecon__Can_Clock_In_Out__c
-                FROM Contact
-                WHERE RecordType.DeveloperName IN ('Employee_WF_Recon', 'Sub_Contractor_WF_Recon')
-                WITH USER_MODE
-                ORDER BY Name ASC
-            ];
+            // Build dynamic field list from parameter
+            Set<String> fieldsToSelect = new Set<String>{'Id', 'Name', 'RecordTypeId', 'RecordType.DeveloperName'};
+            
+            // Add fields from parameter if provided
+            if (tableViewFields != null && !tableViewFields.isEmpty()) {
+                for (String fieldName : tableViewFields) {
+                    if (String.isNotBlank(fieldName)) {
+                        fieldsToSelect.add(fieldName);
+                    }
+                }
+            } else {
+                // Fallback to metadata configuration if no fields provided
+                List<wfrecon__ContactConfigration__mdt> mdt = [
+                    SELECT wfrecon__FieldValue__c 
+                    FROM wfrecon__ContactConfigration__mdt 
+                    WHERE DeveloperName = 'RecordConfig' 
+                    WITH USER_MODE
+                    LIMIT 1
+                ];
+
+                if (!mdt.isEmpty() && String.isNotBlank(mdt[0].wfrecon__FieldValue__c)) {
+                    try {
+                        List<Map<String, Object>> configuredFields = (List<Map<String, Object>>) JSON.deserialize(
+                            mdt[0].wfrecon__FieldValue__c, 
+                            List<Map<String, Object>>.class
+                        );
+                        
+                        // Add fields where isTableView is true
+                        for (Map<String, Object> field : configuredFields) {
+                            String fieldName = (String) field.get('fieldName');
+                            Boolean isTableView = field.get('isTableView') == true;
+                            
+                            if (isTableView && String.isNotBlank(fieldName)) {
+                                fieldsToSelect.add(fieldName);
+                            }
+                        }
+                    } catch (Exception configError) {
+                        System.debug('Error parsing metadata configuration: ' + configError.getMessage());
+                        // Fallback to default fields
+                        fieldsToSelect.addAll(new List<String>{'FirstName', 'LastName', 'Email', 'wfrecon__Can_Clock_In_Out__c'});
+                    }
+                } else {
+                    // Fallback to default fields if no metadata found
+                    fieldsToSelect.addAll(new List<String>{'FirstName', 'LastName', 'Email', 'wfrecon__Can_Clock_In_Out__c'});
+                }
+            }
+
+            // Build SOQL query dynamically
+            String query = 'SELECT ' + String.join(new List<String>(fieldsToSelect), ', ') + 
+                          ' FROM Contact ' +
+                          ' WHERE RecordType.DeveloperName IN (\'Employee_WF_Recon\', \'Sub_Contractor_WF_Recon\') ' +
+                          ' WITH USER_MODE ' +
+                          ' ORDER BY Name ASC';
+            
+            contacts = Database.query(query);
         } catch (Exception e) {
             System.debug('Error in getContacts: ' + e.getMessage());
-            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getContacts', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error upserting Cost Code : ' + e.getMessage(), 'apiResponse' => null});            
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getContacts', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error fetching contacts: ' + e.getMessage(), 'apiResponse' => null});            
         }
 
         return contacts;
@@ -1041,17 +1234,56 @@ public with sharing class ManagementTabController {
         }
     }
 
-    @AuraEnabled
-    public static String deleteContact(String contactId) {
-        try {
-            Contact contactToDelete = [SELECT Id FROM Contact WHERE Id = :contactId WITH USER_MODE LIMIT 1];
-            delete as user contactToDelete;
-            return 'Success';
-        } catch (Exception e) {
-            System.debug('Error in deleteContact: ' + e.getMessage());
-            return 'Error: ' + e.getMessage();
+    // @AuraEnabled
+    // public static String deleteContact(String contactId) {
+    //     try {
+    //         Contact contactToDelete = [SELECT Id FROM Contact WHERE Id = :contactId WITH USER_MODE LIMIT 1];
+    //         delete as user contactToDelete;
+    //         return 'Success';
+    //     } catch (Exception e) {
+    //         System.debug('Error in deleteContact: ' + e.getMessage());
+    //         return 'Error: ' + e.getMessage();
+    //     }
+    // }
+
+@AuraEnabled
+public static String deleteContact(String contactId, Boolean deactivateUser) {
+    try {
+        // Query the contact with the User__c field
+        Contact contactToDelete = [SELECT Id, User__c FROM Contact WHERE Id = :contactId WITH USER_MODE LIMIT 1];
+        
+        // Store the user ID if we need to deactivate
+        Id userIdToDeactivate = contactToDelete.User__c;
+        
+        // Delete the contact
+        delete as user contactToDelete;
+        
+        // Call future method to deactivate user if needed
+        if (deactivateUser && userIdToDeactivate != null) {
+            deactivateUserFuture(userIdToDeactivate);
         }
+        
+        return 'Success';
+        
+    } catch (Exception e) {
+        System.debug('Error in deleteContact: ' + e.getMessage());
+        throw new AuraHandledException('Delete failed: ' + e.getMessage());
     }
+}
+
+@Future
+public static void deactivateUserFuture(Id userId) {
+    try {
+        User userToDeactivate = [SELECT Id, IsActive FROM User WHERE Id = :userId WITH USER_MODE LIMIT 1];
+        
+        if (userToDeactivate != null && userToDeactivate.IsActive) {
+            userToDeactivate.IsActive = false;
+            update as user userToDeactivate;
+        }
+    } catch (Exception e) {
+        System.debug('Error in deactivateUserFuture: ' + e.getMessage());
+    }
+}
     
     @AuraEnabled
     public static List<StatusColorWrapper> getMobilizationStatusColors() {
@@ -1275,7 +1507,15 @@ public with sharing class ManagementTabController {
         } catch (Exception e) {
             response.put('status', 'ERROR');
             response.put('message', 'Error fetching configuration: ' + e.getMessage());
-            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'getLogEntryApprovers', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error fetching log entry approvers: ' + e.getMessage(), 'apiResponse' => null});
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME, 
+                'methodName' => 'getLogEntryApprovers', 
+                'isApiException' => false, 
+                'statusCode' => null, 
+                'exceptionObj' => e,
+                'moreDetails' => 'Error fetching log entry approvers: ' + e.getMessage(), 
+                'apiResponse' => null
+            });
         }
 
         return response;
@@ -1319,7 +1559,15 @@ public with sharing class ManagementTabController {
             
         } catch (Exception e) {
             response.put('message', 'Error saving approvers: ' + e.getMessage());
-            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'saveLogEntryApprovers', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error saving log entry approvers: ' + e.getMessage(), 'apiResponse' => null});
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME, 
+                'methodName' => 'saveLogEntryApprovers', 
+                'isApiException' => false, 
+                'statusCode' => null, 
+                'exceptionObj' => e,
+                'moreDetails' => 'Error saving log entry approvers: ' + e.getMessage(), 
+                'apiResponse' => null
+            });
         }
 
         return response;
