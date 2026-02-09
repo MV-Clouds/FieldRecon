@@ -6,7 +6,6 @@ import getTimeSheetEntryItems from '@salesforce/apex/TimeLogManagerController.ge
 import getMobilizationMembersWithStatus from '@salesforce/apex/TimeLogManagerController.getMobilizationMembersWithStatus';
 import createTimesheetRecords from '@salesforce/apex/TimeLogManagerController.createTimesheetRecords';
 import getContactsAndCostcode from '@salesforce/apex/TimeLogManagerController.getContactsAndCostcode';
-import createManualTimesheetRecords from '@salesforce/apex/TimeLogManagerController.createManualTimesheetRecords';
 import createManualTimesheetRecordsMultiple from '@salesforce/apex/TimeLogManagerController.createManualTimesheetRecordsMultiple';
 import deleteTimesheetEntry from '@salesforce/apex/TimeLogManagerController.deleteTimesheetEntry';
 import checkPermissionSetsAssigned from '@salesforce/apex/TimeLogManagerController.checkPermissionSetsAssigned';
@@ -337,8 +336,10 @@ export default class TimeLogManager extends NavigationMixin(LightningElement) {
                         }));
                         // For display value in read mode, find label from options
                         if (value) {
-                             const selectedOpt = this.costCodeOptions.find(opt => opt.value === value);
-                             displayValue = selectedOpt ? selectedOpt.label : value;
+                            // First check if we have costCodeName in the data
+                            const displayName = ts.costCodeName || value;
+                            const selectedOpt = this.costCodeOptions.find(opt => opt.value === value);
+                            displayValue = selectedOpt ? selectedOpt.label : displayName;
                         }
                     }
 
@@ -925,7 +926,7 @@ export default class TimeLogManager extends NavigationMixin(LightningElement) {
     }
 
 
-    /**
+        /**
      * Method Name: loadTimesheetDataForJob
      * @description: Loads timesheet data for a specific job
      */
@@ -944,14 +945,27 @@ export default class TimeLogManager extends NavigationMixin(LightningElement) {
             });
             
             if (data && data.length > 0) {
-                const formattedData = data.map((item, index) => ({
-                    ...item,
-                    srNo: index + 1,
-                    workHours: item.workHours !== null ? Number(item.workHours) : 0.00,
-                    travelTime: item.travelTime !== null ? Number(item.travelTime) : 0.00,
-                    perDiem: item.perDiem !== null ? Number(item.perDiem) : 0,
-                    totalTime: item.totalTime !== null ? Number(item.totalTime) : 0.00
-                }));
+                const formattedData = data.map((item, index) => {
+                    // Find cost code label from costCodeOptions
+                    let costCodeLabel = item.costCodeName || ''; // Use costCodeName if available from Apex
+                    
+                    // If not available, look it up from costCodeOptions
+                    if (!costCodeLabel && item.costCodeId) {
+                        const costCode = this.costCodeOptions.find(opt => opt.value === item.costCodeId);
+                        costCodeLabel = costCode ? costCode.label : item.costCodeId;
+                    }
+                    
+                    return {
+                        ...item,
+                        srNo: index + 1,
+                        workHours: item.workHours !== null ? Number(item.workHours) : 0.00,
+                        travelTime: item.travelTime !== null ? Number(item.travelTime) : 0.00,
+                        perDiem: item.perDiem !== null ? Number(item.perDiem) : 0,
+                        totalTime: item.totalTime !== null ? Number(item.totalTime) : 0.00,
+                        // Add cost code name for display
+                        costCodeName: costCodeLabel
+                    };
+                });
                 this.timesheetDataMap.set(mobId, formattedData);
             } else {
                 this.timesheetDataMap.set(mobId, []);
@@ -1030,24 +1044,29 @@ export default class TimeLogManager extends NavigationMixin(LightningElement) {
     }
 
     /**
-     * Method Name: loadTimesheetData
-     * @description: Refresh timesheet data for a specific job (used after CRUD operations)
-     */
-    async loadTimesheetData(mobId) {
-        try {
-            this.isLoading = true;
-            
-            const job = this.jobDetailsRaw?.find(j => j.mobId === mobId);
-            if (job) {
-                await this.loadTimesheetDataForJob(job);
-                this.updateJobDetailsInUI(mobId); // Update the single job row in the UI
-            }
-        } catch (error) {
-            console.error('Error in loadTimesheetData:', error);
-        } finally {
-            this.isLoading = false;
+ * Method Name: loadTimesheetData
+ * @description: Refresh timesheet data for a specific job (used after CRUD operations)
+ */
+async loadTimesheetData(mobId) {
+    try {
+        this.isLoading = true;
+        
+        // Ensure costCodeOptions are loaded
+        if (this.costCodeOptions.length === 0) {
+            await this.loadCostCodesAndContacts();
         }
+        
+        const job = this.jobDetailsRaw?.find(j => j.mobId === mobId);
+        if (job) {
+            await this.loadTimesheetDataForJob(job);
+            this.updateJobDetailsInUI(mobId); // Update the single job row in the UI
+        }
+    } catch (error) {
+        console.error('Error in loadTimesheetData:', error);
+    } finally {
+        this.isLoading = false;
     }
+}
 
     /** * Method Name: handleSearch 
     * @description: Method is used to handle the search
