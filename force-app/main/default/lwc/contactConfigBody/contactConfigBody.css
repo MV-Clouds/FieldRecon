@@ -237,7 +237,7 @@
 
 .popup__header-row {
     display: grid;
-    grid-template-columns: 0.15fr 2fr 0.5fr 0.5fr 0.5fr;
+    grid-template-columns: 0.15fr 2fr 0.5fr 0.5fr 0.5fr 0.5fr;
     gap: 0.5rem;
     padding: 0.8rem 0rem;
     border-radius: 0.25rem 0.25rem 0rem 0rem;
@@ -253,7 +253,7 @@
 /* Update popup__data-row to match header grid */
 .popup__data-row {
     display: grid;
-    grid-template-columns: 0.15fr 2fr 0.5fr 0.5fr 0.5fr;
+    grid-template-columns: 0.15fr 2fr 0.5fr 0.5fr 0.5fr 0.5fr;
     gap: 0.5rem;
     align-items: center;
     padding: 0.5rem 0rem;

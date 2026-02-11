@@ -27,26 +27,60 @@
 
                 <!-- Modal Footer -->
                 <div class="slds-modal__footer modal-footer">
-                    <button 
-                        class="cancel-btn" 
-                        onclick={handleCancel}
-                        disabled={isProcessing}>
-                        {cancelButtonLabel}
-                    </button>
-                    
-                    <button 
-                        class={confirmButtonClass}
-                        onclick={handleConfirm}
-                        disabled={isProcessing}>
-                        <template if:true={isProcessing}>
-                            <lightning-spinner 
-                                alternative-text="Processing" 
-                                size="small" 
-                                class="button-spinner">
-                            </lightning-spinner>
-                        </template>
-                        {confirmButtonLabel}
-                    </button>
+                    <!-- Standard mode (2 buttons) -->
+                    <template if:false={showThreeButtons}>
+                        <button 
+                            class="cancel-btn" 
+                            onclick={handleCancel}
+                            disabled={isProcessing}>
+                            {cancelButtonLabel}
+                        </button>
+                        
+                        <button 
+                            class={confirmButtonClass}
+                            onclick={handleConfirm}
+                            disabled={isProcessing}>
+                            <template if:true={isProcessing}>
+                                <lightning-spinner 
+                                    alternative-text="Processing" 
+                                    size="small" 
+                                    class="button-spinner">
+                                </lightning-spinner>
+                            </template>
+                            {confirmButtonLabel}
+                        </button>
+                    </template>
+
+                    <!-- Three button mode for delete options -->
+                    <template if:true={showThreeButtons}>
+                        <button 
+                            class="cancel-btn" 
+                            onclick={handleCancel}
+                            disabled={isProcessing}>
+                            Cancel
+                        </button>
+                        
+                        <button 
+                            class="clock-in-button neutral three-button-option" 
+                            onclick={handleThirdOption}
+                            disabled={isProcessing}>
+                            {thirdButtonLabel}
+                        </button>
+
+                        <button 
+                            class="clock-in-button destructive" 
+                            onclick={handleConfirm}
+                            disabled={isProcessing}>
+                            <template if:true={isProcessing}>
+                                <lightning-spinner 
+                                    alternative-text="Processing" 
+                                    size="small" 
+                                    class="button-spinner">
+                                </lightning-spinner>
+                            </template>
+                            {confirmButtonLabel}
+                        </button>
+                    </template>
                 </div>
             </div>
         </section>

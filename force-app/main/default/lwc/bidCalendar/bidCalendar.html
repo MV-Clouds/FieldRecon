@@ -20,17 +20,7 @@
             </template>
           </div>
         </div>
-        <lightning-record-picker
-          variant="label-hidden"
-          label="Bids"
-          placeholder="Search Bids..."
-          object-api-name="wfrecon__Bid__c"
-          display-info={displayBids}
-          matching-info={matchingBids}
-          name="bidId"
-          value={filterBids}
-          onchange={handleFilter}>
-        </lightning-record-picker>
+        <lightning-record-picker variant="label-hidden" label="Bids" placeholder="Search Bids..." object-api-name="wfrecon__Bid__c" display-info={displayBids} matching-info={matchingBids} name="bidId" value={filterBids} onchange={handleFilter}></lightning-record-picker>
       </div>
     </div>
     <div style="background:#ffffff;" class="slds-grid">
@@ -64,7 +54,7 @@
                   <lightning-input-field field-name="wfrecon__Job__c" lwc:else> </lightning-input-field>
                   <lightning-input-field field-name="wfrecon__Bid_Due_Date__c" value={dueDate}> </lightning-input-field>
                   <lightning-input-field field-name="wfrecon__Status__c"> </lightning-input-field>
-                  <lightning-input-field field-name="wfrecon__Amount__c"> </lightning-input-field>
+                  <lightning-input-field field-name="wfrecon__Contact__c" value={contact}> </lightning-input-field>
                   <lightning-input-field field-name="wfrecon__Description__c" value={description}> </lightning-input-field>
                 </div>
                 <div class="slds-grid slds-grid--align-center slds-p-vertical--medium bottom-footer-btn">
@@ -77,25 +67,6 @@
         </div>
     </section>
     <div class="slds-backdrop slds-backdrop_open"></div>
-  </template>
-  <template if:true={showConfirmationPopup}>
-    <div class="slds-container_small confirm-popup">
-      <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
-        <div class="slds-modal__container">
-          <header class="slds-modal__header confirm-popup-header">
-            <h2 class="slds-text-heading_medium slds-hyphenate">{confirmationTitle}</h2>
-          </header>
-          <div class="slds-modal__content slds-p-around_medium confirm-popup-body slds-text-align--center" >
-            <p>{confirmationMessage}</p>
-            <div class="slds-grid slds-grid--align-center slds-p-top--medium confirm-popup-btns">
-              <button class="save-btn confirmation-cancel-btn" name="cancel" onclick={handleClose}>Cancel</button>
-              <button class="save-btn" name="confirm" onclick={handleEventDrop}>Confirm</button>
-            </div>
-          </div>
-        </div>
-      </section>
-      <div class="slds-backdrop slds-backdrop_open confirmation-backdrop"></div>
-    </div>
   </template>
 
   <template if:true={showConfirmationPopup}>
