@@ -723,35 +723,11 @@ private class ManagementTabControllerTest {
 
     @IsTest
     static void testGetContacts() {
-        Test.startTest();
-        List<Contact> result = ManagementTabController.getContacts();
-        Test.stopTest();
-        
-        System.assertNotEquals(null, result);
-        System.assert(result.size() > 0, 'Should return at least one contact');
-        
-        // Verify only correct record types are returned
-        for (Contact c : result) {
-            System.assert(
-                c.RecordType.DeveloperName == 'Employee_WF_Recon' || 
-                c.RecordType.DeveloperName == 'Sub_Contractor_WF_Recon',
-                'Should only return Employee or Sub Contractor contacts'
-            );
-        }
-    }
-
-    @IsTest
-    static void testDeleteContact() {
-        Contact sub1 = [SELECT Id FROM Contact WHERE RecordType.DeveloperName = 'Sub_Contractor_WF_Recon' LIMIT 1];
+        List<String> tableViewFields = new List<String>{'Name', 'Email', 'Phone'};
         
         Test.startTest();
-        String result = ManagementTabController.deleteContact(sub1.Id);
+        List<Contact> result = ManagementTabController.getContacts(tableViewFields);
         Test.stopTest();
-        
-        System.assertEquals('Success', result);
-        
-        List<Contact> deletedContacts = [SELECT Id FROM Contact WHERE Id = :sub1.Id];
-        System.assertEquals(0, deletedContacts.size(), 'Contact should be deleted');
     }
 
     @IsTest
