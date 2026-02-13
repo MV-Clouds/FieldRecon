@@ -66,15 +66,7 @@ public with sharing class ProposalLinesContainerController {
             result.put('message', 'Proposal lines fetched successfully');
             result.put('data', responseData);
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getProposalLinesWithBudgets',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error fetching proposal lines for proposalId: ' + proposalId,
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getProposalLinesWithBudgets','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error fetching proposal lines for proposalId: ' + proposalId,'apiResponse' => null});
             result.put('success', false);
             result.put('message', 'Unable to load proposal lines. Please try again or contact your administrator.');
             result.put('error', e.getMessage());
@@ -98,15 +90,7 @@ public with sharing class ProposalLinesContainerController {
             result.put('message', 'Pricebooks fetched successfully');
             result.put('data', pricebooks);
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getPricebooks',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error fetching pricebooks',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getPricebooks','isApiException' => false,'statusCode' => null,'exceptionObj' => e,  'moreDetails' => 'Error fetching pricebooks','apiResponse' => null});
             result.put('success', false);
             result.put('message', 'Unable to load pricebooks. Please try again or contact your administrator.');
             result.put('error', e.getMessage());
@@ -140,15 +124,7 @@ public with sharing class ProposalLinesContainerController {
             result.put('message', 'Products fetched successfully');
             result.put('data', products);
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getProductsByPricebook',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error fetching products for pricebookId: ' + pricebookId,
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getProductsByPricebook','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error fetching products for pricebookId: ' + pricebookId,'apiResponse' => null});
             result.put('success', false);
             result.put('message', 'Unable to load products. Please try again or contact your administrator.');
             result.put('error', e.getMessage());
@@ -248,15 +224,7 @@ public with sharing class ProposalLinesContainerController {
             result.put('success', true);
             result.put('message', 'Proposal lines saved successfully');
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'saveProposalLines',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error saving proposal lines',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'saveProposalLines','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error saving proposal lines','apiResponse' => null});
             result.put('success', false);
             result.put('message', 'Unable to save proposal lines. Please try again or contact your administrator.');
             result.put('error', e.getMessage());
@@ -311,15 +279,7 @@ public with sharing class ProposalLinesContainerController {
             result.put('success', true);
             result.put('message', 'Proposal line deleted successfully');
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'deleteProposalLine',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error deleting proposal line with Id: ' + proposalLineId,
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'deleteProposalLine','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error deleting proposal line with Id: ' + proposalLineId,'apiResponse' => null});
             result.put('success', false);
             result.put('message', 'Unable to delete proposal line. Please try again or contact your administrator.');
             result.put('error', e.getMessage());
@@ -359,15 +319,7 @@ public with sharing class ProposalLinesContainerController {
             result.put('message', 'Proposal defaults fetched successfully');
             result.put('data', defaults);
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getProposalDefaults',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error fetching proposal defaults for Id: ' + proposalId,
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getProposalDefaults','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error fetching proposal defaults for Id: ' + proposalId,'apiResponse' => null});
             result.put('success', false);
             result.put('message', 'Unable to fetch proposal defaults. Please try again or contact your administrator.');
             result.put('error', e.getMessage());
@@ -398,15 +350,7 @@ public with sharing class ProposalLinesContainerController {
             result.put('success', true);
             result.put('message', 'Budget line deleted successfully');
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'deleteBudgetLine',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error deleting budget line with Id: ' + budgetLineId,
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'deleteBudgetLine','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error deleting budget line with Id: ' + budgetLineId,'apiResponse' => null});
             result.put('success', false);
             result.put('message', 'Unable to delete budget line. Please try again or contact your administrator.');
             result.put('error', e.getMessage());
@@ -444,14 +388,7 @@ public with sharing class ProposalLinesContainerController {
             result.put('success', true);
             result.put('message', 'Proposal line type updated successfully');
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'swapProposalLineType',
-                'exceptionMessage' => e.getMessage(),
-                'stackTrace' => e.getStackTraceString(),
-                'lineNumber' => String.valueOf(e.getLineNumber()),
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'swapProposalLineType','exceptionMessage' => e.getMessage(),'stackTrace' => e.getStackTraceString(),'lineNumber' => String.valueOf(e.getLineNumber()),'apiResponse' => null});
             result.put('success', false);
             result.put('message', 'Unable to update proposal line type. Please try again or contact your administrator.');
             result.put('error', e.getMessage());
@@ -627,15 +564,7 @@ public with sharing class ProposalLinesContainerController {
             result.put('message', 'All changes saved successfully');
         } catch (Exception e) {
             Database.rollback(sp);
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'saveAllChanges',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error saving all changes',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'saveAllChanges','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error saving all changes','apiResponse' => null});
             result.put('success', false);
             result.put('message', 'Unable to save changes. Please try again or contact your administrator.');
             result.put('error', e.getMessage());

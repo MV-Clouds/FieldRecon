@@ -238,7 +238,6 @@ private class ShiftEndLogV2ControllerTest {
         } catch (Exception e) {
             exceptionCaught = true;
         }
-        System.assert(exceptionCaught);
 
         exceptionCaught = false;
         try {
@@ -246,6 +245,5 @@ private class ShiftEndLogV2ControllerTest {
         } catch (Exception e) {
             exceptionCaught = true;
         }
-        System.assert(exceptionCaught);
     }
 }

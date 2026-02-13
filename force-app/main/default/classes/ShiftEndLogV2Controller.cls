@@ -248,15 +248,7 @@ public with sharing class ShiftEndLogV2Controller {
             }
 
         } catch(Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'getShiftEndLogsWithCrewInfo',
-                'isApiException' => false,
-                'statusCode' => null,
-                'exceptionObj' => e,
-                'moreDetails' => 'Error retrieving shift end logs and crew info for jobId: ' + jobId,
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getShiftEndLogsWithCrewInfo','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error retrieving shift end logs and crew info for jobId: ' + jobId,'apiResponse' => null});
         }
 
         return resultWrapper;
@@ -396,16 +388,8 @@ public with sharing class ShiftEndLogV2Controller {
             update logEntry;
 
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME, 
-                'methodName' => 'updateShiftEndLogWithImages', 
-                'isApiException' => false, 
-                'statusCode' => null, 
-                'exceptionObj' => e,
-                'moreDetails' => 'Error updating Shift End Log with Id: ' + logEntry?.Id,
-                'apiResponse' => null
-            });
-            throw new AuraHandledException('Error updating shift end log: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'updateShiftEndLogWithImages', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error updating Shift End Log with Id: ' + logEntry?.Id,'apiResponse' => null});
+            System.debug('Error updating shift end log: ' + e.getMessage());
         }
     }
 
@@ -485,16 +469,8 @@ public with sharing class ShiftEndLogV2Controller {
             return 'Success: Shift end log deleted successfully';
 
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME, 
-                'methodName' => 'deleteShiftEndLog', 
-                'isApiException' => false, 
-                'statusCode' => null, 
-                'exceptionObj' => e,
-                'moreDetails' => 'Error deleting Shift End Log with Id: ' + logId,
-                'apiResponse' => null
-            });
-            throw new AuraHandledException('Error deleting shift end log: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'deleteShiftEndLog', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error deleting Shift End Log with Id: ' + logId,'apiResponse' => null});
+            return 'Error deleting shift end log: ' + e.getMessage();
         }
     }
 
@@ -517,16 +493,8 @@ public with sharing class ShiftEndLogV2Controller {
             }
 
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME, 
-                'methodName' => 'deleteUploadedFiles', 
-                'isApiException' => false, 
-                'statusCode' => null, 
-                'exceptionObj' => e,
-                'moreDetails' => 'Error deleting uploaded files: ' + contentDocumentIds,
-                'apiResponse' => null
-            });
-            throw new AuraHandledException('Error deleting uploaded files: ' + e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME, 'methodName' => 'deleteUploadedFiles', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e,'moreDetails' => 'Error deleting uploaded files: ' + contentDocumentIds,'apiResponse' => null});
+            System.debug('Error deleting uploaded files: ' + e.getMessage());
         }
     }
 
@@ -572,13 +540,7 @@ public with sharing class ShiftEndLogV2Controller {
             }
             
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => CLASSNAME,
-                'methodName' => 'checkOrgStorageLimit',
-                'exceptionObj' => e,
-                'moreDetails' => 'Error checking org storage limits',
-                'apiResponse' => null
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'checkOrgStorageLimit','exceptionObj' => e,'moreDetails' => 'Error checking org storage limits','apiResponse' => null});
             // On error, allow upload (don't block user)
             result.put('hasSpace', true);
             result.put('percentUsed', 0);

@@ -6,7 +6,7 @@ import getTimeSheetEntryItems from '@salesforce/apex/JobDetailsPageController.ge
 import getMobilizationMembersWithStatus from '@salesforce/apex/JobDetailsPageController.getMobilizationMembersWithStatus';
 import createTimesheetRecords from '@salesforce/apex/JobDetailsPageController.createTimesheetRecords';
 import getContactsAndCostcode from '@salesforce/apex/JobDetailsPageController.getContactsAndCostcode';
-import createManualTimesheetRecords from '@salesforce/apex/JobDetailsPageController.createManualTimesheetRecords';
+import createManualTimesheetRecordsMultiple from '@salesforce/apex/JobDetailsPageController.createManualTimesheetRecordsMultiple';
 import deleteTimesheetEntry from '@salesforce/apex/JobDetailsPageController.deleteTimesheetEntry';
 import checkPermissionSetsAssigned from '@salesforce/apex/PermissionsUtility.checkPermissionSetsAssigned';
 import deleteTimesheetEntriesBulk from '@salesforce/apex/JobDetailsPageController.deleteTimesheetEntriesBulk';
@@ -50,6 +50,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     @track editableTimesheetEntry = {};
     @track allContacts = [];
     @track selectedManualPersonId;
+    @track selectedManualPersonIds = []; // For multi-select
+    @track selectedManualPersonNames = new Map(); // Map<id, name> for pills display
     @track enteredManualTravelTime = 0.00;
     @track enteredManualPerDiem = 0;
     defaultDate = new Date().toISOString();
@@ -82,8 +84,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             style: 'width: 8rem'
         },
         { label: 'Job Name', fieldName: 'jobName', style: 'width: 15rem' },
-        { label: 'Start Time', fieldName: 'startDate', style: 'width: 12rem' },
-        { label: 'End Time', fieldName: 'endDate', style: 'width: 12rem' },
+        { label: 'Start Time', fieldName: 'startDate', style: 'width: 15rem' },
+        { label: 'End Time', fieldName: 'endDate', style: 'width: 15rem' },
         { label: 'Clocked In Members', fieldName: 'clockedInMembers', style: 'width: 10rem' },
         { label: 'Total Man Hours', fieldName: 'totalManHours', style: 'width: 10rem' },
         { label: 'Total Hours + Travel', fieldName: 'totalHoursWithTravel', style: 'width: 12rem' }
@@ -93,15 +95,15 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
     // Timesheet columns adapted for inline editing/display
     @track timesheetColumns = [
-        { label: 'Full Name', fieldName: 'contactName', type: 'text', editable: false, style: 'width: 6rem' },
-        { label: 'Clock In Time', fieldName: 'clockInTime', type: 'datetime', editable: true, style: 'width: 6rem' },
-        { label: 'Clock Out Time', fieldName: 'clockOutTime', type: 'datetime', editable: true, style: 'width: 6rem' },
+        { label: 'Full Name', fieldName: 'contactName', type: 'text', editable: false, style: 'width: 8rem' },
+        { label: 'Clock In Time', fieldName: 'clockInTime', type: 'datetime', editable: true, style: 'width: 12rem' },
+        { label: 'Clock Out Time', fieldName: 'clockOutTime', type: 'datetime', editable: true, style: 'width: 12rem' },
         { label: 'Work Hours', fieldName: 'workHours', type: 'number', editable: false, style: 'width: 6rem' },
         { label: 'Travel Time', fieldName: 'travelTime', type: 'number', editable: true, min: 0.00, step: 0.01, style: 'width: 6rem' },
         { label: 'Total Time', fieldName: 'totalTime', type: 'number', editable: false, style: 'width: 6rem' },
         { label: 'Per Diem', fieldName: 'perDiem', type: 'boolean', editable: true, style: 'width: 6rem' },
         { label: 'Premium', fieldName: 'premium', type: 'boolean', editable: true, style: 'width: 6rem' },
-        { label: 'Cost Code', fieldName: 'costCodeName', type: 'text', editable: false, style: 'width: 6rem' }
+        { label: 'Cost Code', fieldName: 'costCodeId', type: 'picklist', editable: true, style: 'width: 10rem' }
     ];
 
     // --- Utility Getters ---
@@ -187,7 +189,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         }
 
                         if (col.fieldName === 'startDate' || col.fieldName === 'endDate') {
-                            cell.value = this.formatToTimeOnly(cell.value);
+                            cell.value = this.formatToDateTimeDisplay(cell.value);
                         }
 
                         if (col.fieldName === 'clockedInMembers') {
@@ -262,13 +264,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     let value = originalValue; 
                     let isModified = false;
 
-                    // Only allow modifications for complete entries (not clock-in-only)
-                    if (!isClockInOnly) {
-                        const modification = this.modifiedTimesheetEntries.get(ts.id)?.modifications;
-                        if (modification && modification.hasOwnProperty(fieldName)) {
-                            value = modification[fieldName];
-                            isModified = true;
-                        }
+                    // Modification logic for both complete and clock-in-only entries
+                    const modification = this.modifiedTimesheetEntries.get(ts.id)?.modifications;
+                    if (modification && modification.hasOwnProperty(fieldName)) {
+                        value = modification[fieldName];
+                        isModified = true;
                     }
 
                     if (col.type === 'boolean') {
@@ -278,8 +278,19 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     const isEditing = this.editingTimesheetCells.has(cellKey);
                     
                     let cellClass = 'center-trancate-text';
-                    // Only mark as editable if it's not a clock-in-only entry
-                    if (col.editable && !isClockInOnly) cellClass += ' editable-cell';
+                    
+                    // Determine if the cell is editable
+                    let isCellEditable = false;
+                    if (isClockInOnly) {
+                        // For clock-in-only, only specific fields are editable
+                        if (fieldName === 'clockInTime' || fieldName === 'clockOutTime' || fieldName === 'costCodeId') {
+                            isCellEditable = true;
+                        }
+                    } else if (col.editable) {
+                         isCellEditable = true;
+                    }
+
+                    if (isCellEditable) cellClass += ' editable-cell';
                     if (isModified) cellClass += ' modified-process-cell';
                     if (isEditing) cellClass += ' editing-cell';
 
@@ -289,17 +300,18 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                     let displayValue = String(value || '');
                     if (col.type === 'datetime') {
                         // Display uses the formatted version - only time for clockIn/clockOut
-                        displayValue = value ? this.formatToTimeOnly(value) : '--';
+                        displayValue = value ? this.formatToDateTimeDisplay(value) : (isCellEditable ? '--' : '--'); 
                     } else if (col.type === 'boolean') {
-                        // Display uses Yes/No based on boolean state of the 'value', but '--' for clock-in-only
-                        if (isClockInOnly && (fieldName === 'perDiem' || fieldName === 'premium')) {
+                        // Display uses Yes/No based on boolean state of the 'value', but '--' for clock-in-only if not editable?
+                        // Actually if we edit it, it has a value. If not, it's false/0.
+                        if (isClockInOnly && !isCellEditable) {
                             displayValue = '--';
                         } else {
                             displayValue = !!(value === 1 || value === '1' || value === true || value === 'true') ? 'Yes' : 'No';
                         }
                     } else if (col.type === 'number' || col.type === 'currency') {
-                        // Display '--' for numeric fields in clock-in-only entries
-                        if (isClockInOnly && (fieldName === 'workHours' || fieldName === 'travelTime' || fieldName === 'totalTime')) {
+                        // Display '--' for numeric fields in clock-in-only entries unless editable (none are editable for clock-in-only currently)
+                         if (isClockInOnly && !isCellEditable) {
                             displayValue = '0.00';
                         } else {
                             displayValue = value !== null && value !== undefined && !isNaN(Number(value)) ? Number(value).toFixed(2) : '0.00';
@@ -313,6 +325,23 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         minBoundary = this.getDatetimeMinBoundary(ts, fieldName);
                         maxBoundary = this.getDatetimeMaxBoundary(ts, fieldName);
                     }
+                    
+                    let options = [];
+                    // Populate options only for Cost Code if available
+                    if (col.type === 'picklist' && col.fieldName === 'costCodeId') {
+                        options = this.costCodeOptions.map(opt => ({
+                            label: opt.label,
+                            value: opt.value,
+                            selected: opt.value === value
+                        }));
+                        // For display value in read mode, find label from options
+                        if (value) {
+                            // First check if we have costCodeName in the data
+                            const displayName = ts.costCodeName || value;
+                            const selectedOpt = this.costCodeOptions.find(opt => opt.value === value);
+                            displayValue = selectedOpt ? selectedOpt.label : displayName;
+                        }
+                    }
 
                     return {
                         key: fieldName,
@@ -320,15 +349,17 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                         rawValue: value,  // rawValue holds the modified or original value (can be 0/1 for boolean)
                         datetimeValue: datetimeValue, // datetimeValue holds YYYY-MM-DDTHH:mm string for input binding
                         isEditing: this.editingTimesheetCells.has(cellKey),
-                        isEditable: col.editable && !isClockInOnly, // Disable editing for clock-in-only entries
+                        isEditable: isCellEditable, 
                         isModified: isModified,
-                        cellClass: 'center-trancate-text' + (col.editable && !isClockInOnly ? ' editable-cell' : '') + (isModified ? ' modified-process-cell' : '') + (this.editingTimesheetCells.has(cellKey) ? ' editing-cell' : ''),
-                        contentClass: 'editable-content',
+                        cellClass: cellClass,
+                        contentClass: 'editable-content', // Always safe to have this class
                         isDatetime: col.type === 'datetime',
                         isNumber: col.type === 'number',
                         isBoolean: col.type === 'boolean', 
                         isText: col.type === 'text',
                         isCurrency: col.type === 'currency',
+                        isPicklist: col.type === 'picklist',
+                        options: options,
                         step: col.step,
                         min: col.min,
                         max: col.max,
@@ -478,6 +509,19 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         return this.viewMode == 'custom';
     }
 
+    get isDayView() {
+        return this.viewMode === 'day';
+    }
+
+    get selectedDateForInput() {
+        if (!this.selectedDate) return '';
+        const date = new Date(this.selectedDate);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
     get dayClass() {
         return this.viewMode === 'day' ? 'tab-nav-btn header-tab-nav-btn active' : 'tab-nav-btn header-tab-nav-btn';
     }
@@ -565,9 +609,35 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         try {
             this.selectedDate = new Date();
             this.checkUserPermissions();
+            this.loadCostCodesAndContacts();
         } catch (error) {
             this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
             console.error('Error in connectedCallback ::', error);
+        }
+    }
+
+    loadCostCodesAndContacts() {
+        try {
+            getContactsAndCostcode({})
+                .then((data) => {
+                    if(data != null) {
+                        this.allContacts = data.contacts.map(contact => ({
+                            label: contact.Name,
+                            value: contact.Id
+                        }));
+    
+                        this.costCodeOptions = data.costCodes.map(costCode => ({
+                            label: costCode.Name,
+                            value: costCode.Id
+                        }));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading contacts and cost codes:', error);
+                });
+        } catch (error) {
+            console.error('Error in loadCostCodesAndContacts :: ', error);
+            
         }
     }
 
@@ -686,6 +756,45 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         }
     }
 
+    /** * Method Name: formatToDateTimeDisplay
+    * @description: Formats ISO datetime to "Dec, 31 2026 11:59 PM" format.
+    * Uses manual string parsing to avoid browser timezone issues.
+    */
+    formatToDateTimeDisplay(iso) {
+        if (!iso) return '--';
+        try {
+            // Parsing "2025-10-05T14:30:00.000Z" manually to avoid browser timezone math
+            const parts = iso.split('T');
+            if (parts.length < 2) return '--';
+            
+            const datePart = parts[0]; // "2025-10-05"
+            const timePart = parts[1].substring(0, 5); // "14:30"
+            
+            // Parse date
+            const [year, month, day] = datePart.split('-');
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthName = monthNames[parseInt(month, 10) - 1];
+            
+            // Parse time
+            const [hoursStr, minutesStr] = timePart.split(':');
+            let hours = parseInt(hoursStr, 10);
+            const minutes = minutesStr;
+            
+            // Convert to 12-hour format
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            
+            const paddedHours = String(hours).padStart(2, '0');
+            
+            return `${monthName}, ${parseInt(day, 10)} ${year} ${paddedHours}:${minutes} ${ampm}`;
+        } catch (error) {
+            console.error('Error formatting date time:', error, iso);
+            return '--';
+        }
+    }
+
     extractDateKey(value) {
         if (!value) {
             return null;
@@ -738,6 +847,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
         if (clockOutDate && jobEndDate) {
             const nextDay = this.addDaysToDateKey(jobEndDate, 1);
+            console.log(jobStartDate , clockOutDate, jobEndDate, nextDay);
+            
             if (clockOutDate !== jobStartDate && clockOutDate !== jobEndDate && clockOutDate !== nextDay) {
                 this.showToast('Error', 'Clock Out time must be on the job start date, job end date or the following day', 'error');
                 return false;
@@ -817,7 +928,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     }
 
 
-    /**
+        /**
      * Method Name: loadTimesheetDataForJob
      * @description: Loads timesheet data for a specific job
      */
@@ -830,19 +941,33 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             
             const data = await getTimeSheetEntryItems({ 
                 jobId: jobId, 
+                mobId: mobId,
                 jobStartDate: jobStartDate, 
                 jobEndDate: jobEndDate 
             });
             
             if (data && data.length > 0) {
-                const formattedData = data.map((item, index) => ({
-                    ...item,
-                    srNo: index + 1,
-                    workHours: item.workHours !== null ? Number(item.workHours) : 0.00,
-                    travelTime: item.travelTime !== null ? Number(item.travelTime) : 0.00,
-                    perDiem: item.perDiem !== null ? Number(item.perDiem) : 0,
-                    totalTime: item.totalTime !== null ? Number(item.totalTime) : 0.00
-                }));
+                const formattedData = data.map((item, index) => {
+                    // Find cost code label from costCodeOptions
+                    let costCodeLabel = item.costCodeName || ''; // Use costCodeName if available from Apex
+                    
+                    // If not available, look it up from costCodeOptions
+                    if (!costCodeLabel && item.costCodeId) {
+                        const costCode = this.costCodeOptions.find(opt => opt.value === item.costCodeId);
+                        costCodeLabel = costCode ? costCode.label : item.costCodeId;
+                    }
+                    
+                    return {
+                        ...item,
+                        srNo: index + 1,
+                        workHours: item.workHours !== null ? Number(item.workHours) : 0.00,
+                        travelTime: item.travelTime !== null ? Number(item.travelTime) : 0.00,
+                        perDiem: item.perDiem !== null ? Number(item.perDiem) : 0,
+                        totalTime: item.totalTime !== null ? Number(item.totalTime) : 0.00,
+                        // Add cost code name for display
+                        costCodeName: costCodeLabel
+                    };
+                });
                 this.timesheetDataMap.set(mobId, formattedData);
             } else {
                 this.timesheetDataMap.set(mobId, []);
@@ -927,6 +1052,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     async loadTimesheetData(mobId) {
         try {
             this.isLoading = true;
+            
+            // Ensure costCodeOptions are loaded
+            if (this.costCodeOptions.length === 0) {
+                await this.loadCostCodesAndContacts();
+            }
             
             const job = this.jobDetailsRaw?.find(j => j.mobId === mobId);
             if (job) {
@@ -1104,6 +1234,22 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             this.getJobRelatedMoblizationDetails();
         } catch (error) {
             console.error('Error in switchToCustomView :: ', error);
+        }
+    }
+
+    /** * Method Name: handleDatePickerChange 
+    * @description: Handle date picker change in Day View
+    */
+    handleDatePickerChange(event) {
+        try {
+            const newDate = event.target.value;
+            if (newDate) {
+                this.selectedDate = new Date(newDate + 'T00:00:00').toISOString();
+                this.getJobRelatedMoblizationDetails();
+            }
+        } catch (error) {
+            console.error('Error handling date picker change:', error);
+            this.showToast('Error', 'Failed to update date', 'error');
         }
     }
 
@@ -1597,6 +1743,8 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
     closeManualTimesheetModal() {
         this.manualTimesheetEntry = false;
         this.selectedManualPersonId = null;
+        this.selectedManualPersonIds = [];
+        this.selectedManualPersonNames = new Map();
         this.selectedCostCodeId = null;
         this.clockInTime = null;
         this.clockOutTime = null;
@@ -1649,7 +1797,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
 
     createManualTimesheet() {
         try {
-            if(!this.selectedManualPersonId || !this.selectedCostCodeId || !this.clockInTime || !this.clockOutTime) {
+            if(!this.selectedManualPersonIds || this.selectedManualPersonIds.length === 0 || !this.selectedCostCodeId || !this.clockInTime || !this.clockOutTime) {
                 this.showToast('Error', 'Please fill value in all the required fields!', 'error');
                 return;
             }
@@ -1674,7 +1822,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             if (!this.validateClockOutDate(this.clockOutTime, jobStartReference, jobEndReference)) {
                 return;
             }
-             
+             
             // MODIFIED: Use `this.enteredManualPerDiem` (from checkbox state in UI, stored as 0 or 1)
             // If you decide to use a checkbox in the modal HTML, you need to adjust handleInputChange for PerDiem to store true/false
             // Assuming the number input for PerDiem is still used in the modal for simplicity, but validating it.
@@ -1693,7 +1841,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             const params = {
                 jobId : this.jobId,
                 mobId : this.mobId,
-                contactId : this.selectedManualPersonId,
+                contactIds : this.selectedManualPersonIds, // Now passing array of IDs
                 costCodeId : this.selectedCostCodeId,
                 clockInTime : cleanClockIn,
                 clockOutTime : cleanClockOut,
@@ -1703,11 +1851,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 perDiem : this.enteredManualPerDiem ? String(this.enteredManualPerDiem) : '0'
             }
 
-            createManualTimesheetRecords({params : JSON.stringify(params)})
+            createManualTimesheetRecordsMultiple({params : JSON.stringify(params)})
                 .then((result) => {
                     if(result == true) {
                         this.closeManualTimesheetModal();
-                        this.showToast('Success', 'Timesheet created successfully', 'success');
+                        this.showToast('Success', 'Timesheet created successfully for selected persons', 'success');
                         
                         if (this.mobId) {
                             this.loadTimesheetData(this.mobId);
@@ -1719,7 +1867,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
                 })
                 .catch((error) => {
                     this.showToast('Error', 'Something went wrong. Please contact system admin', 'error');
-                    console.error('Error in createManualTimesheetRecords :: ' , error);
+                    console.error('Error in createManualTimesheetRecordsMultiple :: ' , error);
                 })
                 .finally(() => {
                     this.isLoading = false;
@@ -1925,11 +2073,15 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const mobId = event.currentTarget.dataset.mobid;
         const isClockInOnly = event.currentTarget.dataset.clockinonly === 'true';
         
-        // Prevent editing for clock-in-only entries
-        if (isClockInOnly) return;
-        
         const column = this.timesheetColumns.find(col => col.fieldName === field);
         if (!column || !column.editable) return;
+
+        // For clock-in-only entries, only allow editing specific fields
+        if (isClockInOnly) {
+            if (field !== 'clockInTime' && field !== 'clockOutTime' && field !== 'costCodeId') {
+                return;
+            }
+        }
 
         const cellKey = `${id}-${field}`;
 
@@ -2044,8 +2196,38 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
             newValue = newValue === '' || newValue === null || newValue === undefined ? null : parseFloat(newValue);
             if (isNaN(newValue)) newValue = null;
         } else if (type === 'datetime') {
-            newValue = newValue || null;
+            console.log('newValue :: ', newValue);
+            
+            // CRITICAL FIX: Validate datetime format before accepting the change
+            // Only accept complete datetime values (YYYY-MM-DDTHH:mm format)
+            // Reject incomplete/partial values that browsers emit during editing
+            if (newValue && newValue.trim() !== '') {
+                // Check if the value matches the expected datetime-local format
+                const datetimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+                if (!datetimePattern.test(newValue)) {
+                    // Incomplete value - ignore this change event
+                    return;
+                }
+                console.log('datetimePattern ::', datetimePattern);
+                
+            } else {
+                // Empty value - treat as null only if user explicitly cleared it
+                // If original value exists, don't process empty intermediate states
+                const originalTimesheetEntry = this.timesheetDataMap.get(mobId)?.find(ts => ts.id === id);
+                console.log('originalTimesheetEntry :: ', originalTimesheetEntry);
+                
+                const originalValue = originalTimesheetEntry ? originalTimesheetEntry[field] : null;
+                console.log('originalValue :: ', originalValue);
+                
+                if (originalValue) {
+                    // User is still editing - ignore empty intermediate state
+                    return;
+                }
+                newValue = null;
+            }
         }
+
+        console.log('newValue ::', newValue);
         
         const originalTimesheetEntry = this.timesheetDataMap.get(mobId)?.find(ts => ts.id === id);
         let originalValue = originalTimesheetEntry ? originalTimesheetEntry[field] : null;
@@ -2205,83 +2387,95 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
      * @description: Saves all modified timesheet entries for a specific job/mobilization.
      */
     handleSaveTimesheetChanges(event) {
-        const mobId = event.currentTarget.dataset.mobid;
-        
-        if (this.isSavingTimesheetEntries || !this.hasTimesheetModificationsForJob(mobId)) {
-            return;
-        }
-
-        const validationErrors = this.validateTimesheetChanges(mobId);
-        if (validationErrors.length > 0) {
-            this.showToast('Validation Error', validationErrors.join('\n'), 'error');
-            return;
-        }
-
-        this.isSavingTimesheetEntries = true;
-        const updatedTimesheets = [];
-        this.isLoading = true;
-
-        this.modifiedTimesheetEntriesForJob(mobId).forEach((entry, id) => {
-            const originalTSE = this.timesheetDataMap.get(mobId).find(ts => ts.id === id);
+        try {
+            const mobId = event.currentTarget.dataset.mobid;
             
-            const tsUpdate = {
-                Id: id, 
-                TSEId: originalTSE.TSEId 
-            };
-            
-            // Map fields (same logic as before)
-            tsUpdate.clockInTime = entry.modifications.clockInTime || originalTSE.clockInTime;
-            tsUpdate.clockOutTime = entry.modifications.clockOutTime || originalTSE.clockOutTime;
-            const modifiedTravelTime = entry.modifications.travelTime;
-            tsUpdate.travelTime = modifiedTravelTime !== undefined ? modifiedTravelTime : originalTSE.travelTime;
-            
-            let perDiemValue = entry.modifications.hasOwnProperty('perDiem') ? entry.modifications.perDiem : 
-                (originalTSE.perDiem === 1 || originalTSE.perDiem === '1' || originalTSE.perDiem === true) ? 1 : 0;
-            tsUpdate.perDiem = perDiemValue; 
-
-            let premiumValue = entry.modifications.hasOwnProperty('premium') ? entry.modifications.premium : 
-                (originalTSE.premium === 1 || originalTSE.premium === '1' || originalTSE.premium === true) ? 1 : 0;
-            tsUpdate.premium = premiumValue; 
-            
-            updatedTimesheets.push(tsUpdate);
-        });
-
-        // Clear modifications for this job
-        this.modifiedTimesheetEntriesForJob(mobId).forEach((entry, id) => {
-            this.modifiedTimesheetEntries.delete(id);
-        });
-        this.modifiedTimesheetEntries = new Map(this.modifiedTimesheetEntries);
-
-        const updatedTimesheetsJson = JSON.stringify(updatedTimesheets.map(
-            ts => Object.fromEntries(
-                Object.entries(ts).map(([key, value]) => {
-                    if (key === 'premium') return [key, value === 1 ? 'true' : 'false'];
-                    else if (key === 'perDiem') return [key, String(value)];
-                    else return [key, String(value)];
-                })
-            )
-        ));
-        
-        saveTimesheetEntryInlineEdits({ updatedTimesheetEntriesJson: updatedTimesheetsJson })
-            .then(result => {
-                if (result.startsWith('Success')) {
-                    this.showToast('Success', 'Timesheet changes saved successfully', 'success');
-                    // 1. Re-load data for this job (updates map and triggers row re-render)
-                    this.loadTimesheetData(mobId); 
-                    this.getJobRelatedMoblizationDetails();
-                } else {
-                    this.showToast('Error', result, 'error');
+            if (this.isSavingTimesheetEntries || !this.hasTimesheetModificationsForJob(mobId)) {
+                return;
+            }
+    
+            const validationErrors = this.validateTimesheetChanges(mobId);
+            if (validationErrors.length > 0) {
+                this.showToast('Validation Error', validationErrors.join('\n'), 'error');
+                return;
+            }
+    
+            this.isSavingTimesheetEntries = true;
+            const updatedTimesheets = [];
+            this.isLoading = true;
+    
+            this.modifiedTimesheetEntriesForJob(mobId).forEach((entry, id) => {
+                const originalTSE = this.timesheetDataMap.get(mobId).find(ts => ts.id === id);
+                
+                const tsUpdate = {
+                    Id: id, 
+                    TSEId: originalTSE.TSEId 
+                };
+                
+                // Map fields (same logic as before)
+                tsUpdate.clockInTime = entry.modifications.clockInTime || originalTSE.clockInTime;
+                tsUpdate.clockOutTime = entry.modifications.clockOutTime || originalTSE.clockOutTime;
+                const modifiedTravelTime = entry.modifications.travelTime;
+                tsUpdate.travelTime = modifiedTravelTime !== undefined ? modifiedTravelTime : originalTSE.travelTime;
+                
+                let perDiemValue = entry.modifications.hasOwnProperty('perDiem') ? entry.modifications.perDiem : 
+                    (originalTSE.perDiem === 1 || originalTSE.perDiem === '1' || originalTSE.perDiem === true) ? 1 : 0;
+                tsUpdate.perDiem = perDiemValue; 
+    
+                let premiumValue = entry.modifications.hasOwnProperty('premium') ? entry.modifications.premium : 
+                    (originalTSE.premium === 1 || originalTSE.premium === '1' || originalTSE.premium === true) ? 1 : 0;
+                tsUpdate.premium = premiumValue; 
+    
+                // Add Cost Code only if modified to prevent overwriting with null/undefined if original is missing
+                if (entry.modifications.hasOwnProperty('costCodeId')) {
+                    tsUpdate.costCodeId = entry.modifications.costCodeId;
                 }
-            })
-            .catch(error => {
-                this.showToast('Error', 'Failed to save timesheet changes', 'error');
-            })
-            .finally(() => {
-                this.isSavingTimesheetEntries = false;
-                this.hasTimesheetModifications = this.modifiedTimesheetEntries.size > 0;
-                this.editingTimesheetCells.clear();
-                this.isLoading = false;
+                
+                updatedTimesheets.push(tsUpdate);
             });
+    
+            // Do NOT clear modifications yet. Wait for success response.
+    
+            const updatedTimesheetsJson = JSON.stringify(updatedTimesheets.map(
+                ts => Object.fromEntries(
+                    Object.entries(ts).map(([key, value]) => {
+                        if (key === 'premium') return [key, value === 1 ? 'true' : 'false'];
+                        else if (key === 'perDiem') return [key, String(value)];
+                        else return [key, (value === null || value === undefined) ? null : String(value)];
+                    })
+                )
+            ));
+            
+            saveTimesheetEntryInlineEdits({ updatedTimesheetEntriesJson: updatedTimesheetsJson })
+                .then(result => {
+                    if (result.startsWith('Success')) {
+                        this.showToast('Success', 'Timesheet changes saved successfully', 'success');
+                        
+                        // Clear modifications for this job only on success
+                        this.modifiedTimesheetEntriesForJob(mobId).forEach((entry, id) => {
+                            this.modifiedTimesheetEntries.delete(id);
+                        });
+                        this.modifiedTimesheetEntries = new Map(this.modifiedTimesheetEntries);
+                        
+                        // 1. Re-load data for this job (updates map and triggers row re-render)
+                        this.loadTimesheetData(mobId); 
+                        this.getJobRelatedMoblizationDetails();
+                    } else {
+                        this.showToast('Error', result, 'error');
+                    }
+                })
+                .catch(error => {
+                    this.showToast('Error', 'Failed to save timesheet changes', 'error');
+                })
+                .finally(() => {
+                    this.isSavingTimesheetEntries = false;
+                    this.hasTimesheetModifications = this.modifiedTimesheetEntries.size > 0;
+                    this.editingTimesheetCells.clear();
+                    this.isLoading = false;
+                });
+        } catch (error) {
+            console.error('Error in handleSaveTimesheetChanges ::', error);
+        }
     }
 
     /**
@@ -2335,11 +2529,11 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const entry = timesheets.find(ts => ts.id === id);
         
         // Prevent selecting clock-in-only entries
-        if (entry && entry.isClockInOnly) {
-            event.target.checked = false;
-            this.showToast('Info', 'Clock-in-only entries cannot be selected for deletion', 'info');
-            return;
-        }
+        // if (entry && entry.isClockInOnly) {
+        //     event.target.checked = false;
+        //     this.showToast('Info', 'Clock-in-only entries cannot be selected for deletion', 'info');
+        //     return;
+        // }
         
         if (!this.selectedTimesheets.has(mobId)) {
             this.selectedTimesheets.set(mobId, new Set());
@@ -2367,7 +2561,7 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         const timesheets = this.timesheetDataMap.get(mobId) || [];
         
         // Filter out clock-in-only entries (only select complete entries)
-        const selectableTimesheets = timesheets.filter(ts => !ts.isClockInOnly);
+        const selectableTimesheets = timesheets;
         
         if (!this.selectedTimesheets.has(mobId)) {
             this.selectedTimesheets.set(mobId, new Set());
@@ -2513,5 +2707,64 @@ export default class JobDetailsPage extends NavigationMixin(LightningElement) {
         this.deleteConfirmationTitle = '';
         this.deleteConfirmationMessage = '';
         this.deleteTargetMobId = '';
+    }
+
+    /**
+     * Method Name: handleManualPersonSelect
+     * @description: Handle multi-select of persons for manual timesheet entry
+     */
+    handleManualPersonSelect(event) {
+        const selectedContactId = event.target.value;
+        const selectedContactLabel = event.target.options[event.target.selectedIndex].text;
+        
+        if (!selectedContactId) return;
+        
+        // Check if already selected
+        if (this.selectedManualPersonIds.includes(selectedContactId)) {
+            this.showToast('Info', 'This person is already selected', 'info');
+            event.target.value = '';
+            return;
+        }
+        
+        // Add to selected list
+        this.selectedManualPersonIds.push(selectedContactId);
+        this.selectedManualPersonNames.set(selectedContactId, selectedContactLabel);
+        
+        // Trigger reactivity
+        this.selectedManualPersonIds = [...this.selectedManualPersonIds];
+        this.selectedManualPersonNames = new Map(this.selectedManualPersonNames);
+        
+        // Reset dropdown
+        event.target.value = '';
+    }
+    
+    /**
+     * Method Name: removeSelectedPerson
+     * @description: Remove a person from the selected list by their Id
+     */
+    removeSelectedPerson(event) {
+        const contactIdToRemove = event.currentTarget.dataset.id;
+        
+        // Remove from selected IDs
+        this.selectedManualPersonIds = this.selectedManualPersonIds.filter(id => id !== contactIdToRemove);
+        
+        // Remove from names map
+        this.selectedManualPersonNames.delete(contactIdToRemove);
+        this.selectedManualPersonNames = new Map(this.selectedManualPersonNames);
+        
+        // Trigger reactivity
+        this.selectedManualPersonIds = [...this.selectedManualPersonIds];
+    }
+
+    /**
+     * Method Name: getSelectedPersonPills
+     * @description: Get array of selected persons for display as pills
+     */
+    get getSelectedPersonPills() {
+        return Array.from(this.selectedManualPersonNames, ([id, name]) => ({
+            id,
+            name,
+            label: name
+        }));
     }
 }

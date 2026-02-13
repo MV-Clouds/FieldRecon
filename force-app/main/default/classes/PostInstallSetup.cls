@@ -117,16 +117,7 @@ global class PostInstallSetup implements InstallHandler {
 
         } catch (Exception e) {
             System.debug('Error in PostInstallScript: ' + e.getMessage());
-            String errorDetails = 
-                '--- Context ---\n' +
-                'Org Id: ' + UserInfo.getOrganizationId() + '\n' +
-                'User Id (Running): ' + UserInfo.getUserId() + '\n' +
-                '\n--- Error ---\n' +
-                'Message: ' + e.getMessage() + '\n' +
-                'Type: ' + e.getTypeName() + '\n' +
-                'Line: ' + String.valueOf(e.getLineNumber()) + '\n' +
-                'Stack Trace:\n' + e.getStackTraceString();
-            
+            String errorDetails =  '--- Context ---\n' + 'Org Id: ' + UserInfo.getOrganizationId() + '\n' + 'User Id (Running): ' + UserInfo.getUserId() + '\n' + '\n--- Error ---\n' + 'Message: ' + e.getMessage() + '\n' + 'Type: ' + e.getTypeName() + '\n' + 'Line: ' + String.valueOf(e.getLineNumber()) + '\n' + 'Stack Trace:\n' + e.getStackTraceString();
             sendErrorEmail('PostInstallSetup Exception', errorDetails);
         }
     }
@@ -138,9 +129,7 @@ global class PostInstallSetup implements InstallHandler {
             mail.setToAddresses(new String[] { 'fieldrecon@mvclouds.com' });
             mail.setSubject(subject + ' - ' + String.valueOf(Datetime.now()));
             
-            String body =
-                'An error occurred during package post-install.\n\n' +
-                errorDetails;
+            String body = 'An error occurred during package post-install.\n\n' + errorDetails;
             
             mail.setPlainTextBody(body);
             mail.setSaveAsActivity(false);
@@ -149,6 +138,4 @@ global class PostInstallSetup implements InstallHandler {
             System.debug('Failed to send error email: ' + emailEx.getMessage());
         }
     }
-
-    
 }

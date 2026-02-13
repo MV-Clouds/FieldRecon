@@ -45,7 +45,7 @@ public with sharing class WholeCrewClockInOutController {
 
             for (wfrecon__Mobilization__c mob : mobilizations) {
                 String statusLabel = String.isNotBlank(mob.wfrecon__Mobilization_Status__c) ? mob.wfrecon__Mobilization_Status__c : 'N/A';
-                String displayLabel = mob.wfrecon__Job__r.wfrecon__Job_Name__c + ' (Status - ' + statusLabel + ')';
+                String displayLabel = mob.wfrecon__Job__r.wfrecon__Job_Name__c + ' - ' + statusLabel + ' - ' + mob.wfrecon__Start_Date_Text__c;
                 mobilizationOptions.add(new Map<String, String>{
                     'label' => displayLabel,
                     'value' => String.valueOf(mob.Id)

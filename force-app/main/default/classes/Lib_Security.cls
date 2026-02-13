@@ -150,7 +150,6 @@ public inherited sharing class Lib_Security {
                 */
                 if (qe.getMessage().containsIgnoreCase('Insufficient permissions')){                    
                     throw Lib_Error.create(Lib_Error.Cause.Security, qe.getMessage());
-
                 } else {
                     throw qe;
                 }
@@ -178,7 +177,6 @@ public inherited sharing class Lib_Security {
                 */
                 if (qe.getMessage().containsIgnoreCase('Insufficient permissions')){                    
                     throw Lib_Error.create(Lib_Error.Cause.Security, qe.getMessage());
-
                 } else {
                     throw qe;
                 }
@@ -221,7 +219,6 @@ public inherited sharing class Lib_Security {
                 */
                 if (qe.getMessage().containsIgnoreCase('Insufficient permissions')){                    
                     throw Lib_Error.create(Lib_Error.Cause.Security, qe.getMessage());
-
                 } else {
                     throw qe;
                 }
@@ -333,7 +330,6 @@ public inherited sharing class Lib_Security {
             /*
                 Security.stripInaccessible(...) doesnt works correctly with protected custom settings
             */
-            
             Boolean hasAccess = false;
             switch on accessType {
                 when READABLE {		
@@ -353,14 +349,10 @@ public inherited sharing class Lib_Security {
                 }
             }
             if (hasAccess == false) {
-                String msg = String.format('"{0}" access missing on Object: "{1}"', 
-                                                new String[]{
-                                                             accessType.name(), objectName
-                                                            });
+                String msg = String.format('"{0}" access missing on Object: "{1}"', new String[]{accessType.name(), objectName});
                 // Object access missing
                 throw Lib_Error.create(Lib_Error.Cause.Security, msg);
             }
-
         } else {
             // Normal Object
             try {
@@ -369,22 +361,14 @@ public inherited sharing class Lib_Security {
                 //K: SObject Name, V: Set of Field Names which are not accessible. 
                 Map<String,Set<String>> removedFields = decision.getRemovedFields();
                 
-    
                 for(String objName : removedFields.keySet()){
                     //Name of missing access fields as CSV;
                     String fieldsCSV = Lib_Collections.toCSV(removedFields.get(objName));
-                    String msg =  String.format('"{0}" access missing on Fields:"{1}" from Object: "{2}"', 
-                                            new String[]{
-                                                    accessType.name(), fieldsCSV, objectName
-                                                });
+                    String msg =  String.format('"{0}" access missing on Fields:"{1}" from Object: "{2}"', new String[]{ accessType.name(), fieldsCSV, objectName});
                     throw Lib_Error.create(Lib_Error.Cause.Security, msg);
                 }            
-                
             } catch (System.NoAccessException ex) {
-                String msg = String.format('"{0}" access missing on Object: "{1}"', 
-                                            new String[]{
-                                                         accessType.name(), objectName
-                                                        });
+                String msg = String.format('"{0}" access missing on Object: "{1}"', new String[]{accessType.name(), objectName});
                 // Object access missing
                 throw Lib_Error.create(Lib_Error.Cause.Security, msg);
             }
@@ -421,10 +405,7 @@ public inherited sharing class Lib_Security {
             }
         }
         if (hasAccess == false) {
-            String msg = String.format('"{0}" access missing on Object: "{1}"', 
-                                            new String[]{
-                                                            accessType.name(), objectName
-                                                        });
+            String msg = String.format('"{0}" access missing on Object: "{1}"', new String[]{accessType.name(), objectName});
             // Object access missing
             throw Lib_Error.create(Lib_Error.Cause.Security, msg);
         }

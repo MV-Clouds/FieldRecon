@@ -35,7 +35,22 @@
                             <path d="M201.4 297.4C188.9 309.9 188.9 330.2 201.4 342.7L361.4 502.7C373.9 515.2 394.2 515.2 406.7 502.7C419.2 490.2 419.2 469.9 406.7 457.4L269.3 320L406.6 182.6C419.1 170.1 419.1 149.8 406.6 137.3C394.1 124.8 373.8 124.8 361.3 137.3L201.3 297.3z" lwc-4jhr3lo26vr=""></path>
                         </svg>
                     </button>
-                    <span class="filter-date">{formattedSelectedDate}</span>
+                    
+                    <template if:true={isDayView}>
+                        <div class="date-picker-container">
+                            <lightning-input 
+                                type="date" 
+                                value={selectedDateForInput} 
+                                onchange={handleDatePickerChange}
+                                variant="label-hidden"
+                                class="date-picker-input">
+                            </lightning-input>
+                        </div>
+                    </template>
+                    <template if:false={isDayView}>
+                        <span class="filter-date">{formattedSelectedDate}</span>
+                    </template>
+                    
                     <button class="arrow-button" onclick={handleNextDate}>
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="24" height="24" fill="#ffffff" lwc-4jhr3lo26vr="">
                             <path d="M439.1 297.4C451.6 309.9 451.6 330.2 439.1 342.7L279.1 502.7C266.6 515.2 246.3 515.2 233.8 502.7C221.3 490.2 221.3 469.9 233.8 457.4L371.2 320L233.9 182.6C221.4 170.1 221.4 149.8 233.9 137.3C246.4 124.8 266.7 124.8 279.2 137.3L439.2 297.3z" lwc-4jhr3lo26vr=""></path>
@@ -231,7 +246,6 @@
                                                                     <td>
                                                                         <input type="checkbox" 
                                                                             checked={ts.isSelected}
-                                                                            disabled={ts.isClockInOnly}
                                                                             onchange={handleTimesheetSelection}
                                                                             data-id={ts.id} 
                                                                             data-mobid={job.mobId}>
@@ -282,6 +296,20 @@
                                                                                         data-mobid={job.mobId}
                                                                                         onchange={handleTimesheetCellInputChange}>
                                                                                 </template>
+                                                                                <template if:true={field.isPicklist}>
+                                                                                    <select class="inline-edit-input custom-select"
+                                                                                        style="width: 8rem;"
+                                                                                        data-id={ts.id}
+                                                                                        data-field={field.key}
+                                                                                        data-type={field.type}
+                                                                                        data-mobid={job.mobId}
+                                                                                        onchange={handleTimesheetCellInputChange}
+                                                                                        onblur={handleTimesheetCellInputBlur}>
+                                                                                        <template for:each={field.options} for:item="option">
+                                                                                            <option key={option.value} value={option.value} selected={option.selected}>{option.label}</option>
+                                                                                        </template>
+                                                                                    </select>
+                                                                                </template>
                                                                             </template>
                                                                             
                                                                             <template if:false={field.isEditing}>
@@ -309,6 +337,9 @@
                                                                                         {field.displayValue}
                                                                                     </template>
                                                                                     <template if:true={field.isText}>
+                                                                                        <span class="text-truncate">{field.displayValue}</span>
+                                                                                    </template>
+                                                                                    <template if:true={field.isPicklist}>
                                                                                         <span class="text-truncate">{field.displayValue}</span>
                                                                                     </template>
 
@@ -584,8 +615,31 @@
                                     <div class="form-group">
                                         <div class="input-column">
                                             <div class="select-person-container">
-                                                <label class="select-label required">Select Person</label>
-                                                <lightning-combobox value={selectedManualPerson} data-field="manualContact" options={allContacts} onchange={handleInputChange} placeholder="Select Person" variant="label-hidden"></lightning-combobox>
+                                                <label class="select-label required">Select Persons</label>
+                                                <div class="select-wrapper">
+                                                    <select class="custom-select width-100" onchange={handleManualPersonSelect}>
+                                                        <option value="">-- Select Person --</option>
+                                                        <template for:each={allContacts} for:item="contact">
+                                                            <option key={contact.value} value={contact.value}>{contact.label}</option>
+                                                        </template>
+                                                    </select>
+                                                </div>
+                                                <!-- Display selected persons as pills -->
+                                                <template if:true={getSelectedPersonPills.length}>
+                                                    <div class="pills-container" style="margin-top: 12px;">
+                                                        <template for:each={getSelectedPersonPills} for:item="pill">
+                                                            <div key={pill.id} class="slds-pill slds-pill_bare">
+                                                                <span class="slds-pill__label">{pill.name}</span>
+                                                                <button class="slds-button slds-button_icon slds-pill__remove" 
+                                                                    data-id={pill.id}
+                                                                    onclick={removeSelectedPerson}
+                                                                    title="Remove">
+                                                                    <lightning-icon icon-name="utility:close" alternative-text="Remove" size="x-small"></lightning-icon>
+                                                                </button>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
                                             </div>
                                         </div>
                                     </div>
