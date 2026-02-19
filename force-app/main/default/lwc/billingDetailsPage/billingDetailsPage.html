@@ -9,12 +9,25 @@
         <!-- Fixed Billing Header -->
         <div class="billing-header-fixed">
             <div class="billing-header-info">
-                <div class="billing-name-section">
+                <!-- <div class="billing-name-section">
                     <div class="billing-name-label">Billing Number</div>
                     <div class="billing-name-value">
                         <a href="javascript:void(0)" onclick={navigateToRecord} data-val={billingDetails.Id} class="record-link">
                             {billingDetails.Name}
                         </a>
+                    </div>
+                </div> -->
+                <div class="job-number-section">
+                    <div class="job-number-label">Job Number</div>
+                    <div class="job-number-value">
+                        <template if:true={billingDetails.JobId}>
+                            <a href="javascript:void(0)" onclick={navigateToRecord} data-val={billingDetails.JobId} class="record-link">
+                                {billingDetails.JobNumber}
+                            </a>
+                        </template>
+                        <template if:false={billingDetails.JobId}>
+                            {billingDetails.JobNumber}
+                        </template>
                     </div>
                 </div>
                 <div class="billing-name-section">
@@ -30,19 +43,12 @@
                         </template>
                     </div>
                 </div>
-                <div class="job-number-section">
-                    <div class="job-number-label">Job Number</div>
-                    <div class="job-number-value">
-                        <template if:true={billingDetails.JobId}>
-                            <a href="javascript:void(0)" onclick={navigateToRecord} data-val={billingDetails.JobId} class="record-link">
-                                {billingDetails.JobNumber}
-                            </a>
-                        </template>
-                        <template if:false={billingDetails.JobId}>
-                            {billingDetails.JobNumber}
-                        </template>
-                    </div>
+                
+                <div class="payment-due-section">
+                    <div class="payment-due-label">Total Previous Billed Amount</div>
+                    <div class="payment-due-value">{formattedPreviousBilledAmount}</div>
                 </div>
+
                 <div class="payment-due-section">
                     <div class="payment-due-label">Total Earned Less Retainage</div>
                     <div class="payment-due-value">{formattedTotalEarnedLessRetainage}</div>
@@ -51,6 +57,11 @@
                     <div class="payment-due-label">Balance to Finish + Retainage</div>
                     <div class="payment-due-value">{formattedBalanceToFinish}</div>
                 </div>
+                <div class="payment-due-section">
+                    <div class="payment-due-label">This Billing Amount</div>
+                    <div class="payment-due-value">{formattedThisBillingAmount}</div>
+                </div>
+
             </div>
             <!-- <div class="billing-status-section">
                 <div class="status-label">Status</div>
@@ -222,42 +233,22 @@
                         <div class="billing-section">
                             <h4 class="section-title">Financial Values</h4>
                             <div class="financial-grid">
-                                <div class="financial-item">
-                                    <span class="financial-label">1. Original Contract:</span>
-                                    <span class="financial-value">{formattedJobTotalContractPrice}</span>
-                                </div>
-                                <div class="financial-item">
-                                    <span class="financial-label">2. Net Change Orders:</span>
-                                    <span class="financial-value">{formattedJobTotalChangeOrderValue}</span>
-                                </div>
-                                <div class="financial-item">
-                                    <span class="financial-label">3. Contract Sum to Date:</span>
-                                    <span class="financial-value">{formattedContractSumToDate}</span>
-                                </div>
-                                <div class="financial-item">
-                                    <span class="financial-label">4. Total Completed and Stored to Date:</span>
-                                    <span class="financial-value">{formattedTotalCompleted}</span>
-                                </div>
-                                <div class="financial-item">
-                                    <span class="financial-label">5. Retainage Completed:</span>
-                                    <span class="financial-value">{formattedRetainageCompleted}</span>
-                                </div>
-                                <div class="financial-item">
-                                    <span class="financial-label">6. Total Earned Less Retainage:</span>
-                                    <span class="financial-value">{formattedTotalEarnedLessRetainage}</span>
-                                </div>
-                                <div class="financial-item">
-                                    <span class="financial-label">7. Less Previous Certificated for Payment:</span>
-                                    <span class="financial-value">{formattedLessPreviousCertificatedforPayment}</span>
-                                </div>
-                                <div class="financial-item">
-                                    <span class="financial-label">8. Current Payment Due:</span>
-                                    <span class="financial-value">{formattedCurrentPaymentDue}</span>
-                                </div>
-                                <div class="financial-item">
-                                    <span class="financial-label">9. Balance to Finish + Retainage:</span>
-                                    <span class="financial-value">{formattedBalanceToFinish}</span>
-                                </div>
+                                <template for:each={financialItems} for:item="item">
+                                    <div key={item.label} class="financial-item">
+                                        <span class="financial-label">
+                                            {item.label}
+                                            <span class="help-icon-container">
+                                                <svg class="help-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                                                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                                    <circle cx="12" cy="17" r="0.5" fill="currentColor" stroke="currentColor" stroke-width="1"/>
+                                                </svg>
+                                                <span class="help-tooltip">{item.helpText}</span>
+                                            </span>
+                                        </span>
+                                        <span class="financial-value">{item.value}</span>
+                                    </div>
+                                </template>
                             </div>
                         </div>
                     </div>
