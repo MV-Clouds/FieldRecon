@@ -71,7 +71,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
 
     @track billingsColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
-        { label: 'Actions', fieldName: 'actions', style: 'width: 8rem' },
+        { label: 'Actions', fieldName: 'actions', style: 'width: 12rem' },
         { 
             label: 'Bill Number', 
             fieldName: 'Name',
@@ -84,12 +84,12 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
             fieldName: 'wfrecon__Previous_Bill__r.Name',
             isLink: true,
             recordIdField: 'wfrecon__Previous_Bill__c', 
-            style: 'width: 10rem'
+            style: 'width: 12rem'
         },
-        { label: 'Status', fieldName: 'wfrecon__Status__c', style: 'width: 12rem' },
+        { label: 'Status', fieldName: 'wfrecon__Status__c', style: 'width: 15rem' },
         { label: 'Bill Type', fieldName: 'wfrecon__Bill_Type__c', style: 'width: 10rem' },
-        { label: 'Bill Reference Number', fieldName: 'wfrecon__Billing_Reference_Number__c', style: 'width: 12rem' },
-        { label: 'Bill Amount', fieldName: 'wfrecon__Current_Billed_Amount__c', style: 'width: 12rem' },
+        { label: 'Bill Reference Number', fieldName: 'wfrecon__Billing_Reference_Number__c', style: 'width: 15rem' },
+        { label: 'Bill Amount', fieldName: 'wfrecon__Current_Payment_Due_FM__c', style: 'width: 15rem' },
         { label: 'Start Date', fieldName: 'wfrecon__Start_Date__c', style: 'width: 10rem' },
         { label: 'End Date', fieldName: 'wfrecon__End_Date__c', style: 'width: 10rem' },
         { label: 'Sent Date', fieldName: 'wfrecon__Sent_Date__c', style: 'width: 10rem' }
@@ -97,7 +97,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
 
     @track paymentsColumns = [
         { label: 'Sr. No.', fieldName: 'srNo', style: 'width: 6rem' },
-        { label: 'Actions', fieldName: 'actions', style: 'width: 6rem' },
+        { label: 'Actions', fieldName: 'actions', style: 'width: 10rem' },
         { 
             label: 'Payment Number', 
             fieldName: 'Name',
@@ -105,9 +105,9 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
             recordIdField: 'Id', 
             style: 'width: 10rem'
         },
-        { label: 'Payment Reference Number', fieldName: 'wfrecon__Payment_Reference__c', style: 'width: 13rem' },
-        { label: 'Payable Amount Received', fieldName: 'wfrecon__Payable_Amount_Received__c', style: 'width: 12rem' },
-        { label: 'Payment Received Date', fieldName: 'wfrecon__Payment_Received_Date__c', style: 'width: 13rem' }
+        { label: 'Payment Reference Number', fieldName: 'wfrecon__Payment_Reference__c', style: 'width: 15rem' },
+        { label: 'Payable Amount Received', fieldName: 'wfrecon__Payable_Amount_Received__c', style: 'width: 15rem' },
+        { label: 'Payment Received Date', fieldName: 'wfrecon__Payment_Received_Date__c', style: 'width: 15rem' }
     ];
 
     // Get object metadata (to access record type ID)
@@ -251,14 +251,14 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                             cell.value = cell.value.slice(0, 16).replace('T', ' ');
                         }
 
-                        if(col.fieldName === 'wfrecon__Current_Billed_Amount__c') {
+                        if(col.fieldName === 'wfrecon__Current_Payment_Due_FM__c') {
                             if(bill.wfrecon__Bill_Type__c === 'Retainage') {
                                 cell.value = bill.wfrecon__Retainage_Completed_to_Date__c || '';
                             } else {
-                                cell.value = bill.wfrecon__Current_Billed_Amount__c || '';
+                                cell.value = bill.wfrecon__Current_Payment_Due_FM__c || '';
                             }
                             if(cell.value != '') {
-                                cell.value = '$' + parseFloat(cell.value).toFixed(2);
+                                cell.value = '$' + cell.value
                             } else {
                                 cell.value = '$0.00';
                             }
@@ -327,7 +327,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
 
                         if(col.fieldName === 'wfrecon__Payable_Amount_Received__c') {
                             if(cell.value != '') {
-                                cell.value = '$' + parseFloat(cell.value).toFixed(2)
+                                cell.value = '$' + cell.value
                             } else {
                                 cell.value = '$0.00';
                             }
@@ -401,9 +401,12 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                         return;
                     }
 
+                    console.log('Permission check result ==> ', result);
+                    
                     const assignedMap = result.assignedMap || {};
                     const isAdmin = result.isAdmin || false;
                     const hasFRFinance = assignedMap['FR_Finance'] || false;
+                    console.log('User permissions ==> ', { isAdmin, hasFRFinance });
                     
                     if (isAdmin || hasFRFinance) {
                         // Admin or FR_Finance → Full access
@@ -446,6 +449,8 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
         try {
             getJobData({ jobId: this.recordId })
                 .then((res) => {
+                    console.log('getJobData apex res :: ', res);
+                    
                     if (res && res.length > 0) {
                         const job = res[0];
                         this.jobDetailsMap = {
@@ -475,6 +480,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
             this.isLoading = true;
             getBillingsData({jobId: this.recordId})
                 .then((result) => {
+                    console.log('getBillingsData apex result :: ', result);
                     if(result && result.hasApprovedScopeEntries == true) {
                         this.isBillCreatable = true;
                         this.billingListRaw = result.billings;
@@ -865,6 +871,8 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                         
             cloneBillingRecord({ billingId: this.billId })
                 .then((result) => {
+                    console.log('cloneBilling apex result :: ', result);
+                    
                     if (result === 'SUCCESS') {
                         this.showToast('Success', 'Billing record cloned successfully', 'success');
                         this.loadBillingData();
@@ -915,6 +923,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
             this.isLoading = true;
             getPaymentsData({jobId: this.recordId})
                 .then((result) => {
+                    console.log('getPaymentsData apex result :: ', result);
                     this.paymentListRaw = result;
                     this.filteredPaymentList = result;
 
@@ -1027,24 +1036,10 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
                 return `${yyyy}-${mm}-${dd}`;
             };
 
-            // Find the most recent accepted bill (if any)
-            let defaultPrevBillId = null;
-            if (this.approvedBillingOptionsForNew && this.approvedBillingOptionsForNew.length > 1) {
-                // Get accepted bills from the raw billing list, sorted by created date
-                const acceptedBills = this.billingListRaw
-                    .filter(bill => bill.wfrecon__Status__c === 'Accepted')
-                    .sort((a, b) => new Date(b.CreatedDate) - new Date(a.CreatedDate));
-                
-                // Set the most recent accepted bill as default
-                if (acceptedBills.length > 0) {
-                    defaultPrevBillId = acceptedBills[0].Id;
-                }
-            }
-
             this.newBill = {
                 Start_Date__c: formatDate(firstDay),
                 End_Date__c: formatDate(lastDay),
-                prevBillId: defaultPrevBillId,
+                prevBillId: null,
                 billingType: 'Regular Bill'
             };
         } catch (error) {
@@ -1068,6 +1063,7 @@ export default class BillingAndPaymentTab extends NavigationMixin(LightningEleme
     handleSaveNewBill() {
         try {
             this.isLoading = true;
+            console.log('Creating billing with data: ', this.newBill);
             
             createBilling({ 
                 jobId: this.recordId, 
