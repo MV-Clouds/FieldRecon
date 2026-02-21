@@ -604,31 +604,34 @@
                                                                                                         <template
                                                                                                             if:true={laborLine.isNew}>
                                                                                                             <input
-                                                                                                                type="number"
+                                                                                                                type="text"
                                                                                                                 class="table-input"
                                                                                                                 value={laborLine.wfrecon__Burden_Rate_Hour__c}
                                                                                                                 data-proposal-line-id={line.Id}
                                                                                                                 data-budget-line-id={laborLine.Id}
                                                                                                                 data-cost-type="labor"
                                                                                                                 data-field="wfrecon__Burden_Rate_Hour__c"
-                                                                                                                oninput={handleBudgetLineFieldChange}
-                                                                                                                min="0" step="1" />
+                                                                                                                onfocus={handleCurrencyFieldFocus}
+                                                                                                                oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
+                                                                                                                onblur={handleCurrencyFieldBlur}
+                                                                                                                pattern="^\d*\.?\d{0,2}$" />
                                                                                                         </template>
                                                                                                         <template
                                                                                                             if:false={laborLine.isNew}>
                                                                                                             <template
                                                                                                                 if:true={laborLine.isEditingBurdenRate}>
                                                                                                                 <input
-                                                                                                                    type="number"
+                                                                                                                    type="text"
                                                                                                                     class="inline-edit-input"
                                                                                                                     value={laborLine.wfrecon__Burden_Rate_Hour__c}
                                                                                                                     data-proposal-line-id={line.Id}
                                                                                                                     data-budget-line-id={laborLine.Id}
                                                                                                                     data-cost-type="labor"
                                                                                                                     data-field="wfrecon__Burden_Rate_Hour__c"
-                                                                                                                    oninput={handleBudgetLineFieldChange}
+                                                                                                                    onfocus={handleCurrencyFieldFocus}
+                                                                                                                    oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
                                                                                                                     onblur={handleBudgetLineCellBlur}
-                                                                                                                    min="0" step="1" />
+                                                                                                                    pattern="^\d*\.?\d{0,2}$" />
                                                                                                             </template>
                                                                                                             <template
                                                                                                                 if:false={laborLine.isEditingBurdenRate}>
@@ -1090,31 +1093,34 @@
                                                                                                         <template
                                                                                                             if:true={materialLine.isNew}>
                                                                                                             <input
-                                                                                                                type="number"
+                                                                                                                type="text"
                                                                                                                 class="table-input"
                                                                                                                 value={materialLine.wfrecon__Cost_Each__c}
                                                                                                                 data-proposal-line-id={line.Id}
                                                                                                                 data-budget-line-id={materialLine.Id}
                                                                                                                 data-cost-type="materials"
                                                                                                                 data-field="wfrecon__Cost_Each__c"
-                                                                                                                oninput={handleBudgetLineFieldChange}
-                                                                                                                min="0" step="1" />
+                                                                                                                onfocus={handleCurrencyFieldFocus}
+                                                                                                                oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
+                                                                                                                onblur={handleCurrencyFieldBlur}
+                                                                                                                pattern="^\d*\.?\d{0,2}$" />
                                                                                                         </template>
                                                                                                         <template
                                                                                                             if:false={materialLine.isNew}>
                                                                                                             <template
                                                                                                                 if:true={materialLine.isEditingCostEach}>
                                                                                                                 <input
-                                                                                                                    type="number"
+                                                                                                                    type="text"
                                                                                                                     class="inline-edit-input"
                                                                                                                     value={materialLine.wfrecon__Cost_Each__c}
                                                                                                                     data-proposal-line-id={line.Id}
                                                                                                                     data-budget-line-id={materialLine.Id}
                                                                                                                     data-cost-type="materials"
                                                                                                                     data-field="wfrecon__Cost_Each__c"
-                                                                                                                    oninput={handleBudgetLineFieldChange}
+                                                                                                                    onfocus={handleCurrencyFieldFocus}
+                                                                                                                    oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
                                                                                                                     onblur={handleBudgetLineCellBlur}
-                                                                                                                    min="0" step="1" />
+                                                                                                                    pattern="^\d*\.?\d{0,2}$" />
                                                                                                             </template>
                                                                                                             <template
                                                                                                                 if:false={materialLine.isEditingCostEach}>
@@ -1442,31 +1448,34 @@
                                                                                                         <template
                                                                                                             if:true={hotelLine.isNew}>
                                                                                                             <input
-                                                                                                                type="number"
+                                                                                                                type="text"
                                                                                                                 class="table-input"
                                                                                                                 value={hotelLine.wfrecon__Costs_Per_Night__c}
                                                                                                                 data-proposal-line-id={line.Id}
                                                                                                                 data-budget-line-id={hotelLine.Id}
                                                                                                                 data-cost-type="hotel"
                                                                                                                 data-field="wfrecon__Costs_Per_Night__c"
-                                                                                                                oninput={handleBudgetLineFieldChange}
-                                                                                                                min="0" step="1" />
+                                                                                                                onfocus={handleCurrencyFieldFocus}
+                                                                                                                oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
+                                                                                                                onblur={handleCurrencyFieldBlur}
+                                                                                                                pattern="^\d*\.?\d{0,2}$" />
                                                                                                         </template>
                                                                                                         <template
                                                                                                             if:false={hotelLine.isNew}>
                                                                                                             <template
                                                                                                                 if:true={hotelLine.isEditingCostPerNight}>
                                                                                                                 <input
-                                                                                                                    type="number"
+                                                                                                                    type="text"
                                                                                                                     class="inline-edit-input"
                                                                                                                     value={hotelLine.wfrecon__Costs_Per_Night__c}
                                                                                                                     data-proposal-line-id={line.Id}
                                                                                                                     data-budget-line-id={hotelLine.Id}
                                                                                                                     data-cost-type="hotel"
                                                                                                                     data-field="wfrecon__Costs_Per_Night__c"
-                                                                                                                    oninput={handleBudgetLineFieldChange}
+                                                                                                                    onfocus={handleCurrencyFieldFocus}
+                                                                                                                    oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
                                                                                                                     onblur={handleBudgetLineCellBlur}
-                                                                                                                    min="0" step="1" />
+                                                                                                                    pattern="^\d*\.?\d{0,2}$" />
                                                                                                             </template>
                                                                                                             <template
                                                                                                                 if:false={hotelLine.isEditingCostPerNight}>
@@ -1863,31 +1872,34 @@
                                                                                                         <template
                                                                                                             if:true={mileageLine.isNew}>
                                                                                                             <input
-                                                                                                                type="number"
+                                                                                                                type="text"
                                                                                                                 class="table-input"
                                                                                                                 value={mileageLine.wfrecon__Mileage_Rate__c}
                                                                                                                 data-proposal-line-id={line.Id}
                                                                                                                 data-budget-line-id={mileageLine.Id}
                                                                                                                 data-cost-type="mileage"
                                                                                                                 data-field="wfrecon__Mileage_Rate__c"
-                                                                                                                oninput={handleBudgetLineFieldChange}
-                                                                                                                min="0" step="1" />
+                                                                                                                onfocus={handleCurrencyFieldFocus}
+                                                                                                                oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
+                                                                                                                onblur={handleCurrencyFieldBlur}
+                                                                                                                pattern="^\d*\.?\d{0,2}$" />
                                                                                                         </template>
                                                                                                         <template
                                                                                                             if:false={mileageLine.isNew}>
                                                                                                             <template
                                                                                                                 if:true={mileageLine.isEditingMileageRate}>
                                                                                                                 <input
-                                                                                                                    type="number"
+                                                                                                                    type="text"
                                                                                                                     class="inline-edit-input"
                                                                                                                     value={mileageLine.wfrecon__Mileage_Rate__c}
                                                                                                                     data-proposal-line-id={line.Id}
                                                                                                                     data-budget-line-id={mileageLine.Id}
                                                                                                                     data-cost-type="mileage"
                                                                                                                     data-field="wfrecon__Mileage_Rate__c"
-                                                                                                                    oninput={handleBudgetLineFieldChange}
+                                                                                                                    onfocus={handleCurrencyFieldFocus}
+                                                                                                                    oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
                                                                                                                     onblur={handleBudgetLineCellBlur}
-                                                                                                                    min="0" step="1" />
+                                                                                                                    pattern="^\d*\.?\d{0,2}$" />
                                                                                                             </template>
                                                                                                             <template
                                                                                                                 if:false={mileageLine.isEditingMileageRate}>
@@ -2149,31 +2161,34 @@
                                                                                                         <template
                                                                                                             if:true={perdiemLine.isNew}>
                                                                                                             <input
-                                                                                                                type="number"
+                                                                                                                type="text"
                                                                                                                 class="table-input"
                                                                                                                 value={perdiemLine.wfrecon__Per_Diem_Rate__c}
                                                                                                                 data-proposal-line-id={line.Id}
                                                                                                                 data-budget-line-id={perdiemLine.Id}
                                                                                                                 data-cost-type="perdiem"
                                                                                                                 data-field="wfrecon__Per_Diem_Rate__c"
-                                                                                                                oninput={handleBudgetLineFieldChange}
-                                                                                                                min="0" step="1" />
+                                                                                                                onfocus={handleCurrencyFieldFocus}
+                                                                                                                oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
+                                                                                                                onblur={handleCurrencyFieldBlur}
+                                                                                                                pattern="^\d*\.?\d{0,2}$" />
                                                                                                         </template>
                                                                                                         <template
                                                                                                             if:false={perdiemLine.isNew}>
                                                                                                             <template
                                                                                                                 if:true={perdiemLine.isEditingPerDiemRate}>
                                                                                                                 <input
-                                                                                                                    type="number"
+                                                                                                                    type="text"
                                                                                                                     class="inline-edit-input"
                                                                                                                     value={perdiemLine.wfrecon__Per_Diem_Rate__c}
                                                                                                                     data-proposal-line-id={line.Id}
                                                                                                                     data-budget-line-id={perdiemLine.Id}
                                                                                                                     data-cost-type="perdiem"
                                                                                                                     data-field="wfrecon__Per_Diem_Rate__c"
-                                                                                                                    oninput={handleBudgetLineFieldChange}
+                                                                                                                    onfocus={handleCurrencyFieldFocus}
+                                                                                                                    oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
                                                                                                                     onblur={handleBudgetLineCellBlur}
-                                                                                                                    min="0" step="1" />
+                                                                                                                    pattern="^\d*\.?\d{0,2}$" />
                                                                                                             </template>
                                                                                                             <template
                                                                                                                 if:false={perdiemLine.isEditingPerDiemRate}>
@@ -2902,31 +2917,34 @@
                                                                                                         <template
                                                                                                             if:true={laborLine.isNew}>
                                                                                                             <input
-                                                                                                                type="number"
+                                                                                                                type="text"
                                                                                                                 class="table-input"
                                                                                                                 value={laborLine.wfrecon__Burden_Rate_Hour__c}
                                                                                                                 data-proposal-line-id={line.Id}
                                                                                                                 data-budget-line-id={laborLine.Id}
                                                                                                                 data-cost-type="labor"
                                                                                                                 data-field="wfrecon__Burden_Rate_Hour__c"
-                                                                                                                oninput={handleBudgetLineFieldChange}
-                                                                                                                min="0" step="1" />
+                                                                                                                onfocus={handleCurrencyFieldFocus}
+                                                                                                                oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
+                                                                                                                onblur={handleCurrencyFieldBlur}
+                                                                                                                pattern="^\d*\.?\d{0,2}$" />
                                                                                                         </template>
                                                                                                         <template
                                                                                                             if:false={laborLine.isNew}>
                                                                                                             <template
                                                                                                                 if:true={laborLine.isEditingBurdenRate}>
                                                                                                                 <input
-                                                                                                                    type="number"
+                                                                                                                    type="text"
                                                                                                                     class="inline-edit-input"
                                                                                                                     value={laborLine.wfrecon__Burden_Rate_Hour__c}
                                                                                                                     data-proposal-line-id={line.Id}
                                                                                                                     data-budget-line-id={laborLine.Id}
                                                                                                                     data-cost-type="labor"
                                                                                                                     data-field="wfrecon__Burden_Rate_Hour__c"
-                                                                                                                    oninput={handleBudgetLineFieldChange}
+                                                                                                                    onfocus={handleCurrencyFieldFocus}
+                                                                                                                    oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
                                                                                                                     onblur={handleBudgetLineCellBlur}
-                                                                                                                    min="0" step="1" />
+                                                                                                                    pattern="^\d*\.?\d{0,2}$" />
                                                                                                             </template>
                                                                                                             <template
                                                                                                                 if:false={laborLine.isEditingBurdenRate}>
@@ -3388,31 +3406,34 @@
                                                                                                         <template
                                                                                                             if:true={materialLine.isNew}>
                                                                                                             <input
-                                                                                                                type="number"
+                                                                                                                type="text"
                                                                                                                 class="table-input"
                                                                                                                 value={materialLine.wfrecon__Cost_Each__c}
                                                                                                                 data-proposal-line-id={line.Id}
                                                                                                                 data-budget-line-id={materialLine.Id}
                                                                                                                 data-cost-type="materials"
                                                                                                                 data-field="wfrecon__Cost_Each__c"
-                                                                                                                oninput={handleBudgetLineFieldChange}
-                                                                                                                min="0" step="1" />
+                                                                                                                onfocus={handleCurrencyFieldFocus}
+                                                                                                                oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
+                                                                                                                onblur={handleCurrencyFieldBlur}
+                                                                                                                pattern="^\d*\.?\d{0,2}$" />
                                                                                                         </template>
                                                                                                         <template
                                                                                                             if:false={materialLine.isNew}>
                                                                                                             <template
                                                                                                                 if:true={materialLine.isEditingCostEach}>
                                                                                                                 <input
-                                                                                                                    type="number"
+                                                                                                                    type="text"
                                                                                                                     class="inline-edit-input"
                                                                                                                     value={materialLine.wfrecon__Cost_Each__c}
                                                                                                                     data-proposal-line-id={line.Id}
                                                                                                                     data-budget-line-id={materialLine.Id}
                                                                                                                     data-cost-type="materials"
                                                                                                                     data-field="wfrecon__Cost_Each__c"
-                                                                                                                    oninput={handleBudgetLineFieldChange}
+                                                                                                                    onfocus={handleCurrencyFieldFocus}
+                                                                                                                    oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
                                                                                                                     onblur={handleBudgetLineCellBlur}
-                                                                                                                    min="0" step="1" />
+                                                                                                                    pattern="^\d*\.?\d{0,2}$" />
                                                                                                             </template>
                                                                                                             <template
                                                                                                                 if:false={materialLine.isEditingCostEach}>
@@ -3740,31 +3761,34 @@
                                                                                                         <template
                                                                                                             if:true={hotelLine.isNew}>
                                                                                                             <input
-                                                                                                                type="number"
+                                                                                                                type="text"
                                                                                                                 class="table-input"
                                                                                                                 value={hotelLine.wfrecon__Costs_Per_Night__c}
                                                                                                                 data-proposal-line-id={line.Id}
                                                                                                                 data-budget-line-id={hotelLine.Id}
                                                                                                                 data-cost-type="hotel"
                                                                                                                 data-field="wfrecon__Costs_Per_Night__c"
-                                                                                                                oninput={handleBudgetLineFieldChange}
-                                                                                                                min="0" step="1" />
+                                                                                                                onfocus={handleCurrencyFieldFocus}
+                                                                                                                oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
+                                                                                                                onblur={handleCurrencyFieldBlur}
+                                                                                                                pattern="^\d*\.?\d{0,2}$" />
                                                                                                         </template>
                                                                                                         <template
                                                                                                             if:false={hotelLine.isNew}>
                                                                                                             <template
                                                                                                                 if:true={hotelLine.isEditingCostPerNight}>
                                                                                                                 <input
-                                                                                                                    type="number"
+                                                                                                                    type="text"
                                                                                                                     class="inline-edit-input"
                                                                                                                     value={hotelLine.wfrecon__Costs_Per_Night__c}
                                                                                                                     data-proposal-line-id={line.Id}
                                                                                                                     data-budget-line-id={hotelLine.Id}
                                                                                                                     data-cost-type="hotel"
                                                                                                                     data-field="wfrecon__Costs_Per_Night__c"
-                                                                                                                    oninput={handleBudgetLineFieldChange}
+                                                                                                                    onfocus={handleCurrencyFieldFocus}
+                                                                                                                    oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
                                                                                                                     onblur={handleBudgetLineCellBlur}
-                                                                                                                    min="0" step="1" />
+                                                                                                                    pattern="^\d*\.?\d{0,2}$" />
                                                                                                             </template>
                                                                                                             <template
                                                                                                                 if:false={hotelLine.isEditingCostPerNight}>
@@ -4161,31 +4185,34 @@
                                                                                                         <template
                                                                                                             if:true={mileageLine.isNew}>
                                                                                                             <input
-                                                                                                                type="number"
+                                                                                                                type="text"
                                                                                                                 class="table-input"
                                                                                                                 value={mileageLine.wfrecon__Mileage_Rate__c}
                                                                                                                 data-proposal-line-id={line.Id}
                                                                                                                 data-budget-line-id={mileageLine.Id}
                                                                                                                 data-cost-type="mileage"
                                                                                                                 data-field="wfrecon__Mileage_Rate__c"
-                                                                                                                oninput={handleBudgetLineFieldChange}
-                                                                                                                min="0" step="1" />
+                                                                                                                onfocus={handleCurrencyFieldFocus}
+                                                                                                                oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
+                                                                                                                onblur={handleCurrencyFieldBlur}
+                                                                                                                pattern="^\d*\.?\d{0,2}$" />
                                                                                                         </template>
                                                                                                         <template
                                                                                                             if:false={mileageLine.isNew}>
                                                                                                             <template
                                                                                                                 if:true={mileageLine.isEditingMileageRate}>
                                                                                                                 <input
-                                                                                                                    type="number"
+                                                                                                                    type="text"
                                                                                                                     class="inline-edit-input"
                                                                                                                     value={mileageLine.wfrecon__Mileage_Rate__c}
                                                                                                                     data-proposal-line-id={line.Id}
                                                                                                                     data-budget-line-id={mileageLine.Id}
                                                                                                                     data-cost-type="mileage"
                                                                                                                     data-field="wfrecon__Mileage_Rate__c"
-                                                                                                                    oninput={handleBudgetLineFieldChange}
+                                                                                                                    onfocus={handleCurrencyFieldFocus}
+                                                                                                                    oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
                                                                                                                     onblur={handleBudgetLineCellBlur}
-                                                                                                                    min="0" step="1" />
+                                                                                                                    pattern="^\d*\.?\d{0,2}$" />
                                                                                                             </template>
                                                                                                             <template
                                                                                                                 if:false={mileageLine.isEditingMileageRate}>
@@ -4447,31 +4474,34 @@
                                                                                                         <template
                                                                                                             if:true={perdiemLine.isNew}>
                                                                                                             <input
-                                                                                                                type="number"
+                                                                                                                type="text"
                                                                                                                 class="table-input"
                                                                                                                 value={perdiemLine.wfrecon__Per_Diem_Rate__c}
                                                                                                                 data-proposal-line-id={line.Id}
                                                                                                                 data-budget-line-id={perdiemLine.Id}
                                                                                                                 data-cost-type="perdiem"
                                                                                                                 data-field="wfrecon__Per_Diem_Rate__c"
-                                                                                                                oninput={handleBudgetLineFieldChange}
-                                                                                                                min="0" step="1" />
+                                                                                                                onfocus={handleCurrencyFieldFocus}
+                                                                                                                oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
+                                                                                                                onblur={handleCurrencyFieldBlur}
+                                                                                                                pattern="^\d*\.?\d{0,2}$" />
                                                                                                         </template>
                                                                                                         <template
                                                                                                             if:false={perdiemLine.isNew}>
                                                                                                             <template
                                                                                                                 if:true={perdiemLine.isEditingPerDiemRate}>
                                                                                                                 <input
-                                                                                                                    type="number"
+                                                                                                                    type="text"
                                                                                                                     class="inline-edit-input"
                                                                                                                     value={perdiemLine.wfrecon__Per_Diem_Rate__c}
                                                                                                                     data-proposal-line-id={line.Id}
                                                                                                                     data-budget-line-id={perdiemLine.Id}
                                                                                                                     data-cost-type="perdiem"
                                                                                                                     data-field="wfrecon__Per_Diem_Rate__c"
-                                                                                                                    oninput={handleBudgetLineFieldChange}
+                                                                                                                    onfocus={handleCurrencyFieldFocus}
+                                                                                                                    oninput={handleDecimalInput} onchange={handleBudgetLineFieldChange}
                                                                                                                     onblur={handleBudgetLineCellBlur}
-                                                                                                                    min="0" step="1" />
+                                                                                                                    pattern="^\d*\.?\d{0,2}$" />
                                                                                                             </template>
                                                                                                             <template
                                                                                                                 if:false={perdiemLine.isEditingPerDiemRate}>

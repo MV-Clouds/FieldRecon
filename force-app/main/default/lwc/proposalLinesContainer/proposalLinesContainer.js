@@ -1115,6 +1115,27 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
 
         const editKey = `${proposalLineId}_${budgetLineId}_${fieldName}`;
 
+        // Validate currency fields - set to "0" if empty
+        const currencyFields = [
+            'wfrecon__Burden_Rate_Hour__c',
+            'wfrecon__Cost_Each__c',
+            'wfrecon__Costs_Per_Night__c',
+            'wfrecon__Mileage_Rate__c',
+            'wfrecon__Per_Diem_Rate__c'
+        ];
+
+        if (currencyFields.includes(fieldName)) {
+            const input = event.target;
+            const value = input.value.trim();
+            
+            // If field is empty or just a decimal point, set to "0"
+            if (value === '' || value === '.') {
+                input.value = '0';
+                // Trigger change event to update the data
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+
         // Validate quantity-related fields (crew, rooms, men, qty, etc.)
         const quantityFields = [
             'wfrecon__No_Of_Crew_Members__c',
@@ -1342,6 +1363,48 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
                 };
             default:
                 return baseLine;
+        }
+    }
+
+    // Validate decimal input for text fields (allows numbers and single decimal point)
+    handleDecimalInput(event) {
+        const input = event.target;
+        let value = input.value;
+        
+        // Remove any character that is not a digit or decimal point
+        value = value.replace(/[^0-9.]/g, '');
+        
+        // Ensure only one decimal point
+        const parts = value.split('.');
+        if (parts.length > 2) {
+            value = parts[0] + '.' + parts.slice(1).join('');
+        }
+        
+        // Update the input value
+        input.value = value;
+    }
+
+    // Clear default "0" value when user focuses on currency field
+    handleCurrencyFieldFocus(event) {
+        const input = event.target;
+        const value = input.value;
+        
+        // Clear if value is "0" or "0.00"
+        if (value === '0' || value === '0.00' || value === '0.0') {
+            input.value = '';
+        }
+    }
+
+    // Set empty currency fields to "0" on blur
+    handleCurrencyFieldBlur(event) {
+        const input = event.target;
+        const value = input.value.trim();
+        
+        // If field is empty or just a decimal point, set to "0"
+        if (value === '' || value === '.') {
+            input.value = '0';
+            // Trigger change event to update the data
+            input.dispatchEvent(new Event('change', { bubbles: true }));
         }
     }
 
