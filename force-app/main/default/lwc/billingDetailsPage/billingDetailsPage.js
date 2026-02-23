@@ -154,8 +154,70 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
         return this.formatCurrency(this.billingDetails.BalanceToFinishRetainage);
     }
 
+    get formattedThisBillingAmount() {
+        return this.formatCurrency(this.billingDetails.ThisBillingAmount);
+    }
+
+    get formattedPreviousBilledAmount() {
+        return this.formatCurrency(this.billingDetails.PreviousBilledAmount);
+    }
+
     get saveBillingButtonLabel() {
         return this.isSavingBillingInfo ? 'Saving...' : 'Save';
+    }
+
+    /**
+     * Method Name: financialItems
+     * @description: Returns an array of financial items with labels, values, and help text
+     */
+    get financialItems() {
+        return [
+            {
+                label: '1. Original Contract:',
+                value: this.formattedJobTotalContractPrice,
+                helpText: 'Total value of Approved Base Contract Line Items at the time of billing.'
+            },
+            {
+                label: '2. Net Change Orders:',
+                value: this.formattedJobTotalChangeOrderValue,
+                helpText: 'Total value of all approved change order line items (both additions and deductions) at the time of billing.'
+            },
+            {
+                label: '3. Contract Sum to Date:',
+                value: this.formattedContractSumToDate,
+                helpText: 'Sum of the original contract and net change orders. This represents the current total contract value. (1 + 2)'
+            },
+            {
+                label: '4. Total Completed and Stored to Date:',
+                value: this.formattedTotalCompleted,
+                helpText: 'Total value which we billed for the completed work up to this billing period, including retainage.'
+            },
+            {
+                label: '5. Retainage Held:',
+                value: this.formattedRetainageCompleted,
+                helpText: 'Amount withheld from payments as retainage based on completed work. Typically held until project completion.'
+            },
+            {
+                label: '6. Total Earned Less Retainage:',
+                value: this.formattedTotalEarnedLessRetainage,
+                helpText: 'Total amount earned from completed work minus the retainage amount withheld. (4 - 5)'
+            },
+            {
+                label: '7. Less Previous Certificated for Payment:',
+                value: this.formattedLessPreviousCertificatedforPayment,
+                helpText: 'Previous Bill\' Total Earned Less Retainage amounts are aggregated here to show the total amount already paid to the contractor for completed work.'
+            },
+            {
+                label: '8. Current Payment Due:',
+                value: this.formattedCurrentPaymentDue,
+                helpText: 'Net amount due for this billing period, calculated as earned amount less retainage minus previous payments.'
+            },
+            {
+                label: '9. Balance to Finish + Retainage:',
+                value: this.formattedBalanceToFinish,
+                helpText: 'Remaining contract balance including work to be completed and all retainage amounts to be released. (3 - 6)'
+            }
+        ];
     }
 
     /** 
@@ -1472,17 +1534,19 @@ export default class BillingDetailsPage extends NavigationMixin(LightningElement
 
     /** 
      * Method Name: navigateToRecord
-     * @description: Navigates to the specified record page.
+     * @description: Navigates to the specified record page in a new tab.
      */
     navigateToRecord(event) {
         const recordId = event.currentTarget.dataset.val;
         if (recordId) {
-            this[NavigationMixin.Navigate]({
+            this[NavigationMixin.GenerateUrl]({
                 type: 'standard__recordPage',
                 attributes: {
                     recordId: recordId,
                     actionName: 'view'
                 }
+            }).then(url => {
+                window.open(url, '_blank');
             });
         }
     }
