@@ -264,10 +264,16 @@ export default class JobProposalModal extends LightningElement {
 
     async handleSave(event) {
         event.preventDefault();
+         event.stopPropagation();
         
         const inputFields = this.template.querySelectorAll('lightning-input-field');
         const customInputs = this.template.querySelectorAll('lightning-input');
         let isValid = true;
+
+            if(this.ohValue + this.warrantyValue + this.profitValue >= 100) {
+            this.showToast('Invalid Input', 'Sum of OH, Warranty and Profit should be less than 100%', 'error');
+            return;
+        }
 
         // Validate all lightning-input-field
         inputFields.forEach(field => {
