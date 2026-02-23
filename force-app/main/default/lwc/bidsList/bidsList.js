@@ -7,7 +7,7 @@ import getProposalsForBid from '@salesforce/apex/BidsListController.getProposals
 import createProposal from '@salesforce/apex/BidsListController.createProposal';
 import createBid from '@salesforce/apex/BidsListController.createBid';
 import getContactInfo from '@salesforce/apex/BidProposalController.getContactInfo';
-import getProposalConfig from '@salesforce/apex/BidProposalController.getProposalConfig';
+import getProposalConfig from '@salesforce/apex/ProposalConfigController.getProposalConfig';
 
 export default class BidsList extends NavigationMixin(LightningElement) {
     @track isLoading = true;
@@ -428,9 +428,19 @@ export default class BidsList extends NavigationMixin(LightningElement) {
         try {
             const data = await getProposalConfig();
             if (data) {
-                this.ohValue = data.wfrecon__OH__c || 0;
-                this.warrantyValue = data.wfrecon__Warranty__c || 0;
-                this.profitValue = data.wfrecon__Profit__c || 0;
+                // Parse numberConfigs as JSON (contains ohValue, warrantyValue, profitValue)
+                let numberConfig = {};
+                if (data.numberConfigs) {
+                    try {
+                        numberConfig = JSON.parse(data.numberConfigs);
+                    } catch (e) {
+                        console.error('JSON Parse Error for numberConfigs:', data.numberConfigs);
+                    }
+                }
+                
+                this.ohValue = numberConfig.ohValue || 0;
+                this.warrantyValue = numberConfig.warrantyValue || 0;
+                this.profitValue = numberConfig.profitValue || 0;
                 this.ohDisplay = `${this.ohValue}%`;
                 this.warrantyDisplay = `${this.warrantyValue}%`;
                 this.profitDisplay = `${this.profitValue}%`;

@@ -45,10 +45,20 @@ export default class JobProposalModal extends LightningElement {
     @wire(getProposalConfig)
     wiredProposalConfig({ error, data }) {
         if (data) {
+            // Parse numberConfigs as JSON (contains ohValue, warrantyValue, profitValue)
+            let numberConfig = {};
+            if (data.numberConfigs) {
+                try {
+                    numberConfig = JSON.parse(data.numberConfigs);
+                } catch (e) {
+                    console.error('JSON Parse Error for numberConfigs:', data.numberConfigs);
+                }
+            }
+            
             // Set default values from custom setting
-            this.ohValue = data.wfrecon__OH__c || 0;
-            this.warrantyValue = data.wfrecon__Warranty__c || 0;
-            this.profitValue = data.wfrecon__Profit__c || 0;
+            this.ohValue = numberConfig.ohValue || 0;
+            this.warrantyValue = numberConfig.warrantyValue || 0;
+            this.profitValue = numberConfig.profitValue || 0;
             
             // Update display values
             this.ohDisplay = `${this.ohValue}%`;

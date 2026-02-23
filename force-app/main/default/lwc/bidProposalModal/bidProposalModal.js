@@ -51,28 +51,31 @@ export default class BidProposalModal extends LightningElement {
     wiredProposalConfig({ error, data }) {
         if (data) {
             try {
-                let config = {};
-                if (data.configJson) {
+                // Parse numberConfigs as JSON (contains ohValue, warrantyValue, profitValue)
+                let numberConfig = {};
+                if (data.numberConfigs) {
                     try {
-                        config = JSON.parse(data.configJson);
+                        numberConfig = JSON.parse(data.numberConfigs);
                     } catch (parseError) {
-                        console.error('Error parsing Proposal Configuration JSON:', parseError);
+                        console.error('Error parsing numberConfigs JSON:', parseError);
                     }
                 }
 
                 // Percentages
-                this.ohValue = config.ohValue ?? 0;
-                this.warrantyValue = config.warrantyValue ?? 0;
-                this.profitValue = config.profitValue ?? 0;
+                this.ohValue = numberConfig.ohValue ?? 0;
+                this.warrantyValue = numberConfig.warrantyValue ?? 0;
+                this.profitValue = numberConfig.profitValue ?? 0;
 
                 // Display values
                 this.ohDisplay = `${this.ohValue}%`;
                 this.warrantyDisplay = `${this.warrantyValue}%`;
                 this.profitDisplay = `${this.profitValue}%`;
-                this.warrantyArea = config.warrantyArea ?? '';
-                this.limitations = config.limitations ?? '';
-                this.agreement = config.agreement ?? '';
-                this.footerContent = config.footerContent ?? '';
+                
+                // Get plain text fields directly
+                this.warrantyArea = data.warrantyConfig ?? '';
+                this.limitations = data.limitationsConfig ?? '';
+                this.agreement = data.agreementConfig ?? '';
+                this.footerContent = data.footerConfig ?? '';
 
                 this._configLoaded = true;
 
