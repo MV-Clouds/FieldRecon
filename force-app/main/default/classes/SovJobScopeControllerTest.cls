@@ -409,5 +409,60 @@ public with sharing class SovJobScopeControllerTest {
         // Should handle null gracefully
         System.assertNotEquals(null, result, 'Expected result to not be null');
     }
+    
+    @IsTest
+static void testConvertToRelationshipFields() {
+    String fieldsList = 'Name, Status__c, CreatedDate';
+    String relationshipName = 'Proposals__r';
+    String expected = 'Proposals__r.Name, Proposals__r.Status__c, Proposals__r.CreatedDate';
+    String actual = SovJobScopeController.convertToRelationshipFields(fieldsList, relationshipName);
+    System.assertEquals(expected, actual, 'Relationship fields conversion failed');
+}
+
+    @IsTest
+static void testGetBidsWithProposals() {
+    // Create a Bid linked to a Job
+    Job__c job = [SELECT Id FROM Job__c LIMIT 1];
+    Bid__c bid = new Bid__c(
+        Name = 'Test Bid',
+        Job__c = job.Id,
+        Status__c = 'Closed Won',
+        wfrecon__Bid_Due_Date__c = Date.today() 
+    );
+    insert bid;
+
+    // Create a Proposal linked to the Bid
+    Proposal__c proposal = new Proposal__c(
+        Bid__c = bid.Id,
+        Status__c = 'Closed Won'
+    );
+    insert proposal;
+
+    // Call the method by bidId
+    Map<String, Object> result = SovJobScopeController.getBidsWithProposals(null, bid.Id);
+    System.assertEquals(true, (Boolean)result.get('success'), 'getBidsWithProposals failed');
+    List<Map<String, Object>> bids = (List<Map<String, Object>>) result.get('bids');
+    System.assert(!bids.isEmpty(), 'No bids returned');
+    System.assertEquals(bid.Id, bids[0].get('Id'), 'Bid Id mismatch');
+}
+
+    @IsTest
+static void testCreateScopeEntriesFromProposalLines() {
+    Job__c job = [SELECT Id FROM Job__c LIMIT 1];
+
+    List<Map<String, Object>> scopeEntriesData = new List<Map<String, Object>>();
+    scopeEntriesData.add(new Map<String, Object>{
+        'name' => 'Imported Entry 1',
+        'contractValue' => 5000,
+        'description' => 'Test Description',
+        'jobId' => job.Id,
+        'type' => 'Contract'
+    });
+
+    String jsonData = JSON.serialize(scopeEntriesData);
+    Map<String, Object> result = SovJobScopeController.createScopeEntriesFromProposalLines(jsonData);
+    System.assertEquals(true, (Boolean)result.get('success'), 'createScopeEntriesFromProposalLines failed');
+    System.assert(((Integer)result.get('createdEntries')) == 1, 'Created entries count mismatch');
+}
 
 }

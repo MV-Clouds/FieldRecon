@@ -66,4 +66,17 @@ public class Test_JobTeamMembersController {
         }
 
     }
+    
+	@isTest
+    public static void testGetJobTeamMembers_Exception() {
+        System.FeatureManagement.setPackageBooleanValue('Level_II_User', false);
+        System.FeatureManagement.setPackageBooleanValue('Level_III_User', false);
+
+        String fakeJobId = 'a0JfakeJobId123'; 
+        Test.startTest();
+        String result = JobTeamMembersController.getJobTeamMembers(fakeJobId);
+        Test.stopTest();
+
+        System.assertEquals(null, result, 'Method should return null when exception occurs');
+    }
 }

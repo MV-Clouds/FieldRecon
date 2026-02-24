@@ -21,21 +21,24 @@ public with sharing class QuoteEmailController {
         try {
             // Get your custom metadata record
             List<wfrecon__Proposal_Config__mdt> configs = [
-                SELECT wfrecon__Config_JSON__c 
+                SELECT wfrecon__Number_Configs__c,
+                       wfrecon__Agreement_Config__c,
+                       wfrecon__Footer_Config__c,
+                       wfrecon__Limitations_Config__c,
+                       wfrecon__Warranty_Config__c
                 FROM wfrecon__Proposal_Config__mdt 
                 WHERE DeveloperName = 'ProposalConfig'
                 LIMIT 1
             ];
 
-            if(!configs.isEmpty() && String.isNotBlank(configs[0].wfrecon__Config_JSON__c)) {
-                // Parse JSON into Map
-                Map<String, Object> data = (Map<String, Object>) JSON.deserializeUntyped(configs[0].wfrecon__Config_JSON__c);
-
-                // Assign fields
-                warrantyArea  = (String) data.get('warrantyArea');
-                limitations   = (String) data.get('limitations');
-                agreement     = (String) data.get('agreement');
-                footerContent = (String) data.get('footerContent');
+            if(!configs.isEmpty()) {
+                wfrecon__Proposal_Config__mdt config = configs[0];
+                
+                // Get plain text fields directly
+                warrantyArea = config.wfrecon__Warranty_Config__c != null ? config.wfrecon__Warranty_Config__c : '';
+                limitations = config.wfrecon__Limitations_Config__c != null ? config.wfrecon__Limitations_Config__c : '';
+                agreement = config.wfrecon__Agreement_Config__c != null ? config.wfrecon__Agreement_Config__c : '';
+                footerContent = config.wfrecon__Footer_Config__c != null ? config.wfrecon__Footer_Config__c : '';
             } else {
                 warrantyArea = '';
                 limitations  = '';

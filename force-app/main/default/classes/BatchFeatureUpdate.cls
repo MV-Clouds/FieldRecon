@@ -99,6 +99,8 @@ public without sharing class BatchFeatureUpdate implements Database.Batchable<sO
             }
         }
     }
+    
+    @TestVisible
     private void sendErrorEmail(String message){
         Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
         String[] toAddresses = new String[] {UserInfo.getUserEmail()};
