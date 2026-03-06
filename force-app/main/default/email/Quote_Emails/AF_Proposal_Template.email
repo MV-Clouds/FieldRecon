@@ -15,37 +15,42 @@
                     </tr>
                 </table>
 
-                <div style="margin-top: 60px; margin-bottom: 40px;">
-                    <div style="color: #8b2331; font-size: 20px; font-weight: bold; margin-bottom: 10px;">
-                        {!relatedTo.wfrecon__Bid__r.Name}</div>
-                    <div
-                        style="color: #8b2331; font-size: 18px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase;">
-                        APPLIED FLOORING PROPOSAL</div>
-                    <div style="color: #8b2331; font-size: 18px; font-weight: bold;">QUOTE: {!relatedTo.Name}</div>
-                </div>
-
-                <div style="width: 100%; margin-bottom: 40px;">
+                <div style="margin-bottom: 250px;">
+                    <div style="margin-top: 40px;">
+                        <div style="color: #8b2331; font-size: 20px; font-weight: bold; margin-bottom: 10px;">
+                            {!relatedTo.wfrecon__Bid__r.Name}</div>
+                        <div
+                            style="color: #8b2331; font-size: 18px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase;">
+                            APPLIED FLOORING PROPOSAL</div>
+                        <div style="color: #8b2331; font-size: 18px; font-weight: bold;">QUOTE: {!relatedTo.Name}</div>
+                    </div>
+                
+                    <!-- Spacer -->
+                    <div style="height: 40px; line-height: 40px; font-size: 1px;">&nbsp;</div>
+                
+                    <div style="width: 100%; margin-bottom: 40px;">
                     <img src="{!URLFOR($Resource.AFImage1)}" style="width: 100%; display: block;"
-                        alt="Project Showcase" />
-                </div>
+                            alt="Project Showcase" />
+                    </div>
 
-                <div style="margin-bottom: 10px;">
-                    <div style="color: #8b2331; font-size: 15px; font-weight: bold;">Prepared For:</div>
-                    <div style="color: #8b2331; font-size: 15px; font-weight: bold;">
-                        {!relatedTo.wfrecon__Contact__r.Name}</div>
-                    <div style="color: #8b2331; font-size: 15px;">{!relatedTo.wfrecon__Account__r.Name}</div>
-                </div>
+                    <div style="margin-bottom: 10px;">
+                        <div style="color: #8b2331; font-size: 15px; font-weight: bold;">Prepared For:</div>
+                        <div style="color: #8b2331; font-size: 15px; font-weight: bold;">
+                            {!relatedTo.wfrecon__Contact__r.Name}</div>
+                        <div style="color: #8b2331; font-size: 15px;">{!relatedTo.wfrecon__Account__r.Name}</div>
+                    </div>
 
-                <div style="margin-top: 40px; margin-bottom: 40px;">
-                    <div style="color: #8b2331; font-size: 14px; font-weight: bold;">Steve Parker</div>
-                    <div style="color: #8b2331; font-size: 13px; font-weight: bold;">Northern Office</div>
-                    <div style="font-size: 12px; color: #333; margin-bottom: 15px;">
-                        4200 Legion Drive, Suite C PO Box 161, Mason, MI 48854<br />
-                        P: 866-31-FLOOR </div>
-                    <div style="color: #8b2331; font-size: 13px; font-weight: bold;">Southern Office</div>
-                    <div style="font-size: 12px; color: #333;">
-                        PO Box 867, Theodore, AL 36582<br />
-                        P: 251-401-2453 </div>
+                    <div style="margin-top: 40px;">
+                        <div style="color: #8b2331; font-size: 14px; font-weight: bold;">Steve Parker</div>
+                        <div style="color: #8b2331; font-size: 13px; font-weight: bold;">Northern Office</div>
+                        <div style="font-size: 12px; color: #333; margin-bottom: 15px;">
+                            4200 Legion Drive, Suite C PO Box 161, Mason, MI 48854<br />
+                            P: 866-31-FLOOR </div>
+                        <div style="color: #8b2331; font-size: 13px; font-weight: bold;">Southern Office</div>
+                        <div style="font-size: 12px; color: #333;">
+                            PO Box 867, Theodore, AL 36582<br />
+                            P: 251-401-2453 </div>
+                    </div>
                 </div>
 
                 <table width="100%" cellpadding="0" cellspacing="0"
@@ -70,7 +75,7 @@
                                     </td>
                                     <td style="border: 1px solid #ffffff;">
                                         <apex:outputText value="{0,date,MM/dd/yyyy}">
-                                            <apex:param value="{!relatedTo.Expiration_Date__c}" />
+                                            <apex:param value="{!relatedTo.wfrecon__Expiration_Date__c}" />
                                         </apex:outputText>
                                     </td>
                                 </tr>
@@ -82,7 +87,7 @@
                 <div
                     style="color: #8b2331; font-size: 16px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase;">
                     ABOUT APPLIED FLOORING, INC</div>
-                <div style="font-size: 12px; margin-bottom: 25px; color: #333; text-align: justify;">
+                <div style="font-size: 12px; margin-bottom: 50px; color: #333; text-align: justify;">
                     Applied Flooring, Inc. is your full-service industrial flooring contractor specializing in epoxy,
                     polyurethane &amp; resinous floor coatings, concrete polishing, concrete sealing, resurfacing, crack
                     injection, slab stabilization and lifting, as well as waterproofing sealants and coatings for
@@ -91,7 +96,9 @@
                 <div
                     style="color: #8b2331; font-size: 16px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase;">
                     INDUSTRIES WE SERVE</div>
-                <div style="width: 100%; margin-bottom: 40px;">
+                <!-- Spacer -->
+                <div style="height: 20px; line-height: 20px; font-size: 1px;">&nbsp;</div>
+                <div style="width: 100%; margin-bottom: 140px;">
                     <img src="{!URLFOR($Resource.AFImage2)}" style="width: 100%; display: block;"
                         alt="Industries Served Collage" />
                 </div>
@@ -125,7 +132,7 @@
                 </div>
 
                 <div
-                    style="color: #8b2331; font-size: 18px; font-weight: bold; margin-top: 40px; margin-bottom: 20px; text-transform: uppercase;">
+                    style="color: #8b2331; font-size: 18px; font-weight: bold; margin-top: 20px; margin-bottom: 10px; text-transform: uppercase;">
                     CLARIFICATIONS</div>
                 <div
                     style="text-align: center; color: #8b2331; font-size: 14px; font-weight: bold; text-decoration: underline; margin-bottom: 10px;">
