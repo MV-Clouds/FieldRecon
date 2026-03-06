@@ -1,0 +1,107 @@
+<messaging:emailTemplate subject="Applied Flooring Proposal: {!relatedTo.Name}" recipientType="Contact" relatedToType="wfrecon__Proposal__c">
+<messaging:htmlEmailBody >
+<div style="font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.5; background-color: #ffffff; width: 100%;">
+    
+    <div style="max-width: 850px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
+        
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+                <td align="right">
+                    <img src="{!URLFOR($Resource.AppliedFlooringLogo)}" style="width: 280px; display: block;" alt="Applied Flooring" /> </td>
+            </tr>
+        </table>
+
+        <div style="margin-top: 60px; margin-bottom: 40px;">
+            <div style="color: #8b2331; font-size: 20px; font-weight: bold; margin-bottom: 10px;">[{!relatedTo.Name}]</div> <div style="color: #8b2331; font-size: 18px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase;">APPLIED FLOORING PROPOSAL</div> <div style="color: #8b2331; font-size: 18px; font-weight: bold;">QUOTE: {!relatedTo.Name}</div> </div>
+
+        <div style="width: 100%; margin-bottom: 40px;">
+            <img src="{!URLFOR($Resource.AFImage1)}" style="width: 100%; display: block;" alt="Project Showcase" /> </div>
+
+        <div style="margin-bottom: 10px;">
+            <div style="color: #8b2331; font-size: 15px; font-weight: bold;">Prepared For:</div> <div style="color: #8b2331; font-size: 15px; font-weight: bold;">{!relatedTo.wfrecon__Contact__r.Name}</div> <div style="color: #8b2331; font-size: 15px;">{!relatedTo.wfrecon__Account__r.Name}</div> </div>
+
+        <div style="margin-top: 40px; margin-bottom: 40px;">
+            <div style="color: #8b2331; font-size: 14px; font-weight: bold;">Steve Parker</div> <div style="color: #8b2331; font-size: 13px; font-weight: bold;">Northern Office</div> <div style="font-size: 12px; color: #333; margin-bottom: 15px;">
+                4200 Legion Drive, Suite C PO Box 161, Mason, MI 48854<br/>
+                P: 866-31-FLOOR </div>
+            <div style="color: #8b2331; font-size: 13px; font-weight: bold;">Southern Office</div> <div style="font-size: 12px; color: #333;">
+                PO Box 867, Theodore, AL 36582<br/>
+                P: 251-401-2453 </div>
+        </div>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 40px; border-collapse: collapse;">
+            <tr>
+                <td width="50%"></td>
+                <td width="50%">
+                    <table width="100%" cellpadding="8" cellspacing="0" style="border-collapse: collapse; font-size: 13px; text-align: center;">
+                        <tr style="background-color: #eeeeee;">
+                            <td style="border: 1px solid #ffffff; font-weight: bold; color: #333;">ESTIMATE #</td> <td style="border: 1px solid #ffffff; font-weight: bold; color: #333;">DATE</td> <td style="border: 1px solid #ffffff; font-weight: bold; color: #333;">EXPIRES</td> </tr>
+                        <tr>
+                            <td style="border: 1px solid #ffffff;">{!relatedTo.Name}</td>
+                            <td style="border: 1px solid #ffffff;">
+                                <apex:outputText value="{0,date,MM/dd/yyyy}"><apex:param value="{!relatedTo.CreatedDate}" /></apex:outputText>
+                            </td>
+                            <td style="border: 1px solid #ffffff;">
+                                <apex:outputText value="{0,date,MM/dd/yyyy}"><apex:param value="{!relatedTo.Expiration_Date__c}" /></apex:outputText>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <div style="color: #8b2331; font-size: 16px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase;">ABOUT APPLIED FLOORING, INC</div> <div style="font-size: 12px; margin-bottom: 25px; color: #333; text-align: justify;">
+            Applied Flooring, Inc. is your full-service industrial flooring contractor specializing in epoxy, polyurethane &amp; resinous floor coatings, concrete polishing, concrete sealing, resurfacing, crack injection, slab stabilization and lifting, as well as waterproofing sealants and coatings for vehicular and pedestrian traffic-bearing surfaces serving the Midwest and Southeastern US. </div>
+
+        <div style="color: #8b2331; font-size: 16px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase;">INDUSTRIES WE SERVE</div> <div style="width: 100%; margin-bottom: 40px;">
+            <img src="{!URLFOR($Resource.AFImage2)}" style="width: 100%; display: block;" alt="Industries Served Collage" /> </div>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 20px; border-collapse: collapse;">
+            <tr style="background-color: #eeeeee;">
+                <td width="33.3%" style="padding: 10px; border: 1px solid #ffffff; font-weight: bold; font-size: 13px; color: #333;">CUSTOMER</td> <td width="33.3%" style="padding: 10px; border: 1px solid #ffffff; font-weight: bold; font-size: 13px; color: #333;">PROJECT</td> <td width="33.3%" style="padding: 10px; border: 1px solid #ffffff; font-weight: bold; font-size: 13px; color: #333;">SERVICE ADDRESS</td> </tr>
+            <tr>
+                <td style="padding: 10px; font-size: 12px; vertical-align: top;">
+                    {!relatedTo.wfrecon__Contact__r.Name}<br/>{!relatedTo.wfrecon__Account__r.Name} </td>
+                <td style="padding: 10px; font-size: 12px; vertical-align: top;">{!relatedTo.Name}</td>
+                <td style="padding: 10px; font-size: 12px; vertical-align: top;">{!relatedTo.wfrecon__Job__c}</td>
+            </tr>
+        </table>
+
+        <div style="padding: 30px 40px;">
+            <c:ProposalLinesTable propId="{!relatedTo.Id}" />
+        </div>
+
+        <div style="color: #8b2331; font-size: 18px; font-weight: bold; margin-top: 40px; margin-bottom: 20px; text-transform: uppercase;">CLARIFICATIONS</div> <div style="text-align: center; color: #8b2331; font-size: 14px; font-weight: bold; text-decoration: underline; margin-bottom: 10px;">WARRANTY</div> <div style="font-size: 11px; margin-bottom: 25px; color: #333; line-height: 1.4;">
+            <apex:outputField value="{!relatedTo.Proposal_Warranty__c}" /> </div>
+
+        <div style="text-align: center; color: #8b2331; font-size: 14px; font-weight: bold; text-decoration: underline; margin-bottom: 10px;">HELPFUL TIPS</div> <div style="font-size: 11px; margin-bottom: 25px; color: #333;">
+            Excessive wear is not warranted; here are a few helpful tips to make your floor last: <ul style="padding-left: 20px; margin-top: 10px;">
+                <li style="margin-bottom: 5px;">Install white urethane tires on your forklifts to help eliminate tire marks. </li>
+                <li style="margin-bottom: 5px;">Sweep parking lots periodically to limit debris dragged in from outside. </li>
+                <li style="margin-bottom: 5px;">Wash your floor with minimal soap or detergent to continue to make your floor shine. </li>
+            </ul>
+        </div>
+
+        <div style="color: #8b2331; font-size: 16px; font-weight: bold; margin-top: 40px; border-bottom: 1px solid #8b2331; padding-bottom: 5px;">AGREEMENT</div> <div style="font-size: 11px; margin-top: 15px; margin-bottom: 30px; line-height: 1.4;">
+            <apex:outputField value="{!relatedTo.Aggrement__c}" /> </div>
+
+        <div style="color: #8b2331; font-size: 15px; font-weight: bold; margin-bottom: 10px;">SIGNING</div> <div style="width: 300px; border-top: 1px solid #333; padding-top: 10px; margin-bottom: 50px;">
+            <div style="font-weight: bold; font-size: 13px;">Steve Parker</div> <div style="font-size: 12px;">Applied Flooring, Inc.</div> </div>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+            <tr style="background-color: #eeeeee;">
+                <td style="padding: 10px; font-weight: bold; font-size: 14px; color: #333;">APPROVAL</td> </tr>
+            <tr>
+                <td style="padding: 20px 10px; font-size: 13px;">
+                    <div style="margin-bottom: 20px;">
+                        This Estimate has been accepted on ___________________________ by ___________________________ </div>
+                    <div>
+                        Signature: ________________________________________________________________________________ </div>
+                </td>
+            </tr>
+        </table>
+
+    </div>
+</div>
+</messaging:htmlEmailBody>
+</messaging:emailTemplate>
