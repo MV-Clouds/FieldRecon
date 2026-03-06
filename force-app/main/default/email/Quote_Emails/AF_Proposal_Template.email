@@ -175,7 +175,7 @@
                 <div
                     style="color: #8b2331; font-size: 15px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">
                     SIGNING</div>
-                <div style="width: 300px; margin-bottom: 60px;">
+                <div style="width: 300px; margin-bottom: 40px;">
                     <div style="height: 80px; vertical-align: bottom; display: table-cell;">
                         <img src="{!URLFOR($Resource.SPSign)}" style="width: 180px; display: block;" alt="Signature" />
                     </div>
@@ -190,7 +190,7 @@
                         <td style="padding: 10px; font-weight: bold; font-size: 14px; color: #333;">APPROVAL</td>
                     </tr>
                     <tr>
-                        <td style="padding: 20px 10px; font-size: 13px;">
+                        <td style="padding: 20px 0px; font-size: 13px;">
                             <div style="margin-bottom: 20px;">
                                 This Estimate has been accepted on ___________________________ by
                                 ___________________________ </div>
