@@ -1,4 +1,20 @@
 <apex:page controller="SendProposalPageAsPDFController" renderAs="pdf" standardStylesheets="false" applyHtmlTag="false"
     applyBodyTag="false" showHeader="false" cache="false" action="{!createPDF}">
-    <apex:outputText value="{!strBody}" escape="false"/>
+    <html>
+    <head>
+        <style>
+            @page {
+                margin: 16px;
+                size: A4;
+            }
+            body {
+                margin: 0;
+                padding: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <apex:outputText value="{!strBody}" escape="false"/>
+    </body>
+    </html>
 </apex:page>
