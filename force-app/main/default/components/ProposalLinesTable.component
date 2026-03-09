@@ -1,5 +1,5 @@
 <apex:component controller="ProposalEmailController" access="global">
-    <apex:attribute name="propId" type="Id" assignTo="{!proposalId}" description="Proposal Id"/>
+    <apex:attribute name="propId" type="Id" assignTo="{!proposalId}" description="Proposal Id" access="global"/>
 
     <div style="margin-bottom: 20px;">
         <div style="background-color: rgb(237, 237, 237); color: #333; font-weight: bold; font-size: 14px; padding: 8px; border-left: 4px solid #666; margin-bottom: 10px; text-transform: uppercase;">Base Contract</div>
