@@ -77,61 +77,39 @@ public with sharing class ProposalLinesContainerController {
 
     /*
     *********************************************************
-    @description     : Fetch Pricebooks
-    @return          : Map<String, Object> - Result with success status and pricebooks
-    ********************************************************
-    */
-    @AuraEnabled
-    public static Map<String, Object> getPricebooks() {
-        Map<String, Object> result = new Map<String, Object>();
-        try {
-            List<Pricebook2> pricebooks = [SELECT Id, Name FROM Pricebook2 WHERE IsActive = true WITH USER_MODE ORDER BY Name ASC];
-            result.put('success', true);
-            result.put('message', 'Pricebooks fetched successfully');
-            result.put('data', pricebooks);
-        } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getPricebooks','isApiException' => false,'statusCode' => null,'exceptionObj' => e,  'moreDetails' => 'Error fetching pricebooks','apiResponse' => null});
-            result.put('success', false);
-            result.put('message', 'Unable to load pricebooks. Please try again or contact your administrator.');
-            result.put('error', e.getMessage());
-            result.put('data', new List<Pricebook2>());
-        }
-        return result;
-    }
-
-    /*
-    *********************************************************
-    @description     : Fetch Products by Pricebook
-    @param           : {String} pricebookId - Pricebook Id
+    @description     : Fetch All Active Products
     @return          : Map<String, Object> - Result with success status and products
     ********************************************************
     */
     @AuraEnabled
-    public static Map<String, Object> getProductsByPricebook(String pricebookId) {
+    public static Map<String, Object> getActiveProducts() {
         Map<String, Object> result = new Map<String, Object>();
         try {
-            if (String.isBlank(pricebookId)) {
-                result.put('success', false);
-                result.put('message', 'Pricebook ID is required');
-                result.put('data', new List<PricebookEntry>());
-                return result;
-            }
-            
-            List<PricebookEntry> products = [SELECT Id, Product2Id, Product2.Name, Product2.Description, UnitPrice FROM PricebookEntry WHERE Pricebook2Id = :pricebookId AND IsActive = true
-                    WITH USER_MODE ORDER BY Product2.Name ASC];
+            // Fetch all active products directly
+            List<Product2> products = [SELECT Id, Name, Description FROM Product2 WHERE IsActive = true WITH USER_MODE ORDER BY Name ASC];
             
             result.put('success', true);
             result.put('message', 'Products fetched successfully');
             result.put('data', products);
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{'className' => CLASSNAME,'methodName' => 'getProductsByPricebook','isApiException' => false,'statusCode' => null,'exceptionObj' => e,'moreDetails' => 'Error fetching products for pricebookId: ' + pricebookId,'apiResponse' => null});
+            ExceptionHandler.logException(new Map<String, Object>{
+                'className' => CLASSNAME,
+                'methodName' => 'getActiveProducts',
+                'isApiException' => false,
+                'statusCode' => null,
+                'exceptionObj' => e,
+                'moreDetails' => 'Error fetching active products',
+                'apiResponse' => null
+            });
             result.put('success', false);
             result.put('message', 'Unable to load products. Please try again or contact your administrator.');
             result.put('error', e.getMessage());
-            result.put('data', new List<PricebookEntry>());
+            result.put('data', new List<Product2>());
         }
         return result;
     }
+
+
 
     /*
     *********************************************************
@@ -184,7 +162,6 @@ public with sharing class ProposalLinesContainerController {
                 wfrecon__Proposal_Line__c proposalLine = new wfrecon__Proposal_Line__c();
                 proposalLine.wfrecon__Proposal__c = proposalId;
                 proposalLine.wfrecon__Product__c = (String) lineData.get('productId');
-                proposalLine.wfrecon__Price_Book__c = (String) lineData.get('pricebookId');
                 proposalLine.Name = (String) lineData.get('proposalLineName');
                 proposalLine.wfrecon__Description__c = (String) lineData.get('description');
                 proposalLine.wfrecon__Quantity__c = lineData.get('quantity') != null ? Decimal.valueOf(String.valueOf(lineData.get('quantity'))) : 0;

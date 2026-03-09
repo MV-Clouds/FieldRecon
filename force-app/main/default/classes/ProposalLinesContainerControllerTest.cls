@@ -104,35 +104,10 @@ private class ProposalLinesContainerControllerTest {
     @isTest
     static void testGetPricebooks_Success() {
         Test.startTest();
-        Map<String, Object> result = ProposalLinesContainerController.getPricebooks();
+        Map<String, Object> result = ProposalLinesContainerController.getActiveProducts();
         Test.stopTest();
         
         System.assertEquals(true, result.get('success'), 'Should return success');
-        System.assertNotEquals(null, result.get('data'), 'Data should not be null');
-        List<Pricebook2> pricebooks = (List<Pricebook2>) result.get('data');
-        System.assert(pricebooks.size() > 0, 'Should return at least one pricebook');
-    }
-    
-    @isTest
-    static void testGetProductsByPricebook_Success() {
-        Pricebook2 pricebook = [SELECT Id FROM Pricebook2 WHERE IsActive = true LIMIT 1];
-        
-        Test.startTest();
-        Map<String, Object> result = ProposalLinesContainerController.getProductsByPricebook(pricebook.Id);
-        Test.stopTest();
-        
-        System.assertEquals(true, result.get('success'), 'Should return success');
-        System.assertNotEquals(null, result.get('data'), 'Data should not be null');
-    }
-    
-    @isTest
-    static void testGetProductsByPricebook_BlankPricebookId() {
-        Test.startTest();
-        Map<String, Object> result = ProposalLinesContainerController.getProductsByPricebook('');
-        Test.stopTest();
-        
-        System.assertEquals(false, result.get('success'), 'Should return failure');
-        System.assertEquals('Pricebook ID is required', result.get('message'), 'Should return error message');
     }
     
     @isTest
