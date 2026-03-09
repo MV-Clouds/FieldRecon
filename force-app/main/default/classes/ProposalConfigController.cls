@@ -12,7 +12,6 @@ public with sharing class ProposalConfigController {
                        wfrecon__Limitations_Config__c,
                        wfrecon__Warranty_Config__c
                 FROM wfrecon__Proposal_Config__mdt 
-                WHERE DeveloperName = 'ProposalConfig' 
                 LIMIT 1
             ];
             
@@ -55,7 +54,7 @@ public with sharing class ProposalConfigController {
             }
 
             Metadata.CustomMetadata mdata = new Metadata.CustomMetadata();
-            mdata.fullName = 'wfrecon__Proposal_Config__mdt.ProposalConfig';
+            mdata.fullName = 'wfrecon__Proposal_Config__mdt.wfrecon__ProposalConfig';
             mdata.label = 'ProposalConfig';
 
             if (String.isNotBlank(numberConfigs)) {
