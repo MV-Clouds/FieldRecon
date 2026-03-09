@@ -282,7 +282,7 @@ public with sharing class MobSchedulerController {
                 SELECT Id, Name, (SELECT Id, wfrecon__Crew__c, wfrecon__Crew__r.Name, wfrecon__Crew__r.wfrecon__Color_Code__c FROM wfrecon__Crew_Members__r )
                 FROM Contact
                 WHERE RecordType.DeveloperName = 'Employee_WF_Recon'
-                AND wfrecon__User__r.IsActive = true
+                // AND wfrecon__User__r.IsActive = true
                 WITH USER_MODE
             ]) {
                 if(c.wfrecon__Crew_Members__r != null && c.wfrecon__Crew_Members__r.size() > 0){
@@ -310,7 +310,7 @@ public with sharing class MobSchedulerController {
                 SELECT Id, Name
                 FROM Contact
                 WHERE RecordType.DeveloperName = 'Sub_Contractor_WF_Recon'
-                AND wfrecon__User__r.IsActive = true
+                // AND wfrecon__User__r.IsActive = true
                 WITH USER_MODE
             ]) {
                 subContractors.add(new Map<String, Object>{

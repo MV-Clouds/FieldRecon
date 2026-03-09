@@ -42,4 +42,18 @@ public class Test_BatchFeatureUpdate {
         Test.stopTest();
         System.assert([SELECT Id, Assignee.Name, PermissionSet.Name FROM PermissionSetAssignment WHERE Assignee.Name = 'Test Contact-1' AND PermissionSet.Name = 'WF_Recon_Level_3'].size() > 0);
     }
+    
+     @isTest
+    static void testSendErrorEmail() {
+        Test.startTest();
+        Integer emailsBefore = Limits.getEmailInvocations();
+        
+        BatchFeatureUpdate bfu = new BatchFeatureUpdate();
+        bfu.sendErrorEmail('Test error message');
+
+        Integer emailsAfter = Limits.getEmailInvocations();
+        Test.stopTest();
+        
+        System.assertEquals(emailsBefore + 1, emailsAfter, 'An email should have been sent.');
+    }
 }

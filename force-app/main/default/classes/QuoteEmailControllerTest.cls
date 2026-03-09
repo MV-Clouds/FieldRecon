@@ -71,6 +71,21 @@ private class QuoteEmailControllerTest {
         insert cv;
     }
     
+     @isTest
+    static void testLoadConfigFromMetadata() {
+        // Instantiate the controller
+        Test.startTest();
+        QuoteEmailController controller = new QuoteEmailController();
+        Test.stopTest();
+        
+        // Assert that the values are loaded from metadata
+        System.assertNotEquals(null, controller.warrantyArea, 'Warranty area should not be null');
+        System.assertNotEquals(null, controller.limitations, 'Limitations should not be null');
+        System.assertNotEquals(null, controller.agreement, 'Agreement should not be null');
+        System.assertNotEquals(null, controller.footerContent, 'Footer content should not be null');
+
+}
+    
     @isTest
     static void testGetInitialData_Success() {
         wfrecon__Proposal__c proposal = [SELECT Id FROM wfrecon__Proposal__c LIMIT 1];

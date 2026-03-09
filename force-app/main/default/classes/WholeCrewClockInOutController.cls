@@ -152,6 +152,7 @@ public with sharing class WholeCrewClockInOutController {
     /**
      * Get mobilization members with clock in/out status - shows only completed sessions in recent times
      */
+    @TestVisible
     private static Map<String, List<WrapperMember>> getMobilizationMembersWithCompletedSessions(String mobId, String jobId) {
         try{
             Map<String, List<WrapperMember>> result = new Map<String, List<WrapperMember>>();

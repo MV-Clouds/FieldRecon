@@ -73,4 +73,17 @@ public class Test_PostInstallSetup {
         Test.testInstall(psi, new Version(2, 0));
         Test.stopTest();
     }
+    
+    @isTest
+    static void testSendErrorEmail_Generic() {
+        Test.startTest();
+        
+        PostInstallSetup bfu = new PostInstallSetup();        
+        Integer emailsBefore = Limits.getEmailInvocations();
+        bfu.sendErrorEmail('Test Subject', 'This is a test error detail.');
+        Integer emailsAfter = Limits.getEmailInvocations();
+        
+        Test.stopTest();
+        System.assertEquals(emailsBefore + 1, emailsAfter, 'An email should have been sent by sendErrorEmail.');
+    }
 }

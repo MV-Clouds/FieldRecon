@@ -39,24 +39,26 @@ export default class ProposalConfiguration extends LightningElement {
             const data = await getProposalConfig();
             console.log('Result from Apex:', data);
             
-            let result = {};
-            if (data && data.configJson) {
-                try {
-                    result = JSON.parse(data.configJson);
-                } catch (e) {
-                    console.error('JSON Parse Error:', data.configJson);
-                    // It might be corrupted JSON due to truncation
-                    this.showToast('Error', 'Something went wrong while loading configuration', 'error');
+            if (data) {
+                // Parse numberConfigs as JSON (contains ohValue, warrantyValue, profitValue)
+                let numberConfig = {};
+                if (data.numberConfigs) {
+                    try {
+                        numberConfig = JSON.parse(data.numberConfigs);
+                    } catch (e) {
+                        console.error('JSON Parse Error for numberConfigs:', data.numberConfigs);
+                    }
                 }
+                
+                // Get values from parsed JSON and textarea fields
+                this.ohValue = numberConfig.ohValue || 0;
+                this.warrantyValue = numberConfig.warrantyValue || 0;
+                this.profitValue = numberConfig.profitValue || 0;
+                this.warrantyArea = data.warrantyConfig || '';
+                this.agreement = data.agreementConfig || '';
+                this.limitations = data.limitationsConfig || '';
+                this.footerContent = data.footerConfig || '';
             }
-            
-            this.ohValue = result.ohValue || 0;
-            this.warrantyValue = result.warrantyValue || 0;
-            this.profitValue = result.profitValue || 0;
-            this.warrantyArea = result.warrantyArea || '';
-            this.agreement = result.agreement || '';
-            this.limitations = result.limitations || '';
-            this.footerContent = result.footerContent || '';
 
             // Store originals
             this.originalOhValue = this.ohValue;
@@ -175,20 +177,25 @@ export default class ProposalConfiguration extends LightningElement {
         this.isLoading = true;
 
         try {
-            const configJson = JSON.stringify({
+            // Create separate objects for different config types
+            const numberConfigs = JSON.stringify({
                 ohValue: this.ohValue,
                 warrantyValue: this.warrantyValue,
-                profitValue: this.profitValue,
-                warrantyArea: this.warrantyArea,
-                agreement: this.agreement,
-                limitations: this.limitations,
-                footerContent: this.footerContent,
+                profitValue: this.profitValue
             });
 
-            // Log size for debugging
-            console.log('Saving JSON length:', configJson.length, 'JSON:', configJson);
+            // Send all data as a single JSON object
+            const configData = JSON.stringify({
+                numberConfigs: numberConfigs,
+                warrantyConfig: this.warrantyArea,
+                agreementConfig: this.agreement,
+                limitationsConfig: this.limitations,
+                footerConfig: this.footerContent
+            });
 
-            await saveProposalConfig({ configJson });
+            console.log('Saving config data:', configData);
+
+            await saveProposalConfig({ configData });
 
             // Update originals
             this.originalOhValue = this.ohValue;
@@ -198,7 +205,6 @@ export default class ProposalConfiguration extends LightningElement {
             this.originalAgreement = this.agreement;
             this.originalLimitations = this.limitations;
             this.originalFooterContent = this.footerContent;
-
 
             this.hasChanges = false;
             this.showToast('Success', 'Configuration saved successfully', 'success');

@@ -170,4 +170,33 @@ public with sharing class DefaultsControllerTest {
             DefaultsController.updateClockInDefault(true);
         Test.stopTest();
     }
+    
+      @isTest
+    static void testSecondLevelAccess() {
+        Test.startTest();
+        Boolean access = false;
+        try {
+            access = DefaultsController.secondLevelAccess();
+        } catch (AuraHandledException e) {
+            System.assert(false, 'secondLevelAccess threw exception: ' + e.getMessage());
+        }
+        Test.stopTest();
+
+        System.assertNotEquals(null, access, 'secondLevelAccess should return a Boolean');
+    }
+    
+      @isTest
+    static void testUpdateLocationDefault() {
+        Location_Needed__c defaultRecord = new Location_Needed__c();
+        defaultRecord.Need_Location__c = false;
+        Test.startTest();
+        try {
+            DefaultsController.updateLocationDefault(true);
+        } catch (AuraHandledException e) {
+            System.assert(false, 'updateLocationDefault threw exception: ' + e.getMessage());
+        }
+        Test.stopTest();
+
+        System.assert(true, 'updateLocationDefault executed without exception');
+    }
 }

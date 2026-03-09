@@ -123,6 +123,7 @@ global class PostInstallSetup implements InstallHandler {
     }
     
     // Generic method to send error emails
+    @TestVisible
     private void sendErrorEmail(String subject, String errorDetails) {
         try {
             Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
@@ -138,4 +139,6 @@ global class PostInstallSetup implements InstallHandler {
             System.debug('Failed to send error email: ' + emailEx.getMessage());
         }
     }
+
+    
 }

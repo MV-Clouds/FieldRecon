@@ -122,6 +122,7 @@ public with sharing class SovJobScopeController {
     @author          : Rachit Shah
     ********************************************************
     */
+    @TestVisible
     private static String convertToRelationshipFields(String fieldsList, String relationshipName) {
         if (String.isBlank(fieldsList) || String.isBlank(relationshipName)) {
             return '';
@@ -402,7 +403,7 @@ public with sharing class SovJobScopeController {
                 WHERE Id IN :selectedProcessIds
                 WITH USER_MODE
             ];
-            
+
             // Create Scope Entry Process records with sequential sequence numbers
             List<Scope_Entry_Process__c> scopeEntryProcesses = new List<Scope_Entry_Process__c>();
             Integer sequenceCounter = 1;
