@@ -43,6 +43,8 @@ public with sharing class JobDetailsPageController {
             }
 
             // 1. Fetch mobilizations
+            // Day view: only mobs whose Start_Date falls on that day
+            // Week/Custom view: mobs whose Start_Date falls within the date range
             List<wfrecon__Mobilization__c> mobs = [
                 SELECT Id, wfrecon__Job__c, wfrecon__Job__r.Id, wfrecon__Start_Date__c, wfrecon__End_Date__c, wfrecon__Mobilization_Status__c, 
                     wfrecon__Job__r.Name, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.wfrecon__Address__c, wfrecon__Job__r.wfrecon__Description__c, wfrecon__Job__r.wfrecon__Status__c
@@ -55,69 +57,144 @@ public with sharing class JobDetailsPageController {
 
             if (mobs.isEmpty()) return new List<MobilizationWrapper>();
 
-            // 1. Aggregate total hours by mobilization Id
-            Map<Id, Decimal> mobManHoursMap = new Map<Id, Decimal>();
-            Map<Id, Decimal> mobTotalHoursWithTravelMap = new Map<Id, Decimal>();
-            for (AggregateResult ar : [
-                SELECT wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c mobId,
-                    SUM(wfrecon__Total_Time__c) totalHours,
-                    SUM(wfrecon__Travel_Time__c) travelTime
-                FROM wfrecon__Timesheet_Entry_Item__c
-                WHERE wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c IN :mobs
-                WITH USER_MODE
-                GROUP BY wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c
-            ]) {
-                Id mobId = (Id)ar.get('mobId');
-                Decimal totalHrs = (Decimal)ar.get('totalHours') != null ? (Decimal)ar.get('totalHours') : 0;
-                Decimal travelHrs = (Decimal)ar.get('travelTime') != null ? (Decimal)ar.get('travelTime') : 0;
-                
-                mobManHoursMap.put(mobId, totalHrs);
-                mobTotalHoursWithTravelMap.put(mobId, totalHrs + travelHrs);
+            // Collect Job Ids from fetched mobilizations
+            Set<Id> jobIds = new Set<Id>();
+            for (wfrecon__Mobilization__c m : mobs) {
+                jobIds.add(m.wfrecon__Job__c);
+            }
+
+            // Compute date filter for aggregate queries
+            Date filterStartDate = startOfDay.date();
+            Date filterEndDate = endOfDay.date();
+
+            // 1. Aggregate total hours by Job Id
+            Map<Id, Decimal> jobManHoursMap = new Map<Id, Decimal>();
+            Map<Id, Decimal> jobTotalHoursWithTravelMap = new Map<Id, Decimal>();
+            if (mode == 'day') {
+                for (AggregateResult ar : [
+                    SELECT wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c jobId,
+                        SUM(wfrecon__Total_Time__c) totalHours,
+                        SUM(wfrecon__Travel_Time__c) travelTime
+                    FROM wfrecon__Timesheet_Entry_Item__c
+                    WHERE wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c IN :jobIds
+                    AND wfrecon__Clock_In_Date__c = :filterStartDate
+                    WITH USER_MODE
+                    GROUP BY wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c
+                ]) {
+                    Id jId = (Id)ar.get('jobId');
+                    Decimal totalHrs = (Decimal)ar.get('totalHours') != null ? (Decimal)ar.get('totalHours') : 0;
+                    Decimal travelHrs = (Decimal)ar.get('travelTime') != null ? (Decimal)ar.get('travelTime') : 0;
+                    jobManHoursMap.put(jId, totalHrs);
+                    jobTotalHoursWithTravelMap.put(jId, totalHrs + travelHrs);
+                }
+            } else {
+                for (AggregateResult ar : [
+                    SELECT wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c jobId,
+                        SUM(wfrecon__Total_Time__c) totalHours,
+                        SUM(wfrecon__Travel_Time__c) travelTime
+                    FROM wfrecon__Timesheet_Entry_Item__c
+                    WHERE wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c IN :jobIds
+                    AND wfrecon__Clock_In_Date__c >= :filterStartDate
+                    AND wfrecon__Clock_In_Date__c <= :filterEndDate
+                    WITH USER_MODE
+                    GROUP BY wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c
+                ]) {
+                    Id jId = (Id)ar.get('jobId');
+                    Decimal totalHrs = (Decimal)ar.get('totalHours') != null ? (Decimal)ar.get('totalHours') : 0;
+                    Decimal travelHrs = (Decimal)ar.get('travelTime') != null ? (Decimal)ar.get('travelTime') : 0;
+                    jobManHoursMap.put(jId, totalHrs);
+                    jobTotalHoursWithTravelMap.put(jId, totalHrs + travelHrs);
+                }
             }
             
-            // 2a. Count distinct clocked-in members per mobilization using aggregate queries
-            // Build map: mobilization ID -> Set of contact IDs who have timesheet entries
-            Map<Id, Set<Id>> mobContactMap = new Map<Id, Set<Id>>();
+            // 2a. Count distinct clocked-in members per Job using aggregate queries
+            // Build map: Job ID -> Set of contact IDs who have timesheet entries
+            Map<Id, Set<Id>> jobContactMap = new Map<Id, Set<Id>>();
             
-            // Aggregate query for complete timesheet entry items (GROUP BY for distinct contacts)
-            for (AggregateResult ar : [
-                SELECT wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c mobId,
-                    wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c contactId
-                FROM wfrecon__Timesheet_Entry_Item__c
-                WHERE wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c IN :mobs
-                AND wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c != null
-                WITH USER_MODE
-                GROUP BY wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c,
-                    wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c
-            ]) {
-                Id mobId = (Id)ar.get('mobId');
-                Id contactId = (Id)ar.get('contactId');
-                
-                if (!mobContactMap.containsKey(mobId)) {
-                    mobContactMap.put(mobId, new Set<Id>());
+            if (mode == 'day') {
+                // Aggregate query for complete timesheet entry items (GROUP BY for distinct contacts)
+                for (AggregateResult ar : [
+                    SELECT wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c jobId,
+                        wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c contactId
+                    FROM wfrecon__Timesheet_Entry_Item__c
+                    WHERE wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c IN :jobIds
+                    AND wfrecon__Clock_In_Date__c = :filterStartDate
+                    AND wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c != null
+                    WITH USER_MODE
+                    GROUP BY wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c,
+                        wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c
+                ]) {
+                    Id jId = (Id)ar.get('jobId');
+                    Id contactId = (Id)ar.get('contactId');
+                    if (!jobContactMap.containsKey(jId)) {
+                        jobContactMap.put(jId, new Set<Id>());
+                    }
+                    jobContactMap.get(jId).add(contactId);
                 }
-                mobContactMap.get(mobId).add(contactId);
-            }
-            
-            // Aggregate query for clock-in-only entries (GROUP BY for distinct contacts)
-            for (AggregateResult ar : [
-                SELECT wfrecon__Mobilization__c mobId,
-                    wfrecon__TimeSheet__r.wfrecon__Contact__c contactId
-                FROM wfrecon__Timesheet_Entry__c
-                WHERE wfrecon__Mobilization__c IN :mobs
-                AND wfrecon__TimeSheet__r.wfrecon__Contact__c != null
-                AND wfrecon__Clock_Out_Time__c = null
-                WITH USER_MODE
-                GROUP BY wfrecon__Mobilization__c,
-                    wfrecon__TimeSheet__r.wfrecon__Contact__c
-            ]) {
-                Id mobId = (Id)ar.get('mobId');
-                Id contactId = (Id)ar.get('contactId');
                 
-                if (!mobContactMap.containsKey(mobId)) {
-                    mobContactMap.put(mobId, new Set<Id>());
+                // Aggregate query for clock-in-only entries (GROUP BY for distinct contacts)
+                for (AggregateResult ar : [
+                    SELECT wfrecon__TimeSheet__r.wfrecon__Job__c jobId,
+                        wfrecon__TimeSheet__r.wfrecon__Contact__c contactId
+                    FROM wfrecon__Timesheet_Entry__c
+                    WHERE wfrecon__TimeSheet__r.wfrecon__Job__c IN :jobIds
+                    AND wfrecon__Clock_In_Date__c = :filterStartDate
+                    AND wfrecon__TimeSheet__r.wfrecon__Contact__c != null
+                    AND wfrecon__Clock_Out_Time__c = null
+                    WITH USER_MODE
+                    GROUP BY wfrecon__TimeSheet__r.wfrecon__Job__c,
+                        wfrecon__TimeSheet__r.wfrecon__Contact__c
+                ]) {
+                    Id jId = (Id)ar.get('jobId');
+                    Id contactId = (Id)ar.get('contactId');
+                    if (!jobContactMap.containsKey(jId)) {
+                        jobContactMap.put(jId, new Set<Id>());
+                    }
+                    jobContactMap.get(jId).add(contactId);
                 }
-                mobContactMap.get(mobId).add(contactId);
+            } else {
+                // Aggregate query for complete timesheet entry items (GROUP BY for distinct contacts)
+                for (AggregateResult ar : [
+                    SELECT wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c jobId,
+                        wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c contactId
+                    FROM wfrecon__Timesheet_Entry_Item__c
+                    WHERE wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c IN :jobIds
+                    AND wfrecon__Clock_In_Date__c >= :filterStartDate
+                    AND wfrecon__Clock_In_Date__c <= :filterEndDate
+                    AND wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c != null
+                    WITH USER_MODE
+                    GROUP BY wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c,
+                        wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__c
+                ]) {
+                    Id jId = (Id)ar.get('jobId');
+                    Id contactId = (Id)ar.get('contactId');
+                    if (!jobContactMap.containsKey(jId)) {
+                        jobContactMap.put(jId, new Set<Id>());
+                    }
+                    jobContactMap.get(jId).add(contactId);
+                }
+                
+                // Aggregate query for clock-in-only entries (GROUP BY for distinct contacts)
+                for (AggregateResult ar : [
+                    SELECT wfrecon__TimeSheet__r.wfrecon__Job__c jobId,
+                        wfrecon__TimeSheet__r.wfrecon__Contact__c contactId
+                    FROM wfrecon__Timesheet_Entry__c
+                    WHERE wfrecon__TimeSheet__r.wfrecon__Job__c IN :jobIds
+                    AND wfrecon__Clock_In_Date__c >= :filterStartDate
+                    AND wfrecon__Clock_In_Date__c <= :filterEndDate
+                    AND wfrecon__TimeSheet__r.wfrecon__Contact__c != null
+                    AND wfrecon__Clock_Out_Time__c = null
+                    WITH USER_MODE
+                    GROUP BY wfrecon__TimeSheet__r.wfrecon__Job__c,
+                        wfrecon__TimeSheet__r.wfrecon__Contact__c
+                ]) {
+                    Id jId = (Id)ar.get('jobId');
+                    Id contactId = (Id)ar.get('contactId');
+                    if (!jobContactMap.containsKey(jId)) {
+                        jobContactMap.put(jId, new Set<Id>());
+                    }
+                    jobContactMap.get(jId).add(contactId);
+                }
             }
 
             // 3. Build wrappers
@@ -132,16 +209,13 @@ public with sharing class JobDetailsPageController {
                 w.jobDescription = m.wfrecon__Job__r.wfrecon__Description__c != null ? m.wfrecon__Job__r.wfrecon__Description__c : '--';
                 w.startDate = m.wfrecon__Start_Date__c.addSeconds(userTz.getOffset(m.wfrecon__Start_Date__c)/1000);
                 w.endDate = m.wfrecon__End_Date__c.addSeconds(userTz.getOffset(m.wfrecon__End_Date__c)/1000);
-                // w.startDate = m.wfrecon__Start_Date__c;
-                // w.endDate = m.wfrecon__End_Date__c;
-                // w.status = m.wfrecon__Job__r.wfrecon__Status__c != null ? m.wfrecon__Job__r.wfrecon__Status__c : '--';
 
-                // Lookup hours by mobilization Id
-                w.totalManHours = mobManHoursMap.containsKey(m.Id) ? mobManHoursMap.get(m.Id) : 0.00;
-                w.totalHoursWithTravel = mobTotalHoursWithTravelMap.containsKey(m.Id) ? mobTotalHoursWithTravelMap.get(m.Id) : 0.00;
+                // Lookup hours by Job Id
+                w.totalManHours = jobManHoursMap.containsKey(m.wfrecon__Job__c) ? jobManHoursMap.get(m.wfrecon__Job__c) : 0.00;
+                w.totalHoursWithTravel = jobTotalHoursWithTravelMap.containsKey(m.wfrecon__Job__c) ? jobTotalHoursWithTravelMap.get(m.wfrecon__Job__c) : 0.00;
                 
                 // Lookup clocked-in members count
-                Set<Id> uniqueContacts = mobContactMap.get(m.Id);
+                Set<Id> uniqueContacts = jobContactMap.get(m.wfrecon__Job__c);
                 w.clockedInMembersCount = uniqueContacts != null ? uniqueContacts.size() : 0;
 
                 result.add(w);
@@ -163,43 +237,80 @@ public with sharing class JobDetailsPageController {
     ********************************************************
     */
     @AuraEnabled
-    public static List<TimesheetEntryItemWrapper> getTimeSheetEntryItems(String jobId, String mobId, Date jobStartDate, Date jobEndDate){
+    public static List<TimesheetEntryItemWrapper> getTimeSheetEntryItems(String jobId, Date jobStartDate, Date jobEndDate, String mode){
         try {
-            // 1. Fetch clock-in-only entries (TSE without clock-out)
-            List<wfrecon__Timesheet_Entry__c> clockInOnlyEntries = [
-                SELECT Id, Name, wfrecon__TimeSheet__c, wfrecon__Clock_In_Time__c, wfrecon__Per_Diem__c,
-                       wfrecon__Clock_Out_Time__c, wfrecon__Cost_Code__r.Name, wfrecon__Cost_Code__c,
-                       wfrecon__TimeSheet__r.wfrecon__Contact__r.Name, wfrecon__Mobilization__c, wfrecon__Travel_Time__c,
-                       wfrecon__Clock_In_Date__c, wfrecon__TimeSheet__r.wfrecon__Job__c, wfrecon__Premium__c
-                FROM wfrecon__Timesheet_Entry__c 
-                WHERE wfrecon__Mobilization__c = :mobId
-                //   AND  wfrecon__TimeSheet__r.wfrecon__Job__c = :jobId
-                //   AND wfrecon__Clock_In_Date__c >= :jobStartDate
-                //   AND wfrecon__Clock_In_Date__c <= :jobEndDate
-                  AND wfrecon__Clock_Out_Time__c = null
-                WITH USER_MODE
-                ORDER BY wfrecon__Clock_In_Time__c ASC
-            ];
+            List<wfrecon__Timesheet_Entry__c> clockInOnlyEntries;
+            List<wfrecon__Timesheet_Entry_Item__c> items;
 
-            // 2. Fetch complete entries (TSELI with both clock-in and clock-out)
-            List<wfrecon__Timesheet_Entry_Item__c> items = [
-                SELECT Id, wfrecon__Timesheet_Entry__c, 
-                       wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__r.Name, 
-                       wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Travel_Time__c, 
-                       wfrecon__Per_Diem__c, wfrecon__Total_Time__c, 
-                       wfrecon__Cost_Code__r.Name, wfrecon__Clock_In_Date__c, 
-                       wfrecon__Clock_Out_Date__c, wfrecon__Premium__c,
-                       wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__c, // Added TS Id
-                       wfrecon__Cost_Code__c, // Added Cost Code Id
-                       wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c // Added Mob Id
-                FROM wfrecon__Timesheet_Entry_Item__c 
-                 WHERE wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c = :mobId
-                //   AND wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c = :jobId
-                //   AND wfrecon__Clock_In_Date__c >= :jobStartDate
-                //   AND wfrecon__Clock_Out_Date__c <= :jobEndDate
-                WITH USER_MODE
-                ORDER BY wfrecon__Clock_In_Time__c ASC
-            ];
+            if (mode == 'day') {
+                // Day view: exact date match on clockInDate
+                // 1. Fetch clock-in-only entries (TSE without clock-out)
+                clockInOnlyEntries = [
+                    SELECT Id, Name, wfrecon__TimeSheet__c, wfrecon__Clock_In_Time__c, wfrecon__Per_Diem__c,
+                           wfrecon__Clock_Out_Time__c, wfrecon__Cost_Code__r.Name, wfrecon__Cost_Code__c,
+                           wfrecon__TimeSheet__r.wfrecon__Contact__r.Name, wfrecon__Mobilization__c, wfrecon__Travel_Time__c,
+                           wfrecon__Clock_In_Date__c, wfrecon__TimeSheet__r.wfrecon__Job__c, wfrecon__Premium__c
+                    FROM wfrecon__Timesheet_Entry__c 
+                    WHERE wfrecon__TimeSheet__r.wfrecon__Job__c = :jobId
+                      AND wfrecon__Clock_In_Date__c = :jobStartDate
+                      AND wfrecon__Clock_Out_Time__c = null
+                    WITH USER_MODE
+                    ORDER BY wfrecon__Clock_In_Time__c ASC
+                ];
+
+                // 2. Fetch complete entries (TSELI with both clock-in and clock-out)
+                items = [
+                    SELECT Id, wfrecon__Timesheet_Entry__c, 
+                           wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__r.Name, 
+                           wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Travel_Time__c, 
+                           wfrecon__Per_Diem__c, wfrecon__Total_Time__c, 
+                           wfrecon__Cost_Code__r.Name, wfrecon__Clock_In_Date__c, 
+                           wfrecon__Clock_Out_Date__c, wfrecon__Premium__c,
+                           wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__c,
+                           wfrecon__Cost_Code__c,
+                           wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c
+                    FROM wfrecon__Timesheet_Entry_Item__c 
+                    WHERE wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c = :jobId
+                      AND wfrecon__Clock_In_Date__c = :jobStartDate
+                    WITH USER_MODE
+                    ORDER BY wfrecon__Clock_In_Time__c ASC
+                ];
+            } else {
+                // Week/Custom view: range filter using both dates
+                // 1. Fetch clock-in-only entries (TSE without clock-out)
+                clockInOnlyEntries = [
+                    SELECT Id, Name, wfrecon__TimeSheet__c, wfrecon__Clock_In_Time__c, wfrecon__Per_Diem__c,
+                           wfrecon__Clock_Out_Time__c, wfrecon__Cost_Code__r.Name, wfrecon__Cost_Code__c,
+                           wfrecon__TimeSheet__r.wfrecon__Contact__r.Name, wfrecon__Mobilization__c, wfrecon__Travel_Time__c,
+                           wfrecon__Clock_In_Date__c, wfrecon__TimeSheet__r.wfrecon__Job__c, wfrecon__Premium__c
+                    FROM wfrecon__Timesheet_Entry__c 
+                    WHERE wfrecon__TimeSheet__r.wfrecon__Job__c = :jobId
+                      AND wfrecon__Clock_In_Date__c >= :jobStartDate
+                      AND wfrecon__Clock_In_Date__c <= :jobEndDate
+                      AND wfrecon__Clock_Out_Time__c = null
+                    WITH USER_MODE
+                    ORDER BY wfrecon__Clock_In_Time__c ASC
+                ];
+
+                // 2. Fetch complete entries (TSELI with both clock-in and clock-out)
+                items = [
+                    SELECT Id, wfrecon__Timesheet_Entry__c, 
+                           wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Contact__r.Name, 
+                           wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Travel_Time__c, 
+                           wfrecon__Per_Diem__c, wfrecon__Total_Time__c, 
+                           wfrecon__Cost_Code__r.Name, wfrecon__Clock_In_Date__c, 
+                           wfrecon__Clock_Out_Date__c, wfrecon__Premium__c,
+                           wfrecon__Timesheet_Entry__r.wfrecon__Timesheet__c,
+                           wfrecon__Cost_Code__c,
+                           wfrecon__Timesheet_Entry__r.wfrecon__Mobilization__c
+                    FROM wfrecon__Timesheet_Entry_Item__c 
+                    WHERE wfrecon__Timesheet_Entry__r.wfrecon__TimeSheet__r.wfrecon__Job__c = :jobId
+                      AND wfrecon__Clock_In_Date__c >= :jobStartDate
+                      AND wfrecon__Clock_In_Date__c <= :jobEndDate
+                    WITH USER_MODE
+                    ORDER BY wfrecon__Clock_In_Time__c ASC
+                ];
+            }
 
             // 3. Build result list: clock-in-only entries first, then complete entries
             List<TimesheetEntryItemWrapper> result = new List<TimesheetEntryItemWrapper>();
@@ -230,7 +341,7 @@ public with sharing class JobDetailsPageController {
     ********************************************************
     */
     @AuraEnabled
-    public static Map<String, List<WrapperMember>> getMobilizationMembersWithStatus(Id mobId) {
+    public static Map<String, List<WrapperMember>> getMobilizationMembersWithStatus(Id mobId, Id jobId) {
         try {
             Map<String, List<WrapperMember>> result = new Map<String, List<WrapperMember>>();
             result.put('clockIn', new List<WrapperMember>());
@@ -259,7 +370,7 @@ public with sharing class JobDetailsPageController {
             System.debug('members.size() ::' + members.size());
     
             Set<Id> contactIds = new Set<Id>();
-            Id jobId;
+            // Id jobId;
             for (wfrecon__Mobilization_Member__c m : members) {
                 contactIds.add(m.wfrecon__Contact__c);
                 jobId = m.wfrecon__Mobilization__r.wfrecon__Job__c; 
@@ -427,17 +538,12 @@ public with sharing class JobDetailsPageController {
             System.debug(paramsMap);
 
             String jobId = (String)paramsMap.get('jobId');
-            String mobId = (String)paramsMap.get('mobId');
             String mobGroupId;
-            List<wfrecon__Mobilization__c> mobRec = [
-                SELECT Id, Name, wfrecon__Mobilization_Group__r.wfrecon__Start_Date__c, wfrecon__Mobilization_Group__r.wfrecon__End_Date__c 
-                FROM wfrecon__Mobilization__c 
-                WHERE Id = :mobId
-                WITH USER_MODE
-            ];
-            mobGroupId = mobRec[0].wfrecon__Mobilization_Group__r.Id;
             
-            List<wfrecon__Mobilization_Member__c> mobMemberRecs = [SELECT Id, wfrecon__Contact__c, wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__Start_Date__c, wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__End_Date__c FROM wfrecon__Mobilization_Member__c WHERE Id = :(String)paramsMap.get('mobMemberId') WITH USER_MODE];
+            List<wfrecon__Mobilization_Member__c> mobMemberRecs = [SELECT Id, wfrecon__Contact__c, wfrecon__Mobilization__c, wfrecon__Mobilization__r.wfrecon__Mobilization_Group__c, wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__Start_Date__c, wfrecon__Mobilization__r.wfrecon__Mobilization_Group__r.wfrecon__End_Date__c FROM wfrecon__Mobilization_Member__c WHERE Id = :(String)paramsMap.get('mobMemberId') WITH USER_MODE];
+            // Derive mobId and mobGroupId from the mobilization member
+            String mobId = mobMemberRecs[0].wfrecon__Mobilization__c;
+            mobGroupId = mobMemberRecs[0].wfrecon__Mobilization__r.wfrecon__Mobilization_Group__c;
 
             if((String) paramsMap.get('actionType') == 'clockIn') {
                 
@@ -465,6 +571,7 @@ public with sharing class JobDetailsPageController {
                     timesheetEntryRec.wfrecon__Clock_In_Time__c = clkInUserTz;
                     timesheetEntryRec.wfrecon__Cost_Code__c = (String)paramsMap.get('costCodeId');
                     timesheetEntryRec.wfrecon__Mobilization__c = mobId;
+                    timesheetEntryRec.wfrecon__Mobilization_Group__c = mobGroupId;
                     timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
                     // Set Clock In Location
                     if(clockInLat != null && clockInLong != null) {
@@ -480,6 +587,7 @@ public with sharing class JobDetailsPageController {
                     timesheetEntryRec.wfrecon__Clock_In_Time__c = clkInUserTz;
                     timesheetEntryRec.wfrecon__Cost_Code__c = (String)paramsMap.get('costCodeId');
                     timesheetEntryRec.wfrecon__Mobilization__c = mobId;
+                    timesheetEntryRec.wfrecon__Mobilization_Group__c = mobGroupId;
                     timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
                     // Set Clock In Location
                     if(clockInLat != null && clockInLong != null) {
@@ -516,6 +624,7 @@ public with sharing class JobDetailsPageController {
                             timesheetEntryRec.wfrecon__Clock_In_Time__c = clkInUserTz;
                             timesheetEntryRec.wfrecon__Clock_Out_Time__c = clkOutUserTz;
                             timesheetEntryRec.wfrecon__Mobilization__c = mobId;
+                            timesheetEntryRec.wfrecon__Mobilization_Group__c = mobGroupId;
                             timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
                             // Set Clock Out Location
                             if(clockOutLat != null && clockOutLong != null) {
@@ -639,21 +748,21 @@ public with sharing class JobDetailsPageController {
             }
 
             String jobId = (String)paramsMap.get('jobId');
-            String mobId = (String)paramsMap.get('mobId');
             String costCodeId = (String)paramsMap.get('costCodeId');
             Date jobStartDate = Date.valueOf((String)paramsMap.get('jobStartDate'));
             Date jobEndDate = Date.valueOf((String)paramsMap.get('jobEndDate'));
             Double travelTime = Double.valueOf((String)paramsMap.get('travelTime'));
             Integer perDiem = Integer.valueOf((String)paramsMap.get('perDiem'));
-            String mobGroupId;
 
             List<wfrecon__Mobilization__c> mobRec = [
-                SELECT Id, Name, wfrecon__Mobilization_Group__r.wfrecon__Start_Date__c, wfrecon__Mobilization_Group__r.wfrecon__End_Date__c 
+                SELECT Id, Name, wfrecon__Mobilization_Group__c, wfrecon__Mobilization_Group__r.wfrecon__Start_Date__c, wfrecon__Mobilization_Group__r.wfrecon__End_Date__c 
                 FROM wfrecon__Mobilization__c 
-                WHERE Id = :mobId
+                WHERE wfrecon__Job__c = :jobId
                 WITH USER_MODE
+                LIMIT 1
             ];
-            mobGroupId = mobRec[0].wfrecon__Mobilization_Group__r.Id;
+            String mobId = mobRec[0].Id;
+            String mobGroupId = mobRec[0].wfrecon__Mobilization_Group__c;
 
             // Step 1: Fetch/Create Timesheets and build map
             Map<String, Id> contactToTimesheetMap = new Map<String, Id>();
@@ -710,6 +819,7 @@ public with sharing class JobDetailsPageController {
                 timesheetEntryRec.wfrecon__Cost_Code__c = costCodeId;
                 timesheetEntryRec.wfrecon__Do_Not_Execute__c = true;
                 timesheetEntryRec.wfrecon__Mobilization__c = mobId;
+                timesheetEntryRec.wfrecon__Mobilization_Group__c = mobGroupId;
                 timesheetEntryRec.wfrecon__Per_Diem__c = perDiem;
                 entryIndexToContactIdMap.put(entriesToInsert.size(), contactId);
                 entriesToInsert.add(timesheetEntryRec);

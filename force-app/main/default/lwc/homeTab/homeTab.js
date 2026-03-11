@@ -311,8 +311,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                                         jobStartTimeIso: rawStart,
                                         jobEndTimeIso: rawEnd,
                                         jobId: job.jobId,
-                                        jobStartTime: this.formatToAMPM(rawStart),
-                                        jobEndTime: this.formatToAMPM(rawEnd),
+                                        jobStartTime: this.formatToTimeOnly(rawStart),
+                                        jobEndTime: this.formatToTimeOnly(rawEnd),
                                         jobDescription: description,
                                         displayDescription: description,
                                         descriptionClass: needsReadMore ? 'job-description-content collapsed' : 'job-description-content',
@@ -339,6 +339,22 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                                         isValidLocation: (job.jobStreet != '--' && job.jobCity != '--' && job.jobState != '--') ? true : false
                                     };
                                 });
+
+                                // Deduplicate by jobId - show one card per unique job
+                                const jobMap = new Map();
+                                this.todayJobList.forEach(job => {
+                                    if (!jobMap.has(job.jobId)) {
+                                        jobMap.set(job.jobId, job);
+                                    } else {
+                                        // Prefer the record that is currently clocked in
+                                        const existing = jobMap.get(job.jobId);
+                                        if (!existing.isClockedIn && job.isClockedIn) {
+                                            jobMap.set(job.jobId, job);
+                                        }
+                                    }
+                                });
+                                this.todayJobList = Array.from(jobMap.values());
+                                this.isTodayJobAvailable = this.todayJobList.length > 0;
 
                                 const costCodeMap = data.costCodeDetails[0].costCodeDetails;
                                 this.costCodeOptions = Object.keys(costCodeMap).map(key => ({
@@ -390,8 +406,8 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                         ...job,
                         jobStartTimeIso: job.jobStartTime,
                         jobEndTimeIso: job.jobEndTime,
-                        jobStartTime: this.formatToAMPM(job.jobStartTime),
-                        jobEndTime: this.formatToAMPM(job.jobEndTime),
+                        jobStartTime: this.formatToTimeOnly(job.jobStartTime),
+                        jobEndTime: this.formatToTimeOnly(job.jobEndTime),
                         jobDescription: description,
                         displayDescription: description,
                         descriptionClass: needsReadMore ? 'job-description-content collapsed' : 'job-description-content',
@@ -425,6 +441,15 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 let dateKey = start.toLocaleDateString('en-CA');
 
                 let jobsForDay = normalizedApexData[dateKey] || [];
+
+                // Deduplicate jobs by jobId for each day
+                const uniqueJobMap = new Map();
+                jobsForDay.forEach(job => {
+                    if (!uniqueJobMap.has(job.jobId)) {
+                        uniqueJobMap.set(job.jobId, job);
+                    }
+                });
+                jobsForDay = Array.from(uniqueJobMap.values());
 
                 weekSections.push({
                     id: `day-${i}`,
@@ -506,11 +531,11 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     * @description: Retrieves the current job record based on the selected mobilization ID.
     */
     getCurrentModalJobRecord() {
-        if (!this.selectedMobilizationId || !Array.isArray(this.todayJobList)) {
+        if (!this.selectedJobId || !Array.isArray(this.todayJobList)) {
             return null;
         }
 
-        return this.todayJobList.find(job => job.mobId === this.selectedMobilizationId);
+        return this.todayJobList.find(job => job.jobId === this.selectedJobId);
     }
 
     /** 
@@ -562,6 +587,29 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             return `${monthName} ${parseInt(day, 10)}, ${year}, ${paddedHours}:${minutes} ${ampm}`;
         } catch (error) {
             console.error('Error in formatToAMPM:', error);
+            return iso;
+        }
+    }
+
+    /** 
+    * Method Name: formatToTimeOnly
+    * @description: Formats ISO datetime string to time-only 12-hour AM/PM format (e.g., "03:45 PM")
+    */
+    formatToTimeOnly(iso) {
+        try {
+            if (!iso) return '';
+            const parts = iso.split('T');
+            if (parts.length < 2) return iso;
+            const timePart = parts[1].substring(0, 5);
+            const [hoursStr, minutesStr] = timePart.split(':');
+            let hours = parseInt(hoursStr, 10);
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            const paddedHours = String(hours).padStart(2, '0');
+            return `${paddedHours}:${minutesStr} ${ampm}`;
+        } catch (error) {
+            console.error('Error in formatToTimeOnly:', error);
             return iso;
         }
     }
@@ -702,11 +750,12 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     */
     handleClockIn(event) {
         this.showClockInModal = true;
-        const mobId = event.currentTarget.dataset.id;
-        const selectedMob = this.todayJobList.find(job => job.mobId === mobId);
+        const jobId = event.currentTarget.dataset.id;
+        const selectedMob = this.todayJobList.find(job => job.jobId === jobId);
         console.log('selectedMob :: ', selectedMob);
         if (selectedMob) {
             this.selectedContactId = selectedMob.contactId;
+            this.selectedJobId = jobId;
             this.selectedMobilizationId = selectedMob.mobId;
             this.currentModalJobStartDateTime = selectedMob.jobStartTimeIso || selectedMob.jobStartTime;
             this.currentModalJobEndDateTime = selectedMob.jobEndTimeIso || selectedMob.jobEndTime;
@@ -720,10 +769,11 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     */
     handleClockOut(event) {
         this.showClockOutModal = true;
-        const mobId = event.currentTarget.dataset.id;
-        const selectedMob = this.todayJobList.find(job => job.mobId === mobId);
+        const jobId = event.currentTarget.dataset.id;
+        const selectedMob = this.todayJobList.find(job => job.jobId === jobId);
         if (selectedMob) {
             this.selectedContactId = selectedMob.contactId;
+            this.selectedJobId = jobId;
             this.selectedMobilizationId = selectedMob.mobId;
             this.previousClockInTime = this.formatToAMPM(selectedMob.clockInTime);
             this.currentModalJobStartDateTime = selectedMob.jobStartTimeIso || selectedMob.jobStartTime;
@@ -752,6 +802,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     closeClockInModal() {
         this.showClockInModal = false;
         this.selectedContactId = null;
+        this.selectedJobId = null;
         this.selectedMobilizationId = null;
         this.selectedCostCodeId = null;
         this.previousClockInTime = null;
@@ -768,6 +819,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     closeClockOutModal() {
         this.showClockOutModal = false;
         this.selectedContactId = null;
+        this.selectedJobId = null;
         this.selectedMobilizationId = null;
         this.selectedCostCodeId = null;
         this.previousClockInTime = null;
@@ -818,7 +870,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
             }
 
             const selectedRecordDetails = this.todayJobList.find(
-                record => record.mobId === this.selectedMobilizationId
+                record => record.jobId === this.selectedJobId
             );
 
             if (!selectedRecordDetails) {
@@ -835,7 +887,6 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 actionType: 'clockIn',
                 contactId: this.selectedContactId,
                 costCodeId: this.selectedCostCodeId,
-                mobId: this.selectedMobilizationId,
                 jobId: selectedRecordDetails.jobId,
                 clockInTime: this.currentDateTimeForApex,
                 isTimeSheetNull: selectedRecordDetails ? selectedRecordDetails?.isTimesheetNull : true,
@@ -881,7 +932,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     async saveClockOut() {
         try {
             const selectedRecordDetails = this.todayJobList.find(
-                record => record.mobId === this.selectedMobilizationId
+                record => record.jobId === this.selectedJobId
             );
 
             if (!selectedRecordDetails) {
@@ -898,7 +949,6 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 actionType: 'clockOut',
                 contactId: this.selectedContactId,
                 costCodeId: this.selectedCostCodeId,
-                mobId: this.selectedMobilizationId,
                 jobId: selectedRecordDetails.jobId,
                 clockInTime: selectedRecordDetails.clockInTime,
                 clockOutTime: this.currentDateTimeForApex,
@@ -985,15 +1035,15 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     */
     handleOpenInMaps(event) {
         try {
-            const mobId = event.currentTarget.dataset.id;
+            const jobId = event.currentTarget.dataset.id;
             let selectedMob;
 
             if (this.activeTab === 'today') {
-                selectedMob = this.todayJobList.find(job => job.mobId === mobId);
+                selectedMob = this.todayJobList.find(job => job.jobId === jobId);
             } else {
                 // Week view: weekJobList contains sections with jobs
                 for (let section of this.weekJobList) {
-                    selectedMob = section.jobs.find(job => job.mobId === mobId);
+                    selectedMob = section.jobs.find(job => job.jobId === jobId);
                     if (selectedMob) break;
                 }
             }
@@ -1042,11 +1092,11 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
     * @description: Toggles the expanded/collapsed state of job description
     */
     handleToggleDescription(event) {
-        const mobId = event.currentTarget.dataset.id;
+        const jobId = event.currentTarget.dataset.id;
 
         if (this.activeTab === 'today') {
             this.todayJobList = this.todayJobList.map(job => {
-                if (job.mobId === mobId) {
+                if (job.jobId === jobId) {
                     const isExpanded = !job.isExpanded;
                     return {
                         ...job,
@@ -1062,7 +1112,7 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
                 return {
                     ...section,
                     jobs: section.jobs.map(job => {
-                        if (job.mobId === mobId) {
+                        if (job.jobId === jobId) {
                             const isExpanded = !job.isExpanded;
                             return {
                                 ...job,
@@ -1084,12 +1134,12 @@ export default class HomeTab extends NavigationMixin(LightningElement) {
      * @param {*} event 
      */
     handleCrewClockInOut(event) {
-        const mobId = event.currentTarget.dataset.id;
-        const selectedMob = this.todayJobList.find(job => job.mobId === mobId);
+        const jobId = event.currentTarget.dataset.id;
+        const selectedMob = this.todayJobList.find(job => job.jobId === jobId);
         
         if (selectedMob) {
             this.selectedJobId = selectedMob.jobId;
-            this.selectedMobilizationId = mobId;
+            this.selectedMobilizationId = selectedMob.mobId;
             this.showCrewModal = true;
         }
     }

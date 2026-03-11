@@ -37,29 +37,6 @@
                 <!-- Main Content -->
                 <template if:true={hasAccess}>
                     <div class="modal-wrapper">
-                        <!-- Mobilization Selection -->
-                        <template if:true={showMobilizationSelector}>
-                            <div class="content-section">
-                            <!-- Mobilization Date Selection -->
-                                <div class="selector-card">
-                                    <label class="form-label">Select Scheduled Job</label>
-                                    <lightning-combobox 
-                                        name="mobilization" 
-                                        placeholder="-- Select Scheduled Job --" 
-                                        options={mobilizationOptions} 
-                                        value={selectedMobilizationId} 
-                                        onchange={handleMobilizationChange} 
-                                        variant="label-hidden">
-                                    </lightning-combobox>
-                                    <template if:true={selectedMobilizationDate}>
-                                        <div class="slds-text-body_small slds-p-top_xx-small selected-text" >
-                                            Start Date: {selectedMobilizationDate}
-                                        </div>
-                                    </template>
-                                </div>
-                            </div>
-                        </template>
-
                         <!-- Main Content with Tabset -->
                         <template if:true={hasData}>
                             <!-- Tab Navigation -->
@@ -95,13 +72,7 @@
                                             <template for:each={clockInMembers} for:item="member">
                                                 <div key={member.mobMemberId} class="member-card" data-selected={member.isSelected}>
                                                     <div class="member-card-content">
-                                                        <input 
-                                                            type="checkbox" 
-                                                            class="member-checkbox"
-                                                            data-member-id={member.mobMemberId}
-                                                            checked={member.isSelected}
-                                                            onchange={handleMemberSelection}
-                                                        />
+                                                        <input  type="checkbox"  class="member-checkbox" data-member-id={member.mobMemberId} checked={member.isSelected} onchange={handleMemberSelection}/>
                                                         <div class="member-info">
                                                             <div class="member-name">{member.contactName}</div>
                                                             <div class="member-crew">
@@ -113,32 +84,10 @@
                                                                 <span>{member.crewName}</span>
                                                             </div>
                                                             <div class="member-status">
-                                                                <template if:false={member.isAgain}>
-                                                                    <span class="status-badge status-new">First Clock In</span>
-                                                                </template>
-                                                                <template if:true={member.isAgain}>
-                                                                    <span class="status-badge status-again">Clock In Again</span>
-                                                                    <template if:false={member.hasRecentTimes}>
-                                                                        <template if:true={member.recentClockIn}>
-                                                                            <span class="time-info">Last: {member.recentClockIn}</span>
-                                                                        </template>
-                                                                    </template>
-                                                                </template>
+                                                                <span class="status-badge status-new">Ready to Clock In</span>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    
-                                                    <!-- Recent Completed Session -->
-                                                    <template if:true={member.hasRecentTimes}>
-                                                        <div class="recent-session">
-                                                            <div class="session-label">Previous Session</div>
-                                                            <div class="session-times">
-                                                                <span class="session-in">In: {member.recentClockIn}</span>
-                                                                <span class="session-separator">→</span>
-                                                                <span class="session-out">Out: {member.recentClockOut}</span>
-                                                            </div>
-                                                        </div>
-                                                    </template>
                                                 </div>
                                             </template>
                                         </div>
@@ -160,13 +109,7 @@
                                             <template for:each={clockOutMembers} for:item="member">
                                                 <div key={member.mobMemberId} class="member-card" data-selected={member.isSelected}>
                                                     <div class="member-card-content">
-                                                        <input 
-                                                            type="checkbox" 
-                                                            class="member-checkbox"
-                                                            data-member-id={member.mobMemberId}
-                                                            checked={member.isSelected}
-                                                            onchange={handleMemberSelection}
-                                                        />
+                                                        <input  type="checkbox"  class="member-checkbox" data-member-id={member.mobMemberId} checked={member.isSelected} onchange={handleMemberSelection}/>
                                                         <div class="member-info">
                                                             <div class="member-name">{member.contactName}</div>
                                                             <div class="member-crew">
@@ -179,23 +122,11 @@
                                                             </div>
                                                             <div class="member-status">
                                                                 <template if:true={member.formattedClockInTime}>
-                                                                    <span class="time-info">Clock In: {member.formattedClockInTime}</span>
+                                                                    <span class="time-info">Clocked In: {member.formattedClockInTime}</span>
                                                                 </template>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    
-                                                    <!-- Recent Completed Session -->
-                                                    <template if:true={member.hasRecentTimes}>
-                                                        <div class="recent-session">
-                                                            <div class="session-label">Previous Session</div>
-                                                            <div class="session-times">
-                                                                <span class="session-in">In: {member.recentClockIn}</span>
-                                                                <span class="session-separator">→</span>
-                                                                <span class="session-out">Out: {member.recentClockOut}</span>
-                                                            </div>
-                                                        </div>
-                                                    </template>
                                                 </div>
                                             </template>
                                         </div>
@@ -219,21 +150,13 @@
                                                 <div class="form-group form-group-select-all">
                                                     <label class="input-label">Select All Crew</label>
                                                     <label class="select-all-footer-label">
-                                                        <input 
-                                                            type="checkbox" 
-                                                            class="select-all-checkbox"
-                                                            checked={isAllClockInSelected}
-                                                            onchange={handleSelectAllClockIn}
-                                                        />
+                                                        <input  type="checkbox"  class="select-all-checkbox" checked={isAllClockInSelected} onchange={handleSelectAllClockIn}/>
                                                         <span class="select-all-footer-text">All ({clockInMembersCount})</span>
                                                     </label>
                                                 </div>
                                                 <div class="form-group">
                                                     <label class="input-label">Cost Code <span class="required">*</span></label>
-                                                    <select 
-                                                        class="input-field" 
-                                                        data-field="bulkCostCode" 
-                                                        onchange={handleBulkInputChange}>
+                                                    <select class="input-field" data-field="bulkCostCode" onchange={handleBulkInputChange}>
                                                         <option value="">-- Select --</option>
                                                         <template for:each={costCodeOptions} for:item="costCode">
                                                             <option key={costCode.value} value={costCode.value}>{costCode.label}</option>
@@ -264,12 +187,7 @@
                                                 <div class="form-group form-group-select-all">
                                                     <label class="input-label">Select All Crew</label>
                                                     <label class="select-all-footer-label">
-                                                        <input 
-                                                            type="checkbox" 
-                                                            class="select-all-checkbox"
-                                                            checked={isAllClockOutSelected}
-                                                            onchange={handleSelectAllClockOut}
-                                                        />
+                                                        <input  type="checkbox"  class="select-all-checkbox" checked={isAllClockOutSelected} onchange={handleSelectAllClockOut}/>
                                                         <span class="select-all-footer-text">All ({clockOutMembersCount})</span>
                                                     </label>
                                                 </div>

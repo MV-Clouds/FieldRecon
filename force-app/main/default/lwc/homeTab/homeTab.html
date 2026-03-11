@@ -45,7 +45,7 @@
                                     <template if:true={isTodayJobAvailable}>
                                         <div class="cards-list-container">
                                             <template for:each={todayJobList} for:item="job">
-                                                <div key={job.mobId} class="custom-job-card">
+                                                <div key={job.jobId} class="custom-job-card">
                                                     <div class="card-header">
                                                         <div class="header-info">
                                                             <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={job.jobId}>
@@ -54,24 +54,24 @@
                                                             </a>
                                                         </div>
                                                         <div class="header-actions">
-                                                            <button class="action-btn map-btn" data-id={job.mobId} onclick={handleOpenInMaps} title="Open in Maps">
+                                                            <button class="action-btn map-btn" data-id={job.jobId} onclick={handleOpenInMaps} title="Open in Maps">
                                                                 <lightning-icon icon-name="utility:checkin" size="x-small" class="btn-icon"></lightning-icon>
                                                             </button>
                                                             
                                                             <template if:true={job.isCrewLeader}>
-                                                                <button class="action-btn clock-in-btn" data-id={job.mobId} onclick={handleCrewClockInOut}>Crew Clock In/out</button>
+                                                                <button class="action-btn clock-in-btn" data-id={job.jobId} onclick={handleCrewClockInOut}>Crew Clock In/out</button>
                                                             </template>
 
                                                             <template if:false={job.isCrewLeader}>
                                                                 <template if:true={job.isClockedIn}>
-                                                                    <button class="action-btn clock-out-btn" data-id={job.mobId} onclick={handleClockOut}>Clock Out</button>
+                                                                    <button class="action-btn clock-out-btn" data-id={job.jobId} onclick={handleClockOut}>Clock Out</button>
                                                                 </template>
                                                                 <template if:false={job.isClockedIn}>
                                                                     <template if:true={job.isAgain}>
-                                                                        <button class="action-btn clock-in-btn" data-id={job.mobId} onclick={handleClockIn}>Clock In Again</button>
+                                                                        <button class="action-btn clock-in-btn" data-id={job.jobId} onclick={handleClockIn}>Clock In Again</button>
                                                                     </template>
                                                                     <template if:false={job.isAgain}>
-                                                                        <button class="action-btn clock-in-btn" data-id={job.mobId} onclick={handleClockIn}>Clock In</button>
+                                                                        <button class="action-btn clock-in-btn" data-id={job.jobId} onclick={handleClockIn}>Clock In</button>
                                                                     </template>
                                                                 </template>
                                                             </template>
@@ -85,7 +85,7 @@
                                                                 {job.displayDescription}
                                                             </span>
                                                             <template if:true={job.showReadMore}>
-                                                                <button class="read-more-link" data-id={job.mobId} onclick={handleToggleDescription}>
+                                                                <button class="read-more-link" data-id={job.jobId} onclick={handleToggleDescription}>
                                                                     {job.readMoreText}
                                                                 </button>
                                                             </template>
@@ -93,11 +93,11 @@
 
                                                         <div class="info-grid">
                                                             <div class="info-item">
-                                                                <span class="label">Job Start Date:</span>
+                                                                <span class="label">Start Time:</span>
                                                                 <span class="value">{job.jobStartTime}</span>
                                                             </div>
                                                             <div class="info-item">
-                                                                <span class="label">Job End Date:</span>
+                                                                <span class="label">End Time:</span>
                                                                 <span class="value">{job.jobEndTime}</span>
                                                             </div>
                                                         </div>
@@ -139,7 +139,7 @@
                                                     <template if:true={daySection.jobs.length}>
                                                         <div class="cards-list-container">
                                                             <template for:each={daySection.jobs} for:item="job">
-                                                                <div key={job.mobId} class="custom-job-card">
+                                                                <div key={job.jobId} class="custom-job-card">
                                                                     <div class="card-header">
                                                                         <div class="header-info">
                                                                             <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={job.jobId}>
@@ -148,7 +148,7 @@
                                                                             </a>
                                                                         </div>
                                                                         <div class="header-actions">
-                                                                            <button class="action-btn map-btn" data-id={job.mobId} onclick={handleOpenInMaps} title="Open in Maps">
+                                                                            <button class="action-btn map-btn" data-id={job.jobId} onclick={handleOpenInMaps} title="Open in Maps">
                                                                                 <lightning-icon icon-name="utility:checkin" size="x-small" class="btn-icon"></lightning-icon>
                                                                             </button>
                                                                         </div>
@@ -161,7 +161,7 @@
                                                                                 {job.displayDescription}
                                                                             </span>
                                                                             <template if:true={job.showReadMore}>
-                                                                                <button class="read-more-link" data-id={job.mobId} onclick={handleToggleDescription}>
+                                                                                <button class="read-more-link" data-id={job.jobId} onclick={handleToggleDescription}>
                                                                                     {job.readMoreText}
                                                                                 </button>
                                                                             </template>
@@ -169,11 +169,11 @@
 
                                                                         <div class="info-grid">
                                                                             <div class="info-item">
-                                                                                <span class="label">Job Start Date:</span>
+                                                                                <span class="label">Start Time:</span>
                                                                                 <span class="value">{job.jobStartTime}</span>
                                                                             </div>
                                                                             <div class="info-item">
-                                                                                <span class="label">Job End Date:</span>
+                                                                                <span class="label">End Time:</span>
                                                                                 <span class="value">{job.jobEndTime}</span>
                                                                             </div>
                                                                         </div>
