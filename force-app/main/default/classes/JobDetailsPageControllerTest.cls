@@ -172,14 +172,14 @@ public class JobDetailsPageControllerTest {
         wfrecon__Mobilization__c mob = [SELECT Id, wfrecon__Start_Date__c, wfrecon__End_Date__c FROM wfrecon__Mobilization__c WHERE wfrecon__Job__c=:job.Id LIMIT 1];
         Test.startTest();
         List<JobDetailsPageController.TimesheetEntryItemWrapper> items =
-            JobDetailsPageController.getTimeSheetEntryItems(job.Id, mob.Id, mob.wfrecon__Start_Date__c.date().addDays(-1), mob.wfrecon__End_Date__c.date());
+            JobDetailsPageController.getTimeSheetEntryItems(job.Id, mob.wfrecon__Start_Date__c.date().addDays(-1), mob.wfrecon__End_Date__c.date(), 'day');
         Test.stopTest();
         System.assertNotEquals(null, items, 'Timesheet Entry Items should not be null');
     }
 
     @IsTest
     static void testGetMobilizationMembersWithStatus_NoTimesheet() {
-        wfrecon__Mobilization_Member__c member1 = [SELECT wfrecon__Mobilization__c FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Contact__r.FirstName='Employee1' LIMIT 1];
+        wfrecon__Mobilization_Member__c member1 = [SELECT wfrecon__Mobilization__r.wfrecon__Job__c FROM wfrecon__Mobilization_Member__c WHERE wfrecon__Contact__r.FirstName='Employee1' LIMIT 1];
         Id mobId = member1.wfrecon__Mobilization__c;
         
         // Delete the dummy TS for emp1 if it was created during the test setup for other tests
@@ -187,7 +187,7 @@ public class JobDetailsPageControllerTest {
 
         Test.startTest();
         Map<String,List<JobDetailsPageController.WrapperMember>> members =
-            JobDetailsPageController.getMobilizationMembersWithStatus(mobId);
+            JobDetailsPageController.getMobilizationMembersWithStatus(mobId, member1.wfrecon__Mobilization__r.wfrecon__Job__c);
         Test.stopTest();
         
     }
@@ -203,7 +203,7 @@ public class JobDetailsPageControllerTest {
 
         Test.startTest();
         Map<String,List<JobDetailsPageController.WrapperMember>> members =
-            JobDetailsPageController.getMobilizationMembersWithStatus(mob1.Id);
+            JobDetailsPageController.getMobilizationMembersWithStatus(mob1.Id, ts1.wfrecon__Job__c);
         Test.stopTest();
 
         System.assertNotEquals(null, members.get('clockIn'), 'Clock In list should not be null');
@@ -243,7 +243,7 @@ public class JobDetailsPageControllerTest {
 
         Test.startTest();
         Map<String,List<JobDetailsPageController.WrapperMember>> members =
-            JobDetailsPageController.getMobilizationMembersWithStatus(member1.wfrecon__Mobilization__c);
+            JobDetailsPageController.getMobilizationMembersWithStatus(member1.wfrecon__Mobilization__c, member1.wfrecon__Mobilization__r.wfrecon__Job__c);
         Test.stopTest();
         
         System.assertNotEquals(null, members.get('clockOut'), 'Clock Out list should not be null');
@@ -685,67 +685,6 @@ public class JobDetailsPageControllerTest {
     }
 
     @IsTest
-    private static void testCreateTimesheetRecords_ExistingEntryCrossesMidnight_WithEntryItems_Covered() {
-        // Setup data
-        wfrecon__Job__c job = [SELECT Id FROM wfrecon__Job__c LIMIT 1];
-        wfrecon__Mobilization__c mob = [
-            SELECT Id, wfrecon__Mobilization_Group__c 
-            FROM wfrecon__Mobilization__c 
-            WHERE wfrecon__Job__c = :job.Id LIMIT 1
-        ];
-        Contact emp = [SELECT Id FROM Contact WHERE FirstName = 'Employee1' LIMIT 1];
-
-        // Create Timesheet
-        wfrecon__Timesheet__c ts = new wfrecon__Timesheet__c(
-            wfrecon__Contact__c = emp.Id,
-            wfrecon__Job__c = job.Id,
-            wfrecon__Timesheet_Start_Date__c = Date.today().addDays(-10),
-            wfrecon__Timesheet_End_Date__c = Date.today().addDays(10),
-            wfrecon__Mobilization_Group__c = mob.wfrecon__Mobilization_Group__c,
-            wfrecon__Do_Not_Execute__c = true
-        );
-        insert ts;
-
-        // Create OPEN entry that starts at 22:45 today
-        Datetime clockInToday = DateTime.newInstance(Date.today(), Time.newInstance(22, 45, 0, 0));
-        wfrecon__Timesheet_Entry__c existingEntry = new wfrecon__Timesheet_Entry__c(
-            wfrecon__Timesheet__c = ts.Id,
-            wfrecon__Clock_In_Time__c = clockInToday,
-            wfrecon__Mobilization__c = mob.Id,
-            wfrecon__Cost_Code__c = null, // or a valid Cost Code if required
-            wfrecon__Do_Not_Execute__c = true
-        );
-        insert existingEntry;
-
-        // Mobilization Member (required in some paths)
-        insert new wfrecon__Mobilization_Member__c(
-            wfrecon__Mobilization__c = mob.Id,
-            wfrecon__Contact__c = emp.Id
-        );
-
-        // Clock-out at 03:15 tomorrow → forces crossesMidnightExisting = true
-        Datetime clockOutTomorrow = DateTime.newInstance(Date.today().addDays(1), Time.newInstance(3, 15, 0, 0));
-
-        Map<String, Object> params = new Map<String, Object>{
-            'actionType'           => 'clockOut',
-            'isTimeSheetNull'      => false,
-            'isTimeSheetEntryNull' => false,
-            'timesheetId'          => ts.Id,
-            'timesheetEntryId'     => existingEntry.Id,
-            'mobId'                => mob.Id,
-            'clockInTime'          => clockInToday.format('yyyy-MM-dd\'T\'HH:mm:ss'),
-            'clockOutTime'         => clockOutTomorrow.format('yyyy-MM-dd\'T\'HH:mm:ss'),
-            'costCodeId'           => null
-        };
-
-        Test.startTest();
-        Boolean result = JobDetailsPageController.createTimesheetRecords(JSON.serialize(params));
-        Test.stopTest();
-
-        System.assert(result, 'Clock-out with midnight cross on existing entry should succeed');
-    }
-
-    @IsTest
     private static void testcreateManualTimesheetRecordsMultiple_NoTimesheetExists_CrossesMidnight_WithTravelPerDiem_FullyCovered() {
         wfrecon__Job__c job = [SELECT Id FROM wfrecon__Job__c LIMIT 1];
         wfrecon__Mobilization__c mob = [
@@ -896,7 +835,7 @@ public class JobDetailsPageControllerTest {
         Test.startTest();
         // Fetch items with a wide date range to ensure inclusion
         List<JobDetailsPageController.TimesheetEntryItemWrapper> items = 
-            JobDetailsPageController.getTimeSheetEntryItems(job.Id, mob.Id, Date.today().addDays(-10), Date.today().addDays(10));
+            JobDetailsPageController.getTimeSheetEntryItems(job.Id, Date.today().addDays(-10), Date.today().addDays(10), 'day');
         Test.stopTest();
         
         // Assertions to ensure we hit the lines

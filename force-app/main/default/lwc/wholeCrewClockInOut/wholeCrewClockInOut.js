@@ -39,7 +39,7 @@ export default class WholeCrewClockInOut extends LightningElement {
     }
 
     get showMobilizationSelector() {
-        return this.hasMobilizations && this.mobilizationOptions.length > 1;
+        return !this.isHomePage && this.hasMobilizations && this.mobilizationOptions.length > 1;
     }
 
     get hasClockInMembers() {
@@ -309,32 +309,16 @@ export default class WholeCrewClockInOut extends LightningElement {
             
             if (result.hasMembers) {
                 this.hasData = true;
-                this.clockInMembers = (result.clockInMembers || []).map(member => {
-                    // Only show recent times if both clock in and clock out exist (completed session)
-                    const hasRecentTimes = member.isAgain && member.recentClockIn && member.recentClockOut;
-                    return {
-                        ...member,
-                        isSelected: false,
-                        hasRecentTimes: hasRecentTimes,
-                        recentClockIn: member.recentClockIn ? this.formatToAMPM(member.recentClockIn) : null,
-                        recentClockOut: member.recentClockOut ? this.formatToAMPM(member.recentClockOut) : null
-                    };
-                });
+                this.clockInMembers = (result.clockInMembers || []).map(member => ({
+                    ...member,
+                    isSelected: false
+                }));
                 
-                // Format clockInTime for display in clockOutMembers with AM/PM
-                this.clockOutMembers = (result.clockOutMembers || []).map(member => {
-                    // Only show recent times if both clock in and clock out exist (completed session)
-                    const hasRecentTimes = member.recentClockIn && member.recentClockOut;
-                    return {
-                        ...member,
-                        formattedClockInTime: member.clockInTime ? this.formatToAMPM(member.clockInTime) : '',
-                        isSelected: false,
-                        isFirstTime: !member.isAgain,
-                        hasRecentTimes: hasRecentTimes,
-                        recentClockIn: member.recentClockIn ? this.formatToAMPM(member.recentClockIn) : null,
-                        recentClockOut: member.recentClockOut ? this.formatToAMPM(member.recentClockOut) : null
-                    };
-                });
+                this.clockOutMembers = (result.clockOutMembers || []).map(member => ({
+                    ...member,
+                    formattedClockInTime: member.clockInTime ? this.formatToAMPM(member.clockInTime) : '',
+                    isSelected: false
+                }));
                 
                 this.costCodes = result.costCodes || [];
                 this.errorMessage = '';
@@ -557,7 +541,6 @@ export default class WholeCrewClockInOut extends LightningElement {
             const clockInMembers = selectedMembers.map(member => ({
                 actionType: 'clockIn',
                 jobId: this.recordId,
-                mobId: this.selectedMobilizationId,
                 contactId: member.contactId,
                 costCodeId: this.selectedBulkCostCodeId,
                 clockInTime: this.currentDateTimeForApex,
@@ -619,7 +602,6 @@ export default class WholeCrewClockInOut extends LightningElement {
             const members = selectedMembers.map(member => ({
                 actionType: 'clockOut',
                 jobId: this.recordId,
-                mobId: this.selectedMobilizationId,
                 contactId: member.contactId,
                 clockInTime: member.clockInTime || null,
                 clockOutTime: this.currentDateTimeForApex,

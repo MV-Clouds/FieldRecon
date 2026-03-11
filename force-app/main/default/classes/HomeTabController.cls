@@ -172,6 +172,23 @@ public with sharing class HomeTabController {
                     }
                 }
 
+                // Check for open entries across the entire mob group period (not limited to today)
+                // If a user clocked in on a previous day but never clocked out, they should see Clock Out
+                List<wfrecon__Timesheet_Entry__c> openEntriesAllTime = [
+                    SELECT Id, wfrecon__Clock_In_Time__c, wfrecon__Clock_Out_Time__c, wfrecon__Timesheet__r.wfrecon__Job__c
+                    FROM wfrecon__Timesheet_Entry__c
+                    WHERE wfrecon__Timesheet__c IN :tsList
+                      AND wfrecon__Clock_In_Time__c != null
+                      AND wfrecon__Clock_Out_Time__c = null
+                    WITH USER_MODE
+                    ORDER BY CreatedDate DESC
+                ];
+                for (wfrecon__Timesheet_Entry__c e : openEntriesAllTime) {
+                    if (!openEntryMap.containsKey(e.wfrecon__Timesheet__r.wfrecon__Job__c)) {
+                        openEntryMap.put(e.wfrecon__Timesheet__r.wfrecon__Job__c, e);
+                    }
+                }
+
                 List<WrapperMember> dayJobs = new List<WrapperMember>(); 
                 for(wfrecon__Mobilization_Member__c m : mobMembers) { 
                     wrap = new WrapperMember(); 

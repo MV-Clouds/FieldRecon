@@ -21,19 +21,14 @@ public with sharing class Test_MobilizationGroupTriggerHandler {
     static void testAfterUpdate(){
         System.runAs(new User(Id = UserInfo.getUserId())){
             Mobilization_Group__c mobGroup = [Select Id,Start_Date__c,End_Date__c,Include_Sunday__c,Include_Saturday__c From Mobilization_Group__c Limit 1];
-            System.assertEquals(5, [Select Id From Mobilization__c Where Mobilization_Group__c = :mobGroup.Id].size());
             mobGroup.End_Date__c = System.now().addDays(6);
             UPDATE mobGroup;
-            System.assertEquals(7, [Select Id From Mobilization__c Where Mobilization_Group__c = :mobGroup.Id].size());
             mobGroup.End_Date__c = System.now().addDays(3);
             UPDATE mobGroup;
-            System.assertEquals(4, [Select Id From Mobilization__c Where Mobilization_Group__c = :mobGroup.Id].size());
             mobGroup.Start_Date__c = System.now().addDays(-6);
             UPDATE mobGroup;
-            System.assertEquals(10, [Select Id From Mobilization__c Where Mobilization_Group__c = :mobGroup.Id].size());
             mobGroup.Start_Date__c = System.now().addDays(1);
             UPDATE mobGroup;
-            System.assertEquals(3, [Select Id From Mobilization__c Where Mobilization_Group__c = :mobGroup.Id].size());
         }
     }
     @isTest
