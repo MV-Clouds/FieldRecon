@@ -128,17 +128,26 @@
                                             </template>
 
                                             <template if:false={val.isActions}>
-                                                <template if:true={val.recordLink}>
-                                                    <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={job.jobId}>
+                                                <template if:true={val.isMultiLine}>
+                                                    <div class="cell-content multi-line-cell">
+                                                        <template for:each={val.multiLineValues} for:item="line">
+                                                            <div key={line.key}>{line.value}</div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template if:false={val.isMultiLine}>
+                                                    <template if:true={val.recordLink}>
+                                                        <a class="record-link" href="javascript:void(0);" onclick={handleLinkClick} data-link={job.jobId}>
+                                                            <div class="cell-content" title={val.value}>
+                                                                {val.value}
+                                                            </div>
+                                                        </a>
+                                                    </template>
+                                                    <template if:false={val.recordLink}>
                                                         <div class="cell-content" title={val.value}>
                                                             {val.value}
                                                         </div>
-                                                    </a>
-                                                </template>
-                                                <template if:false={val.recordLink}>
-                                                    <div class="cell-content" title={val.value}>
-                                                        {val.value}
-                                                    </div>
+                                                    </template>
                                                 </template>
                                             </template>
                                         </div>

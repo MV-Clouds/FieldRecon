@@ -1023,6 +1023,23 @@ lightning-combobox {
     display: block;
 }
 
+.multi-line-cell {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+}
+
+.multi-line-cell > div {
+    white-space: nowrap;
+    padding: 2px 0;
+}
+
+.cell-wrapper:has(.multi-line-cell) {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+}
+
 /* Nested Table Styles */
 .nested-row {
     background-color: transparent !important;

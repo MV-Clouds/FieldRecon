@@ -209,6 +209,9 @@ public with sharing class JobDetailsPageController {
                 w.jobDescription = m.wfrecon__Job__r.wfrecon__Description__c != null ? m.wfrecon__Job__r.wfrecon__Description__c : '--';
                 w.startDate = m.wfrecon__Start_Date__c.addSeconds(userTz.getOffset(m.wfrecon__Start_Date__c)/1000);
                 w.endDate = m.wfrecon__End_Date__c.addSeconds(userTz.getOffset(m.wfrecon__End_Date__c)/1000);
+                // w.startDate = m.wfrecon__Start_Date__c;
+                // w.endDate = m.wfrecon__End_Date__c;
+                // w.status = m.wfrecon__Job__r.wfrecon__Status__c != null ? m.wfrecon__Job__r.wfrecon__Status__c : '--';
 
                 // Lookup hours by Job Id
                 w.totalManHours = jobManHoursMap.containsKey(m.wfrecon__Job__c) ? jobManHoursMap.get(m.wfrecon__Job__c) : 0.00;
