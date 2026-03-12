@@ -65,7 +65,7 @@ public with sharing class BillingAndPaymentTabController {
             // Step 2: Fetch billings if approved scope entries exist
             List<Billing__c> billings = [
                 SELECT Id, Name, Status__c, Job__r.Job_Name__c, Job__r.Retainage__c, Previous_Bill__c, Previous_Bill__r.Name, Retainage_Completed_to_Date__c,
-                       Start_Date__c, End_Date__c, Sent_Date__c, Billing_Reference_Number__c, Bill_Type__c, Current_Payment_Due_FM__c
+                       Start_Date__c, End_Date__c, Sent_Date__c, Billing_Reference_Number__c, Bill_Type__c, wfrecon__Current_Billed_Amount__c, CreatedDate
                 FROM Billing__c
                 WHERE Job__c = :jobId
                 WITH USER_MODE
@@ -389,7 +389,7 @@ public with sharing class BillingAndPaymentTabController {
             insert p;
 
             List<Billing_Line_Item__c> bli = [
-                SELECT Id, Scope_Entry__c 
+                SELECT Id, Scope_Entry__c, wfrecon__Bill_Item_Type__c, wfrecon__This_Billing_Value__c, wfrecon__Total_Retainage_Amount__c
                 FROM Billing_Line_Item__c 
                 WHERE Billing__c = :billId
                 WITH USER_MODE
@@ -401,6 +401,11 @@ public with sharing class BillingAndPaymentTabController {
                 pli.Payment__c = p.Id;
                 pli.Billing_Line_Item__c = bliItem.Id;
                 pli.Scope_Entry__c = bliItem.Scope_Entry__c;
+                if(bliItem.wfrecon__Bill_Item_Type__c != 'Regular') {
+                    pli.wfrecon__Amount_Received__c = bliItem.wfrecon__Total_Retainage_Amount__c;
+                } else {
+                    pli.wfrecon__Amount_Received__c = bliItem.wfrecon__This_Billing_Value__c;
+                }
                 pliToInsert.add(pli);
             }
 

@@ -43,7 +43,7 @@
                         <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                             stroke-linejoin="round" />
                     </svg>
-                    Add Proposal Line
+                    Add Proposal Lines
                 </button>
             </div>
         </div>
@@ -4732,7 +4732,6 @@
                                 <thead>
                                     <tr>
                                         <th class="table-header-cell modal-col-sr-no">Sr No.</th>
-                                        <th class="table-header-cell required-col modal-col-pricebook">Pricebook</th>
                                         <th class="table-header-cell required-col modal-col-product">Product</th>
                                         <th class="table-header-cell modal-col-description">Description</th>
                                         <th class="table-header-cell required-col modal-col-quantity">Quantity</th>
@@ -4747,19 +4746,10 @@
                                             <td>{line.lineNumber}</td>
                                             <td>
                                                 <select class="table-select-input wide-select" data-id={line.tempId}
-                                                    onchange={handleRowPricebookChange}>
-                                                    <option value="">Select Pricebook</option>
-                                                    <template for:each={pricebookOptions} for:item="pb">
-                                                        <option key={pb.value} value={pb.value}>{pb.label}</option>
-                                                    </template>
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <select class="table-select-input wide-select" data-id={line.tempId}
                                                     onchange={handleProductChange}>
                                                     <option value="">Select Product</option>
-                                                    <template for:each={line.productOptions} for:item="prod">
-                                                        <option key={prod.value} value={prod.value}>{prod.label}
+                                                    <template for:each={productOptions} for:item="prod">
+                                                        <option key={prod.value} value={prod.value} selected={prod.selected}>{prod.label}
                                                         </option>
                                                     </template>
                                                 </select>

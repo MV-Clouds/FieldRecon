@@ -1,6 +1,6 @@
-<messaging:emailTemplate subject="Applied Flooring Proposal: {!relatedTo.Name}" recipientType="Contact"
+<messaging:emailTemplate subject="Applied Flooring Proposal: {!relatedTo.wfrecon__Bid__r.Name}" recipientType="Contact"
     relatedToType="wfrecon__Proposal__c">
-    <messaging:htmlEmailBody>
+    <messaging:htmlEmailBody >
         <div
             style="font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.5; background-color: #ffffff; width: 100%;">
 
@@ -75,7 +75,7 @@
                                     </td>
                                     <td style="border: 1px solid #ffffff;">
                                         <apex:outputText value="{0,date,MM/dd/yyyy}">
-                                            <apex:param value="{!relatedTo.wfrecon__Expiration_Date__c}" />
+                                            <apex:param value="{!relatedTo.Expiration_Date__c}" />
                                         </apex:outputText>
                                     </td>
                                 </tr>
@@ -138,7 +138,7 @@
                     style="text-align: center; color: #8b2331; font-size: 14px; font-weight: bold; text-decoration: underline; margin-bottom: 10px;">
                     WARRANTY</div>
                 <div style="font-size: 11px; margin-bottom: 25px; color: #333; line-height: 1.4;">
-                    <apex:outputField value="{!relatedTo.wfrecon__Proposal_Warranty__c}" />
+                    <apex:outputField value="{!relatedTo.Proposal_Warranty__c}" />
                 </div>
 
                 <div
@@ -162,14 +162,14 @@
                     style="text-align: center; color: #8b2331; font-size: 14px; font-weight: bold; text-decoration: underline; margin-bottom: 10px;">
                     SPECIAL NOTES</div>
                 <div style="font-size: 11px; margin-bottom: 25px; color: #333; line-height: 1.4;">
-                    <apex:outputField value="{!relatedTo.wfrecon__Limitations__c}" />
+                    <apex:outputField value="{!relatedTo.Limitations__c}" />
                 </div>
 
                 <div
                     style="color: #8b2331; font-size: 16px; font-weight: bold; margin-top: 40px; border-bottom: 1px solid #8b2331; padding-bottom: 5px;">
                     AGREEMENT</div>
                 <div style="font-size: 11px; margin-top: 15px; margin-bottom: 30px; line-height: 1.4;">
-                    <apex:outputField value="{!relatedTo.wfrecon__Aggrement__c}" />
+                    <apex:outputField value="{!relatedTo.Aggrement__c}" />
                 </div>
 
                 <div

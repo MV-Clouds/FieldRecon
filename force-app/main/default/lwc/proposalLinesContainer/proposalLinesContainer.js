@@ -2,8 +2,7 @@ import { LightningElement, api, track } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getProposalLinesWithBudgets from '@salesforce/apex/ProposalLinesContainerController.getProposalLinesWithBudgets';
-import getPricebooks from '@salesforce/apex/ProposalLinesContainerController.getPricebooks';
-import getProductsByPricebook from '@salesforce/apex/ProposalLinesContainerController.getProductsByPricebook';
+import getActiveProducts from '@salesforce/apex/ProposalLinesContainerController.getActiveProducts';
 import saveProposalLines from '@salesforce/apex/ProposalLinesContainerController.saveProposalLines';
 import deleteProposalLine from '@salesforce/apex/ProposalLinesContainerController.deleteProposalLine';
 import deleteBudgetLine from '@salesforce/apex/ProposalLinesContainerController.deleteBudgetLine';
@@ -18,7 +17,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     @track isModalLoading = false;
     @track isSaving = false;
     @track proposalDefaults = { oh: 0, warranty: 0, profit: 0 };
-    @track pricebookOptions = [];
+    @track productOptions = [];
     @track newProposalLines = [];
     @track editingBudgetLines = new Map();
     @track hasModificationsBySection = new Map();
@@ -472,92 +471,22 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     // Handle Add Proposal Line button click
     handleAddProposalLine() {
         this.showAddModal = true;
-        this.loadPricebooks();
+        this.loadProducts();
         this.initializeNewProposalLines();
     }
 
-    // Load pricebooks
-    loadPricebooks() {
+    // Load all active products
+    loadProducts() {
         this.isModalLoading = true;
-        getPricebooks()
+        getActiveProducts()
             .then(result => {
                 if (result.success && result.data) {
-                    this.pricebookOptions = result.data.map(pb => ({
-                        label: pb.Name,
-                        value: pb.Id
+                    this.productOptions = result.data.map(product => ({
+                        label: product.Name,
+                        value: product.Id,
+                        description: product.Description || '',
+                        selected: false
                     }));
-                }
-                this.isModalLoading = false;
-            })
-            .catch(error => {
-                console.error('Error loading pricebooks:', error);
-                this.showToast('Error', 'Unable to load pricebooks', 'error');
-                this.isModalLoading = false;
-            });
-    }
-
-    // Initialize new proposal lines
-    initializeNewProposalLines() {
-        this.newProposalLines = [{
-            tempId: `temp-0`,
-            lineNumber: 1,
-            pricebookId: '',
-            productId: '',
-            quantity: 1,
-            oh: this.proposalDefaults.oh,
-            warranty: this.proposalDefaults.warranty,
-            profit: this.proposalDefaults.profit,
-            description: '',
-            type: 'Base Contract',
-            typeOptionsWithSelection: this.getTypeOptionsForLine('Base Contract'),
-            productOptions: [],
-            canDelete: false
-        }];
-    }
-
-    // Handle row pricebook change
-    handleRowPricebookChange(event) {
-        const tempId = event.currentTarget.dataset.id;
-        const pricebookId = event.target.value;
-
-        if (pricebookId) {
-            this.loadProductsForRow(tempId, pricebookId);
-        }
-
-        this.newProposalLines = this.newProposalLines.map(line => {
-            if (line.tempId === tempId) {
-                return {
-                    ...line,
-                    pricebookId: pricebookId,
-                    productId: '',
-                    productOptions: []
-                };
-            }
-            return line;
-        });
-    }
-
-    // Load products for a specific row
-    loadProductsForRow(tempId, pricebookId) {
-        this.isModalLoading = true;
-        getProductsByPricebook({ pricebookId: pricebookId })
-            .then(result => {
-                if (result.success && result.data) {
-                    const productOptions = result.data.map(entry => ({
-                        label: entry.Product2.Name,
-                        value: entry.Product2Id,
-                        description: entry.Product2.Description || ''
-                    }));
-
-                    this.newProposalLines = this.newProposalLines.map(line => {
-                        if (line.tempId === tempId) {
-                            return {
-                                ...line,
-                                productOptions: productOptions
-                            };
-                        }
-                        return line;
-                    });
                 }
                 this.isModalLoading = false;
             })
@@ -568,6 +497,23 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             });
     }
 
+    // Initialize new proposal lines
+    initializeNewProposalLines() {
+        this.newProposalLines = [{
+            tempId: `temp-0`,
+            lineNumber: 1,
+            productId: '',
+            quantity: 1,
+            oh: this.proposalDefaults.oh,
+            warranty: this.proposalDefaults.warranty,
+            profit: this.proposalDefaults.profit,
+            description: '',
+            type: 'Base Contract',
+            typeOptionsWithSelection: this.getTypeOptionsForLine('Base Contract'),
+            canDelete: false
+        }];
+    }
+
     // Handle product change
     handleProductChange(event) {
         const tempId = event.currentTarget.dataset.id;
@@ -576,7 +522,7 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         this.newProposalLines = this.newProposalLines.map(line => {
             if (line.tempId === tempId) {
                 // Find the product name and description from productOptions
-                const selectedProduct = line.productOptions.find(opt => opt.value === productId);
+                const selectedProduct = this.productOptions.find(opt => opt.value === productId);
                 const productName = selectedProduct ? selectedProduct.label : '';
                 const productDescription = selectedProduct ? selectedProduct.description : '';
 
@@ -627,7 +573,6 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
         const newLine = {
             tempId: `temp-${this.newProposalLines.length}`,
             lineNumber: this.newProposalLines.length + 1,
-            pricebookId: '',
             productId: '',
             quantity: 1,
             oh: this.proposalDefaults.oh,
@@ -636,7 +581,6 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
             description: '',
             type: 'Base Contract',
             typeOptionsWithSelection: this.getTypeOptionsForLine('Base Contract'),
-            productOptions: [],
             canDelete: true
         };
 
@@ -668,11 +612,11 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
     handleSaveProposalLines() {
         // Validate required fields
         const hasInvalidLines = this.newProposalLines.some(line =>
-            !line.pricebookId || !line.productId || !line.quantity || line.quantity <= 0
+            !line.productId || !line.quantity || line.quantity <= 0
         );
 
         if (hasInvalidLines) {
-            this.showToast('Validation Error', 'Please fill all required fields (Pricebook, Product, Quantity)', 'warning');
+            this.showToast('Validation Error', 'Please fill all required fields (Product, Quantity)', 'warning');
             return;
         }
 
@@ -715,7 +659,6 @@ export default class ProposalLinesContainer extends NavigationMixin(LightningEle
 
             return {
                 productId: line.productId,
-                pricebookId: line.pricebookId,
                 quantity: line.quantity,
                 oh: line.oh,
                 warranty: line.warranty,

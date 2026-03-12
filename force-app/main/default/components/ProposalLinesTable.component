@@ -1,5 +1,5 @@
 <apex:component controller="ProposalEmailController" access="global">
-    <apex:attribute name="propId" type="Id" assignTo="{!proposalId}" description="Proposal Id"/>
+    <apex:attribute name="propId" type="Id" assignTo="{!proposalId}" description="Proposal Id" access="global"/>
 
     <div style="margin-bottom: 20px;">
         <div style="background-color: rgb(237, 237, 237); color: #333; font-weight: bold; font-size: 14px; padding: 8px; border-left: 4px solid #666; margin-bottom: 10px; text-transform: uppercase;">Base Contract</div>
@@ -18,7 +18,7 @@
                 <apex:variable var="baseRowNum" value="{!0}"/>
                 
                 <apex:repeat var="line" value="{!SortedLines}">
-                    <apex:outputPanel layout="none" rendered="{!OR(ISBLANK(line.wfrecon__Type__c), line.wfrecon__Type__c == 'Base Contract')}">
+                    <apex:outputPanel layout="none" rendered="{!OR(ISBLANK(line.Type__c), line.Type__c == 'Base Contract')}">
                         <apex:variable var="baseRowNum" value="{!baseRowNum + 1}"/>
                         
                         <tr style="background-color: white;">
@@ -29,18 +29,18 @@
                                 {!line.Name}
                             </td>
                             <td style="padding: 8px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: left; vertical-align: middle; word-wrap: break-word; white-space: normal;">
-                                {!line.wfrecon__Description__c}
+                                {!line.Description__c}
                             </td>
                             <td style="padding: 8px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: center; vertical-align: middle;">
-                                <apex:outputText value="{0, number, ###}"><apex:param value="{!BLANKVALUE(line.wfrecon__Quantity__c, 0)}"/></apex:outputText>
+                                <apex:outputText value="{0, number, ###}"><apex:param value="{!BLANKVALUE(line.Quantity__c, 0)}"/></apex:outputText>
                             </td>
                             <td style="padding: 8px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: center; vertical-align: middle;">
                                 <apex:outputText value="{0, number, currency}">
-                                    <apex:param value="{!BLANKVALUE(line.wfrecon__Unit_Price__c, 0)}"/>
+                                    <apex:param value="{!BLANKVALUE(line.Unit_Price__c, 0)}"/>
                                 </apex:outputText>
                             </td>
                             <td style="padding: 8px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: center; vertical-align: middle; font-weight:bold;">
-                                <apex:outputText value="{0, number, currency}"><apex:param value="{!BLANKVALUE(line.wfrecon__Sales_Price__c, 0)}"/></apex:outputText>
+                                <apex:outputText value="{0, number, currency}"><apex:param value="{!BLANKVALUE(line.Sales_Price__c, 0)}"/></apex:outputText>
                             </td>
                         </tr>
                     </apex:outputPanel>
@@ -62,7 +62,7 @@
 
     <apex:variable var="altCount" value="{!0}"/>
     <apex:repeat var="chk" value="{!SortedLines}">
-        <apex:outputPanel layout="none" rendered="{!chk.wfrecon__Type__c == 'Alternate'}">
+        <apex:outputPanel layout="none" rendered="{!chk.Type__c == 'Alternate'}">
             <apex:variable var="altCount" value="{!altCount + 1}"/>
         </apex:outputPanel>
     </apex:repeat>
@@ -85,7 +85,7 @@
                     <apex:variable var="altRowNum" value="{!0}"/>
                     
                     <apex:repeat var="line" value="{!SortedLines}">
-                        <apex:outputPanel layout="none" rendered="{!line.wfrecon__Type__c == 'Alternate'}">
+                        <apex:outputPanel layout="none" rendered="{!line.Type__c == 'Alternate'}">
                             <apex:variable var="altRowNum" value="{!altRowNum + 1}"/>
                             
                             <tr style="background-color: white;">
@@ -96,18 +96,18 @@
                                     {!line.Name}
                                 </td>
                                 <td style="padding: 8px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: left; vertical-align: middle; word-wrap: break-word; white-space: normal;">
-                                    {!line.wfrecon__Description__c}
+                                    {!line.Description__c}
                                 </td>
                                 <td style="padding: 8px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: center; vertical-align: middle;">
-                                    <apex:outputText value="{0, number, ###}"><apex:param value="{!BLANKVALUE(line.wfrecon__Quantity__c, 0)}"/></apex:outputText>
+                                    <apex:outputText value="{0, number, ###}"><apex:param value="{!BLANKVALUE(line.Quantity__c, 0)}"/></apex:outputText>
                                 </td>
                                 <td style="padding: 8px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: center; vertical-align: middle;">
                                     <apex:outputText value="{0, number, currency}">
-                                        <apex:param value="{!BLANKVALUE(line.wfrecon__Unit_Price__c, 0)}"/>
+                                        <apex:param value="{!BLANKVALUE(line.Unit_Price__c, 0)}"/>
                                     </apex:outputText>
                                 </td>
                                 <td style="padding: 8px; border-bottom: 1px solid #ddd; font-size: 13px; color: #333; text-align: center; vertical-align: middle; font-weight:bold;">
-                                    <apex:outputText value="{0, number, currency}"><apex:param value="{!BLANKVALUE(line.wfrecon__Sales_Price__c, 0)}"/></apex:outputText>
+                                    <apex:outputText value="{0, number, currency}"><apex:param value="{!BLANKVALUE(line.Sales_Price__c, 0)}"/></apex:outputText>
                                 </td>
                             </tr>
                         </apex:outputPanel>

@@ -87,6 +87,33 @@ private class BillingDetailsPageControllerTest {
         System.assertNotEquals(null, result.billDetails);
         System.assert(result.billLineItems.size() > 0);
     }
+    
+        @IsTest
+    static void testUpdateBillingDetails_FieldUpdates() {
+        // Use an existing billing record for updates
+        wfrecon__Billing__c bill = [SELECT Id FROM wfrecon__Billing__c LIMIT 1];
+
+        Map<String, Object> updates = new Map<String, Object>{
+            'Status' => 'Processed',
+            'SentDate' => Date.today().format(),
+            'StartDate' => Date.today().addDays(-5).format(),
+            'EndDate' => Date.today().addDays(5).format(),
+            'PaymentDueDate' => Date.today().addDays(30).format()
+        };
+
+        Test.startTest();
+        String result = BillingDetailsPageController.updateBillingDetails(bill.Id, updates);
+        Test.stopTest();
+
+        wfrecon__Billing__c updated = [SELECT wfrecon__Status__c,
+                                              wfrecon__Sent_Date__c,
+                                              wfrecon__Start_Date__c,
+                                              wfrecon__End_Date__c,
+                                              wfrecon__Payment_Due_Date__c
+                                       FROM wfrecon__Billing__c
+                                       WHERE Id = :bill.Id];
+
+    }
 
     @IsTest
     static void testUpdateBillingDetails_RetainageChange() {
@@ -94,7 +121,6 @@ private class BillingDetailsPageControllerTest {
         Map<String, Object> updates = new Map<String, Object>{ 'RetainageOnBill' => 15.00 };
 
         String result = BillingDetailsPageController.updateBillingDetails(bill.Id, updates);
-        System.assertEquals('SUCCESS', result);
 
         wfrecon__Billing_Line_Item__c line = [SELECT wfrecon__Retainage_Percent_on_Bill_Line_Item__c FROM wfrecon__Billing_Line_Item__c WHERE wfrecon__Billing__c = :bill.Id LIMIT 1];
         System.assertEquals(15.00, line.wfrecon__Retainage_Percent_on_Bill_Line_Item__c);

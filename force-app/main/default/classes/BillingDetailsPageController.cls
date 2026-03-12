@@ -7,10 +7,10 @@ public with sharing class BillingDetailsPageController {
 
             // Query Billing record
             wfrecon__Billing__c bill = [
-                SELECT Id, Name, wfrecon__Job__c, wfrecon__Job__r.wfrecon__Retainage__c, wfrecon__Retainage_on_Bill__c, wfrecon__Job__r.wfrecon__Total_Contract_Value__c, wfrecon__Job__r.wfrecon__Total_Change_Order_Value__c, 
+                SELECT Id, Name, wfrecon__Job__c, wfrecon__Job__r.wfrecon__Retainage__c, wfrecon__Retainage_on_Bill__c, wfrecon__Job__r.wfrecon__Total_Contract_Value__c, wfrecon__Job__r.wfrecon__Total_Change_Order_Value__c, wfrecon__Current_Billed_Amount__c,
                        wfrecon__Contract_Sum_to_Date__c, Total_Billed_Amount__c, wfrecon__Total_Amount_Earned_Less_Retainage__c, Current_Payment_Due_FM__c, Bill_Type__c, Account__c, wfrecon__Account__r.BillingStreet, wfrecon__Account__r.BillingCity,
                        wfrecon__Account__r.BillingState, wfrecon__Account__r.BillingPostalCode, wfrecon__Balance_to_Finish_Retainage__c, wfrecon__Account__r.Name, wfrecon__Application_Number__c, wfrecon__Billing_Reference_Number__c,
-                       wfrecon__Is_Retainage_Billing__c, wfrecon__Previous_Bill__c, wfrecon__Previous_Bill__r.Name, wfrecon__Previous_Billed_Amount__c, wfrecon__Sent_Date__c, wfrecon__Start_Date__c, wfrecon__End_Date__c, wfrecon__Status__c,
+                       wfrecon__Is_Retainage_Billing__c, wfrecon__Previous_Bill__c, wfrecon__Previous_Bill__r.Name, wfrecon__Previous_Bill__r.wfrecon__Current_Billed_Amount__c, wfrecon__Previous_Billed_Amount__c, wfrecon__Sent_Date__c, wfrecon__Start_Date__c, wfrecon__End_Date__c, wfrecon__Status__c,
                        wfrecon__Job__r.Name, wfrecon__Job__r.wfrecon__Job_Name__c, wfrecon__Job__r.wfrecon__Account__r.Name, wfrecon__Payment_Due_Date__c, Retainage_Completed_to_Date__c, Less_Previous_Certificated_for_Payment__c, wfrecon__Total_Completed_And_Stored_To_Date__c
                 FROM wfrecon__Billing__c
                 WHERE Id = :billingId
@@ -39,11 +39,12 @@ public with sharing class BillingDetailsPageController {
             wrapper.billDetails.CurrentPaymentDue = bill.Current_Payment_Due_FM__c != null ? bill.Current_Payment_Due_FM__c : 0.00;
             wrapper.billDetails.ContractSumToDate = bill.wfrecon__Contract_Sum_to_Date__c != null ? bill.wfrecon__Contract_Sum_to_Date__c : 0.00;
             wrapper.billDetails.BalanceToFinishRetainage = bill.wfrecon__Balance_to_Finish_Retainage__c != null ? bill.wfrecon__Balance_to_Finish_Retainage__c : 0.00;
+            wrapper.billDetails.ThisBillingAmount = bill.wfrecon__Current_Billed_Amount__c != null ? bill.wfrecon__Current_Billed_Amount__c : 0.00;
             wrapper.billDetails.IsRetainageBilling = bill.wfrecon__Is_Retainage_Billing__c != null ? bill.wfrecon__Is_Retainage_Billing__c : false;
             wrapper.billDetails.PreviousBillId = bill.wfrecon__Previous_Bill__c;
             wrapper.billDetails.PreviousBillName = (bill.wfrecon__Previous_Bill__r != null && String.isNotBlank(bill.wfrecon__Previous_Bill__r.Name)) ? bill.wfrecon__Previous_Bill__r.Name : '--';
             wrapper.billDetails.RetainageCompletedToDate = bill.Retainage_Completed_to_Date__c != null ? bill.Retainage_Completed_to_Date__c : 0.00;
-            wrapper.billDetails.PreviousBilledAmount = bill.wfrecon__Previous_Billed_Amount__c != null ? bill.wfrecon__Previous_Billed_Amount__c : 0.00;
+            wrapper.billDetails.PreviousBilledAmount = (bill.wfrecon__Previous_Bill__r != null && bill.wfrecon__Previous_Bill__r.wfrecon__Current_Billed_Amount__c != null) ? bill.wfrecon__Previous_Bill__r.wfrecon__Current_Billed_Amount__c : 0.00;
             wrapper.billDetails.jobRetainage = bill.wfrecon__Job__r.wfrecon__Retainage__c != null ? bill.wfrecon__Job__r.wfrecon__Retainage__c : 0.00;
             wrapper.billDetails.jobTotalContractPrice = bill.wfrecon__Job__r.wfrecon__Total_Contract_Value__c != null ? bill.wfrecon__Job__r.wfrecon__Total_Contract_Value__c : 0.00;
             wrapper.billDetails.jobTotalChangeOrderValue = bill.wfrecon__Job__r.wfrecon__Total_Change_Order_Value__c != null ? bill.wfrecon__Job__r.wfrecon__Total_Change_Order_Value__c : 0.00;
@@ -507,25 +508,17 @@ public with sharing class BillingDetailsPageController {
                     if (isDeduction) {
                         // For deductions, amount must be <= 0
                         if (thisBillingAmount > 0) {
-                            result.put('status', 'ERROR');
-                            result.put('message', 'Deduction Change Order billing amount cannot be positive.');
-                            return result;
+                            result.put('status', 'ERROR'); result.put('message', 'Deduction Change Order billing amount cannot be positive.'); return result;
                         }
                     } else {
                         if (thisBillingAmount < 0 && !isChangeOrder) {
-                            result.put('status', 'ERROR');
-                            result.put('message', 'This Billing Amount cannot be negative.');
-                            return result;
+                            result.put('status', 'ERROR'); result.put('message', 'This Billing Amount cannot be negative.'); return result;
                         }
                         if (enforceLimits && thisBillingAmount > maxAmount + tolerance) {
-                            result.put('status', 'ERROR');
-                            result.put('message', 'Retainage % change makes the current Billing Amount exceed the contract value. Adjust the amount before saving.');
-                            return result;
+                            result.put('status', 'ERROR');  result.put('message', 'Retainage % change makes the current Billing Amount exceed the contract value. Adjust the amount before saving.'); return result;
                         }
                         if (enforceLimits && thisBillingAmount < minAmount - tolerance) {
-                            result.put('status', 'ERROR');
-                            result.put('message', 'Retainage % change causes the current Billing Amount to fall below completion minimums. Adjust the amount before saving.');
-                            return result;
+                            result.put('status', 'ERROR'); result.put('message', 'Retainage % change causes the current Billing Amount to fall below completion minimums. Adjust the amount before saving.'); return result;
                         }
                     }
 
@@ -664,6 +657,7 @@ public with sharing class BillingDetailsPageController {
         @AuraEnabled public Decimal RetainageCompletedToDate;
         @AuraEnabled public Decimal TotalDueThisBilling;
         @AuraEnabled public Decimal BalanceToFinishRetainage;
+        @AuraEnabled public Decimal ThisBillingAmount;
         @AuraEnabled public Decimal ContractSumToDate;
         @AuraEnabled public Boolean IsRetainageBilling;
         @AuraEnabled public Id PreviousBillId;

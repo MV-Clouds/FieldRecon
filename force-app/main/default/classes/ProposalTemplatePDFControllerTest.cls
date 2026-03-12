@@ -64,8 +64,8 @@ public class ProposalTemplatePDFControllerTest {
         try {
             Test.startTest();
             ProposalTemplatePDFController.generatePDFBlob(
-                null,   // bad recordId
-                null,   // bad templateId
+                'jj8883ndbd',   // bad recordId
+                'ajfh245ndsds',   // bad templateId
                 null
             );
             Test.stopTest();

@@ -720,7 +720,7 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
                 // For other required fields, check formValues
                 if (field.isRequired) {
                     const fieldValue = this.formValues[field.fieldName];
-
+                    
                     // Check if field is empty
                     if (fieldValue === null || fieldValue === undefined || 
                         fieldValue === '' || (typeof fieldValue === 'string' && fieldValue.trim() === '')) {
@@ -739,47 +739,47 @@ export default class ContactManagement extends NavigationMixin(LightningElement)
         return isValid;
     }
 
-     /**
-     * Method Name: handleSuccess
-     * @description: Handle successful save from lightning-record-edit-form
-     */
-    handleSuccess(event) {
-        const contactId = event.detail.id;
-        const msg = this.isEditMode ? 'Contact and User updated successfully' : 'Contact and User created successfully';
+    /**
+ * Method Name: handleSuccess
+ * @description: Handle successful save from lightning-record-edit-form
+ */
+handleSuccess(event) {
+    const contactId = event.detail.id;
+    const msg = this.isEditMode ? 'Contact and User updated successfully' : 'Contact and User created successfully';
 
-        createUserFromContact({ contactId: contactId })
-            .then(result => {
-                console.log('result', result);
-
-                if (result.success) {
-                    // Success case - user was created
-                    this.showToast('Success', msg, 'success');
-                    console.log('User created with ID:', result.userId);
-                } else {
-                    // Error case from Apex                
-                    // Check if it's a license limit error
-                    if (result.message && result.message.includes('LICENSE_LIMIT_EXCEEDED')) {
-                        this.showToast('Error', 'Cannot create user: No available licenses as limit exceeded.', 'error');
-                        // deleteContact({ contactId: contactId });
-                        this.deleteContactRecord(contactId,false);
-                    } else if (result.message && !result.message.includes('LICENSE_LIMIT_EXCEEDED')) {
-                        // For other errors, delete the contact
-                        this.showToast('Error', 'User creation failed: ' + result.message, 'error');
-                        // deleteContact({ contactId: contactId });
-                        this.deleteContactRecord(contactId,false);
-                    }
+    createUserFromContact({ contactId: contactId })
+        .then(result => {
+            console.log('result', result);
+            
+            if (result.success) {
+                // Success case - user was created
+                this.showToast('Success', msg, 'success');
+                console.log('User created with ID:', result.userId);
+            } else {
+                // Error case from Apex                
+                // Check if it's a license limit error
+                if (result.message && result.message.includes('LICENSE_LIMIT_EXCEEDED')) {
+                    this.showToast('Error', 'Cannot create user: No available licenses as limit exceeded.', 'error');
+                    // deleteContact({ contactId: contactId });
+                    this.deleteContactRecord(contactId,false);
+                } else if (result.message && !result.message.includes('LICENSE_LIMIT_EXCEEDED')) {
+                    // For other errors, delete the contact
+                    this.showToast('Error', 'User creation failed: ' + result.message, 'error');
+                    // deleteContact({ contactId: contactId });
+                    this.deleteContactRecord(contactId,false);
                 }
-            })
-            .catch(error => {            
-                // deleteContact({ contactId: contactId });
-                this.deleteContactRecord(contactId,false);
-            })
-            .finally(() => {
-                this.isLoading = false;
-                this.handleCloseModal();
-                this.fetchContacts();
-            });
-    }
+            }
+        })
+        .catch(error => {            
+            // deleteContact({ contactId: contactId });
+            this.deleteContactRecord(contactId,false);
+        })
+        .finally(() => {
+            this.isLoading = false;
+            this.handleCloseModal();
+            this.fetchContacts();
+        });
+}
 
     /**
      * Method Name: handleError

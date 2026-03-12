@@ -846,4 +846,34 @@ private class ManagementTabControllerTest {
         }
     }
 
+        @IsTest
+    static void testDeleteContactWithoutDeactivation() {
+        // Use a contact without linked user
+        Contact contactNoUser = [SELECT Id FROM Contact WHERE User__c = null LIMIT 1];
+
+        Test.startTest();
+        String result = ManagementTabController.deleteContact(contactNoUser.Id, false);
+        Test.stopTest();
+
+        // Assert contact deleted
+        Integer countContacts = [SELECT COUNT() FROM Contact WHERE Id = :contactNoUser.Id];
+        System.assertEquals(0, countContacts, 'Contact without user should be deleted');
+    }
+
+    @IsTest
+    static void testDeleteContactWithDeactivation() {
+        // Use a contact linked to a user
+        Contact contactWithUser = [SELECT Id, User__c FROM Contact WHERE User__c != null LIMIT 1];
+        Id linkedUserId = contactWithUser.User__c;
+
+        Test.startTest();
+        String result = ManagementTabController.deleteContact(contactWithUser.Id, true);
+        Test.stopTest();
+
+        // Assert contact deleted
+        Integer countContacts = [SELECT COUNT() FROM Contact WHERE Id = :contactWithUser.Id];
+        System.assertEquals(0, countContacts, 'Contact with user should be deleted');
+    }
+
+
 }

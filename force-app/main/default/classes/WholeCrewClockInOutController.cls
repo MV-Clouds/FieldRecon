@@ -154,7 +154,6 @@ public with sharing class WholeCrewClockInOutController {
      * Fetches the most recent TSE per contact for the entire job schedule (Mob Group),
      * irrespective of date. If a contact has an open clock-in → Clock Out tab, else → Clock In tab.
      */
-    @TestVisible
     private static Map<String, List<WrapperMember>> getMobilizationMembersWithCompletedSessions(String mobId, String jobId) {
         try {
             Map<String, List<WrapperMember>> result = new Map<String, List<WrapperMember>>();

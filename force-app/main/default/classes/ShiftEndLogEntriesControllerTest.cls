@@ -142,6 +142,42 @@ private class ShiftEndLogEntriesControllerTest {
         );
         insert locProc;
     }
+    
+    @IsTest
+static void testGetCrewInfoForJob() {
+    // Get a Job Id from setup data
+    wfrecon__Job__c job = [SELECT Id FROM wfrecon__Job__c LIMIT 1];
+
+    // Case 1: Regular user with linked Contact who is a Crew Leader
+    // Create Crew
+    wfrecon__Crew__c crew = new wfrecon__Crew__c(Name = 'Test Crew');
+    insert crew;
+
+    // Create Crew Member with type Leader linked to one of the setup Contacts
+    Contact leaderContact = [SELECT Id FROM Contact WHERE FirstName = 'Employee1' LIMIT 1];
+    wfrecon__Crew_Member__c crewMember = new wfrecon__Crew_Member__c(
+        wfrecon__Crew__c = crew.Id,
+        wfrecon__Contact__c = leaderContact.Id,
+        wfrecon__Member_Type__c = 'Leader'
+    );
+    insert crewMember;
+
+    // Link Crew to a Mobilization for the Job
+    wfrecon__Mobilization__c mob = [SELECT Id FROM wfrecon__Mobilization__c WHERE wfrecon__Job__c = :job.Id LIMIT 1];
+    wfrecon__Mobilization_Member__c mobMember = new wfrecon__Mobilization_Member__c(
+        wfrecon__Mobilization__c = mob.Id,
+        wfrecon__Crew__c = crew.Id
+    );
+    insert mobMember;
+
+    // Run the method
+    Test.startTest();
+    Map<String, Object> result = ShiftEndLogEntriesController.getCrewInfoForJob(job.Id);
+    Test.stopTest();
+
+    System.assertNotEquals(null, result, 'Result should not be null');
+
+}
 
     @IsTest
     static void testGetMobilizationMembersWithStatus_NoTimesheet() {
@@ -1211,7 +1247,7 @@ private class ShiftEndLogEntriesControllerTest {
         System.assert(!logs.isEmpty(), 'Log entry should be created');
         System.assert(String.isNotBlank(logs[0].wfrecon__Approval_Data__c), 'Approval data should be present');
     }
-
+ 
     @IsTest
     static void testGetMobilizationMembersWithStatus_AllScenarios_FullCoverage() {
         // Setup: Job + Mobilization + Crew Leader + Member

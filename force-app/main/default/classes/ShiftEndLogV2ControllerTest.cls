@@ -14,7 +14,8 @@ private class ShiftEndLogV2ControllerTest {
             LocaleSidKey = 'en_US', 
             ProfileId = p.Id,
             TimeZoneSidKey = 'America/Los_Angeles', 
-            UserName = 'testuser' + DateTime.now().getTime() + '@testorg.com'
+            UserName = 'testuser' + DateTime.now().getTime() + '@testorg.com',
+            IsActive = true
         );
         insert testUser;
 
