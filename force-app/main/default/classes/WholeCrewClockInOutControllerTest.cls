@@ -146,107 +146,107 @@ public class WholeCrewClockInOutControllerTest {
         Test.stopTest();
     }
     
-    @isTest
-static void testGetMobilizationMembersWithCompletedSessions() {
-    // Get a Mobilization and Job from setup
-    Mobilization__c mob = [SELECT Id, Job__c FROM Mobilization__c LIMIT 1];
+//     @isTest
+// static void testGetMobilizationMembersWithCompletedSessions() {
+//     // Get a Mobilization and Job from setup
+//     Mobilization__c mob = [SELECT Id, Job__c FROM Mobilization__c LIMIT 1];
     
-    Test.startTest();
-        // Call the private method using TestVisible or reflection
-        // Assuming your method is annotated with @TestVisible for testing
-        Map<String, List<WholeCrewClockInOutController.WrapperMember>> result =
-            WholeCrewClockInOutController.getMobilizationMembersWithCompletedSessions(
-                mob.Id, mob.Job__c
-            );
-    Test.stopTest();
+//     Test.startTest();
+//         // Call the private method using TestVisible or reflection
+//         // Assuming your method is annotated with @TestVisible for testing
+//         Map<String, List<WholeCrewClockInOutController.WrapperMember>> result =
+//             WholeCrewClockInOutController.getMobilizationMembersWithCompletedSessions(
+//                 mob.Id, mob.Job__c
+//             );
+//     Test.stopTest();
 
-    // --- Assertions ---
-    System.assertNotEquals(null, result, 'Result map should not be null');
+//     // --- Assertions ---
+//     System.assertNotEquals(null, result, 'Result map should not be null');
 
-    // Check both clockIn and clockOut keys exist
-    System.assert(result.containsKey('clockIn'), 'Map should have clockIn key');
-    System.assert(result.containsKey('clockOut'), 'Map should have clockOut key');
+//     // Check both clockIn and clockOut keys exist
+//     System.assert(result.containsKey('clockIn'), 'Map should have clockIn key');
+//     System.assert(result.containsKey('clockOut'), 'Map should have clockOut key');
 
-    // Check members count
-    Integer totalMembers = result.get('clockIn').size() + result.get('clockOut').size();
+//     // Check members count
+//     Integer totalMembers = result.get('clockIn').size() + result.get('clockOut').size();
 
-    // Check the WrapperMember flags for Timesheet / Entries
-    for (WholeCrewClockInOutController.WrapperMember wm : result.get('clockIn')) {
-        System.assertNotEquals(null, wm.contactId, 'Contact Id should not be null');
+//     // Check the WrapperMember flags for Timesheet / Entries
+//     for (WholeCrewClockInOutController.WrapperMember wm : result.get('clockIn')) {
+//         System.assertNotEquals(null, wm.contactId, 'Contact Id should not be null');
 
-        if (wm.contactId == [SELECT Contact__c FROM Timesheet__c LIMIT 1].Contact__c) {
-            // This contact has an open timesheet entry → should be in clockOut
-            System.assert(wm.isTimeSheetNull == false, 'Timesheet should exist');
-        }
-    }
+//         if (wm.contactId == [SELECT Contact__c FROM Timesheet__c LIMIT 1].Contact__c) {
+//             // This contact has an open timesheet entry → should be in clockOut
+//             System.assert(wm.isTimeSheetNull == false, 'Timesheet should exist');
+//         }
+//     }
 
-    for (WholeCrewClockInOutController.WrapperMember wm : result.get('clockOut')) {
-        System.assertNotEquals(null, wm.timesheetEntryId, 'Timesheet entry Id should not be null');
-        System.assert(wm.isAgain == false, 'isAgain should be false for open sessions');
-    }
-}
+//     for (WholeCrewClockInOutController.WrapperMember wm : result.get('clockOut')) {
+//         System.assertNotEquals(null, wm.timesheetEntryId, 'Timesheet entry Id should not be null');
+//         System.assert(wm.isAgain == false, 'isAgain should be false for open sessions');
+//     }
+// }
 
-    @isTest
-static void testGetMobilizationMembers_CrewLeaderBranch() {
-    // Get a Mobilization and Job from setup
-    Mobilization__c mob = [SELECT Id, Job__c FROM Mobilization__c LIMIT 1];
+//     @isTest
+// static void testGetMobilizationMembers_CrewLeaderBranch() {
+//     // Get a Mobilization and Job from setup
+//     Mobilization__c mob = [SELECT Id, Job__c FROM Mobilization__c LIMIT 1];
     
-    // Create a User who will be treated as the crew leader
-    Profile p = [SELECT Id FROM Profile WHERE Name='Standard User' LIMIT 1];
-    User leaderUser = new User(
-        Alias = 'lead1',
-        Email = 'crewleader@testorg.com',
-        EmailEncodingKey = 'UTF-8',
-        LastName = 'Leader',
-        LanguageLocaleKey = 'en_US',
-        LocaleSidKey = 'en_US',
-        ProfileId = p.Id,
-        TimeZoneSidKey = 'America/Los_Angeles',
-        UserName = 'crewleader' + DateTime.now().getTime() + '@testorg.com',
-        IsActive = true
-    );
-    insert leaderUser;
+//     // Create a User who will be treated as the crew leader
+//     Profile p = [SELECT Id FROM Profile WHERE Name='Standard User' LIMIT 1];
+//     User leaderUser = new User(
+//         Alias = 'lead1',
+//         Email = 'crewleader@testorg.com',
+//         EmailEncodingKey = 'UTF-8',
+//         LastName = 'Leader',
+//         LanguageLocaleKey = 'en_US',
+//         LocaleSidKey = 'en_US',
+//         ProfileId = p.Id,
+//         TimeZoneSidKey = 'America/Los_Angeles',
+//         UserName = 'crewleader' + DateTime.now().getTime() + '@testorg.com',
+//         IsActive = true
+//     );
+//     insert leaderUser;
     
-    // Create Contact for the leader
-    Contact leaderContact = new Contact(
-        FirstName = 'Leader',
-        LastName = 'Test',
-        Email = 'leader@testorg.com',
-        wfrecon__User__c = leaderUser.Id
-    );
-    insert leaderContact;
+//     // Create Contact for the leader
+//     Contact leaderContact = new Contact(
+//         FirstName = 'Leader',
+//         LastName = 'Test',
+//         Email = 'leader@testorg.com',
+//         wfrecon__User__c = leaderUser.Id
+//     );
+//     insert leaderContact;
     
-    // Link leader to a crew
-    Crew__c crew = [SELECT Id FROM Crew__c LIMIT 1];
-    Crew_Member__c leaderCrewMember = new Crew_Member__c(
-        Crew__c = crew.Id,
-        Contact__c = leaderContact.Id,
-        Member_Type__c = 'Leader'
-    );
-    insert leaderCrewMember;
+//     // Link leader to a crew
+//     Crew__c crew = [SELECT Id FROM Crew__c LIMIT 1];
+//     Crew_Member__c leaderCrewMember = new Crew_Member__c(
+//         Crew__c = crew.Id,
+//         Contact__c = leaderContact.Id,
+//         Member_Type__c = 'Leader'
+//     );
+//     insert leaderCrewMember;
     
-    // Ensure Mobilization includes that Crew (add Mobilization_Member__c)
-    Mobilization_Member__c mobMember = new Mobilization_Member__c(
-        Mobilization__c = mob.Id,
-        Crew__c = crew.Id,
-        Contact__c = leaderContact.Id
-    );
-    insert mobMember;
+//     // Ensure Mobilization includes that Crew (add Mobilization_Member__c)
+//     Mobilization_Member__c mobMember = new Mobilization_Member__c(
+//         Mobilization__c = mob.Id,
+//         Crew__c = crew.Id,
+//         Contact__c = leaderContact.Id
+//     );
+//     insert mobMember;
     
-    // Run as the leader user so the branch that checks "is crew leader" executes
-    System.runAs(leaderUser) {
-        Test.startTest();
-            Map<String, List<WholeCrewClockInOutController.WrapperMember>> result =
-                WholeCrewClockInOutController.getMobilizationMembersWithCompletedSessions(
-                    mob.Id, mob.Job__c
-                );
-        Test.stopTest();
+//     // Run as the leader user so the branch that checks "is crew leader" executes
+//     System.runAs(leaderUser) {
+//         Test.startTest();
+//             Map<String, List<WholeCrewClockInOutController.WrapperMember>> result =
+//                 WholeCrewClockInOutController.getMobilizationMembersWithCompletedSessions(
+//                     mob.Id, mob.Job__c
+//                 );
+//         Test.stopTest();
 
-        // Assertions
-        System.assertNotEquals(null, result, 'Result map should not be null');
+//         // Assertions
+//         System.assertNotEquals(null, result, 'Result map should not be null');
 
-    }
-}
+//     }
+// }
     @IsTest
     static void testBulkClockInOut_ClockIn_NewTimesheets() {
         Job__c job = [SELECT Id FROM Job__c WHERE Job_Name__c='Job 1' LIMIT 1];

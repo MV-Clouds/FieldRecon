@@ -1,8 +1,8 @@
-public class ProposalEmailController {
-    public Id proposalId { get; set; }
+global class ProposalEmailController {
+    global Id proposalId { get; set; }
     
     // Calculate total price of ONLY Base Contract lines (Standard/Default lines)
-    public Double getTotalPrice() {
+    global Double getTotalPrice() {
         Double total = 0;
         for (wfrecon__Proposal_Line__c line : getSortedLines()) {
             // Only sum items that are Base Contract or have no type defined
@@ -15,7 +15,7 @@ public class ProposalEmailController {
     }
     
     // Fetch Proposal Lines sorted by Sequence, filtering only Selected ones
-    public List<wfrecon__Proposal_Line__c> getSortedLines() {
+    global List<wfrecon__Proposal_Line__c> getSortedLines() {
         if (proposalId == null) return new List<wfrecon__Proposal_Line__c>();
         
         return [

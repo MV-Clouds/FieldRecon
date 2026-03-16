@@ -207,6 +207,12 @@ public with sharing class MobilizationGroupTriggerHandler {
             {
                 isMidnight = true;
             }
+
+        //Added by KP on 2 march
+        // if( startDateTime.date() != endDateTime.date() || endDateTime.time() < startDateTime.time())
+        // {
+        //     isMidnight = true;
+        // }
         System.debug(isMidnight);
         Date dateCounter = startDate;
         
