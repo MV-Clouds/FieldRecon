@@ -88,19 +88,23 @@ public with sharing class NewMobilizationCalendarController {
     // ==============================
     @AuraEnabled
     public static void deleteMobilizationGroup(Id recordId){
-        // Delete child mobilizations first
-        List<wfrecon__Mobilization__c> childMobilizations = [
-            SELECT Id FROM wfrecon__Mobilization__c WHERE wfrecon__Mobilization_Group__c = :recordId
-        ];
-        if (!childMobilizations.isEmpty()) {
-            delete childMobilizations;
-        }
+        try{
+            // Delete child mobilizations first
+            List<wfrecon__Mobilization__c> childMobilizations = [
+                SELECT Id FROM wfrecon__Mobilization__c WHERE wfrecon__Mobilization_Group__c = :recordId
+            ];
+            if (!childMobilizations.isEmpty()) {
+                delete childMobilizations;
+            }
 
-        List<wfrecon__Mobilization_Group__c> mobGroups = [
-            SELECT Id FROM wfrecon__Mobilization_Group__c WHERE Id = :recordId
-        ];
-        if (!mobGroups.isEmpty()) {
-            delete mobGroups;
+            List<wfrecon__Mobilization_Group__c> mobGroups = [
+                SELECT Id FROM wfrecon__Mobilization_Group__c WHERE Id = :recordId
+            ];
+            if (!mobGroups.isEmpty()) {
+                delete mobGroups;
+            }
+        }catch(Exception e){
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'deleteMobilizationGroup', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while deleting mobilization group.', 'apiResponse' => null});
         }
     }
 
@@ -120,34 +124,8 @@ public with sharing class NewMobilizationCalendarController {
     }
 
     // ==============================
-    // Save or update job schedule
+    // Default Times for LWC
     // ==============================
-    // @AuraEnabled
-    // public static String saveJobSchedule(Object mgp) {
-    //     Wrapper.MobilizationGroup mg = 
-    //         (Wrapper.MobilizationGroup) JSON.deserialize(JSON.serialize(mgp), Wrapper.MobilizationGroup.class);
-
-    //     wfrecon__Mobilization_Group__c mgObj = mg.getMobilizationGroupSObject();
-
-    //     Time shiftStart = Time.newInstance(mg.startDate.hour(), mg.startDate.minute(), 0, 0);
-    //     Time shiftEnd   = Time.newInstance(mg.endDate.hour(), mg.endDate.minute(), 0, 0);
-
-    //     mgObj.wfrecon__Start_Date__c = updateDateFromTime(shiftStart, mg.startDate);
-    //     mgObj.wfrecon__End_Date__c   = updateDateFromTime(shiftEnd, mg.endDate);
-
-    //     upsert mgObj;
-    //     return 'SUCCESS';
-    // }
-
-    // ==============================
-    // Utility Methods
-    // ==============================
-    private static Datetime updateDateFromTime(Time target, Datetime source) {
-        return Datetime.newInstance(
-            source.year(), source.month(), source.day(),
-            target.hour(), target.minute(), target.second()
-        );
-    }
 
     @AuraEnabled(cacheable=true)
     public static DefaultTimeWrapper getJobDefaultTimes(String startDate, String endDate) {
@@ -288,9 +266,18 @@ public with sharing class NewMobilizationCalendarController {
                 }
             }
             
-            if (!toDelete.isEmpty()) delete toDelete;
-            if (!toUpdate.isEmpty()) update toUpdate;
-            if (!toInsert.isEmpty()) insert toInsert;
+            if (!toDelete.isEmpty() || !toUpdate.isEmpty() || !toInsert.isEmpty()) {
+                try {
+                    // Prevent trigger from deleting the parent Group if all children are temporarily removed
+                    MobilizationTriggerHandler.runOnce = false;
+                    
+                    if (!toDelete.isEmpty()) delete toDelete;
+                    if (!toUpdate.isEmpty()) update toUpdate;
+                    if (!toInsert.isEmpty()) insert toInsert;
+                } finally {
+                    MobilizationTriggerHandler.runOnce = true;
+                }
+            }
             
         } catch (Exception e) {
              throw new AuraHandledException(e.getMessage());
@@ -298,49 +285,45 @@ public with sharing class NewMobilizationCalendarController {
     }
 
     private static List<wfrecon__Mobilization__c> createNewMobilization(DateTime startDateTime, DateTime endDateTime, wfrecon__Mobilization_Group__c mobGroup) {
-        List<wfrecon__Mobilization__c> mobilizationsToInsert = new List<wfrecon__Mobilization__c>();
-        Boolean isMidnight = false;
-        Date startDate = startDateTime.date();
-        Date endDate = endDateTime.date();
+        try {
+            List<wfrecon__Mobilization__c> mobilizationsToInsert = new List<wfrecon__Mobilization__c>();
+            Boolean isMidnight = false;
+            Date startDate = startDateTime.date();
+            Date endDate = endDateTime.date();
 
-        Time shiftStart = startDateTime.time();
-        Time shiftEnd = endDateTime.time();
+            Time shiftStart = startDateTime.time();
+            Time shiftEnd = endDateTime.time();
 
-        if(shiftStart >=  Time.newInstance(12, 00, 0, 0) && shiftStart <=  Time.newInstance(23, 59, 59, 0) 
-            && shiftEnd >=  Time.newInstance(00, 00, 0, 0) && shiftEnd <=  Time.newInstance(12, 00, 0, 0))
-        {
-            isMidnight = true;
+            if(shiftStart >=  Time.newInstance(12, 00, 0, 0) && shiftStart <=  Time.newInstance(23, 59, 59, 0) 
+                && shiftEnd >=  Time.newInstance(00, 00, 0, 0) && shiftEnd <=  Time.newInstance(12, 00, 0, 0))
+            {
+                isMidnight = true;
+            }
+
+            Date limitDate = isMidnight ? endDate.addDays(-1) : endDate;
+            for (Date dateCounter = startDate; dateCounter <= limitDate; dateCounter = dateCounter.addDays(1)) {
+                // Respect Saturday/Sunday inclusion settings
+                DateTime checkDt = DateTime.newInstance(dateCounter, Time.newInstance(0, 0, 0, 0));
+                if(!mobGroup.wfrecon__Include_Saturday__c && checkDt.format('EEEE') == 'Saturday'){
+                    continue;
+                }
+                if(!mobGroup.wfrecon__Include_Sunday__c && checkDt.format('EEEE') == 'Sunday'){
+                    continue;
+                }
+                
+                mobilizationsToInsert.add(new wfrecon__Mobilization__c(
+                    wfrecon__Job__c = mobGroup.wfrecon__Job__c,
+                    wfrecon__Start_Date__c = DateTime.newInstance(dateCounter, shiftStart),
+                    wfrecon__End_Date__c = DateTime.newInstance(isMidnight ? dateCounter.addDays(1) : dateCounter, shiftEnd),
+                    wfrecon__Mobilization_Status__c = mobGroup.wfrecon__Mobilization_Status__c,
+                    wfrecon__Mobilization_Group__c = mobGroup.Id
+                ));
+            }
+            return mobilizationsToInsert;
+        }catch(Exception e){
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'createNewMobilization', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while creating new mobilization.', 'apiResponse' => null}); 
+            return null;
         }
-
-        Date dateCounter = startDate;
-        while (dateCounter <= endDate) {
-            // Replicate original trigger logic: break on last day if midnight shift
-            if(isMidnight == true && (endDateTime.day() == dateCounter.day())) {
-                break;
-            }
-            
-            // Respect Saturday/Sunday inclusion settings
-            DateTime checkDt = DateTime.newInstance(dateCounter, Time.newInstance(0, 0, 0, 0));
-            if(!mobGroup.wfrecon__Include_Saturday__c && checkDt.format('EEEE') == 'Saturday'){
-                dateCounter = dateCounter.addDays(1);
-                continue;
-            }
-            if(!mobGroup.wfrecon__Include_Sunday__c && checkDt.format('EEEE') == 'Sunday'){
-                dateCounter = dateCounter.addDays(1);
-                continue;
-            }
-            
-            mobilizationsToInsert.add(new wfrecon__Mobilization__c(
-                wfrecon__Job__c = mobGroup.wfrecon__Job__c,
-                wfrecon__Start_Date__c = DateTime.newInstance(dateCounter, shiftStart),
-                wfrecon__End_Date__c = DateTime.newInstance(isMidnight ? dateCounter.addDays(1) : dateCounter, shiftEnd),
-                wfrecon__Mobilization_Status__c = mobGroup.wfrecon__Mobilization_Status__c,
-                wfrecon__Mobilization_Group__c = mobGroup.Id
-            ));
-            
-            dateCounter = dateCounter.addDays(1);
-        }
-        return mobilizationsToInsert;
     }
 
     @AuraEnabled

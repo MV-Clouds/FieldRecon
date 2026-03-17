@@ -12,6 +12,7 @@ public with sharing class MobilizationTriggerHandler {
     //public list of members and assets
     public static List<Mobilization_Member__c> insertMobMembers = new List<Mobilization_Member__c>();
     public static List<Mobilization_Asset__c> insertMobAssets = new List<Mobilization_Asset__c>();
+    public static Boolean runOnce = true;
 
     /**
     * @description a method to add mobilization member and asset to those mobilization who's 
@@ -102,8 +103,8 @@ public with sharing class MobilizationTriggerHandler {
             }
         }
         if(mobGroupIdsToBeDeleted.isEmpty()){return;}
-        MobilizationGroupTriggerHandler.runOnce = false;
+        MobilizationTriggerHandler.runOnce = false;
         Lib_Security.ws().dbDelete(Lib_Security.ws().dbQuery('SELECT Id FROM wfrecon__Mobilization_Group__c WHERE Id IN :arg1',new Object[]{mobGroupIdsToBeDeleted}));
-    	MobilizationGroupTriggerHandler.runOnce = true;
+    	MobilizationTriggerHandler.runOnce = true;
     }
 }
