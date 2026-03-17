@@ -155,4 +155,75 @@ public class NewMobilizationCalendarControllerTest {
         List<Map<String,Object>> evts = NewMobilizationCalendarController.getEvents(null, null);
         System.assert(evts.isEmpty(), 'Should return empty list on exception/empty DB');
     }
+    
+    @IsTest
+    static void testSyncMobilizations_basic() {
+        // Get existing group
+        wfrecon__Mobilization_Group__c mg = [
+            SELECT Id, wfrecon__Start_Date__c, wfrecon__End_Date__c,
+                wfrecon__Include_Saturday__c, wfrecon__Include_Sunday__c,
+                wfrecon__Mobilization_Status__c, wfrecon__Job__c
+            FROM wfrecon__Mobilization_Group__c
+            LIMIT 1
+        ];
+
+        Test.startTest();
+        NewMobilizationCalendarController.syncMobilizations(mg.Id);
+        Test.stopTest();
+
+        // Verify mobilizations exist
+        List<wfrecon__Mobilization__c> mobs = [
+            SELECT Id, wfrecon__Mobilization_Group__c
+            FROM wfrecon__Mobilization__c
+            WHERE wfrecon__Mobilization_Group__c = :mg.Id
+        ];
+
+        System.assert(!mobs.isEmpty(), 'Mobilizations should be created/updated');
+    }
+        
+    @IsTest
+    static void testSyncMobilizations_weekend_midnight_delete() {
+
+        wfrecon__Job__c job = [SELECT Id FROM wfrecon__Job__c LIMIT 1];
+
+        // Create group with weekend excluded + midnight shift
+        wfrecon__Mobilization_Group__c mg = new wfrecon__Mobilization_Group__c(
+            wfrecon__Job__c = job.Id,
+            wfrecon__Start_Date__c = Date.newInstance(2025, 10, 3), // Friday
+            wfrecon__End_Date__c = Date.newInstance(2025, 10, 7),   // Tuesday
+            wfrecon__Include_Saturday__c = false,
+            wfrecon__Include_Sunday__c = false,
+            wfrecon__Mobilization_Status__c = 'Confirmed'
+        );
+        insert mg;
+
+        // Create existing mobilization (to test delete scenario)
+        insert new wfrecon__Mobilization__c(
+            wfrecon__Mobilization_Group__c = mg.Id,
+            wfrecon__Start_Date__c = DateTime.newInstance(2025, 10, 3, 22, 0, 0),
+            wfrecon__End_Date__c = DateTime.newInstance(2025, 10, 4, 6, 0, 0),
+            wfrecon__Mobilization_Status__c = 'Confirmed',
+            wfrecon__Job__c = job.Id
+        );
+
+        Test.startTest();
+        NewMobilizationCalendarController.syncMobilizations(mg.Id);
+        Test.stopTest();
+
+        List<wfrecon__Mobilization__c> mobs = [
+            SELECT Id, wfrecon__Start_Date__c
+            FROM wfrecon__Mobilization__c
+            WHERE wfrecon__Mobilization_Group__c = :mg.Id
+        ];
+
+        System.assert(!mobs.isEmpty(), 'Mobilizations should be recreated');
+
+        // Ensure weekends skipped (Oct 4 Sat, Oct 5 Sun)
+        for (wfrecon__Mobilization__c m : mobs) {
+            String dayName = m.wfrecon__Start_Date__c.format('EEEE');
+            System.assert(dayName != 'Saturday', 'Saturday should be skipped');
+            System.assert(dayName != 'Sunday', 'Sunday should be skipped');
+        }
+    }
+    
 }
