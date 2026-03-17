@@ -5,7 +5,7 @@
  * @last modified on  : 06-17-2021
  * @last modified by  : Ashita Kothari
  * Modifications Log 
- * Ver   Date         Author       Modification
+ * Ver   Date         Author       Modificatione 
  * 1.0   04-21-2021   Concret.io   Initial Version
 **/
 public with sharing class MobilizationGroupTriggerHandler {
@@ -56,36 +56,38 @@ public with sharing class MobilizationGroupTriggerHandler {
         
         // Handle weekend setting changes by deleting and recreating all mobilizations
         if(!mobGroupsWithWeekendChanges.isEmpty()){
-            // First, query the full Mobilization Group records to ensure we have all fields
-            String weekendSoql = 'SELECT Id, Name, Start_Date__c, End_Date__c, Mobilization_Status__c, Job__c, Include_Saturday__c, Include_Sunday__c ' +
-                'FROM Mobilization_Group__c WHERE Id IN :arg1';
-            List<Mobilization_Group__c> fullMobGroups = (Mobilization_Group__c[]) Lib_Security.ws()
-                .dbQuery(weekendSoql, new List<Object>{mobGroupsWithWeekendChanges});
-            
-            // Use runOnce flag to prevent recursion
-            MobilizationGroupTriggerHandler.runOnce = false;
-            
-            // Delete existing mobilizations
-            String deleteSoql = 'SELECT Id FROM Mobilization__c WHERE Mobilization_Group__c IN :arg1';
-            List<Mobilization__c> mobsToDelete = (Mobilization__c[]) Lib_Security.ws()
-                .dbQuery(deleteSoql, new List<Object>{fullMobGroups});
-            
-            if(!mobsToDelete.isEmpty()){
-                Lib_Security.ws().dbDelete(mobsToDelete);
+            try {
+                // First, query the full Mobilization Group records to ensure we have all fields
+                String weekendSoql = 'SELECT Id, Name, Start_Date__c, End_Date__c, Mobilization_Status__c, Job__c, Include_Saturday__c, Include_Sunday__c ' +
+                    'FROM Mobilization_Group__c WHERE Id IN :arg1';
+                List<Mobilization_Group__c> fullMobGroups = (Mobilization_Group__c[]) Lib_Security.ws()
+                    .dbQuery(weekendSoql, new List<Object>{mobGroupsWithWeekendChanges});
+                
+                // Use runOnce flag to prevent recursion
+                MobilizationGroupTriggerHandler.runOnce = false;
+                
+                // Delete existing mobilizations
+                String deleteSoql = 'SELECT Id FROM Mobilization__c WHERE Mobilization_Group__c IN :arg1';
+                List<Mobilization__c> mobsToDelete = (Mobilization__c[]) Lib_Security.ws()
+                    .dbQuery(deleteSoql, new List<Object>{fullMobGroups});
+                
+                if(!mobsToDelete.isEmpty()){
+                    Lib_Security.ws().dbDelete(mobsToDelete);
+                }
+                
+                // Recreate all mobilizations with new weekend settings
+                List<Mobilization__c> newMobilizations = new List<Mobilization__c>();
+                for(Mobilization_Group__c mg : fullMobGroups){
+                    newMobilizations.addAll(createNewMobilization(mg.Start_Date__c, mg.End_Date__c, mg));
+                }
+                
+                if(!newMobilizations.isEmpty()){
+                    Lib_Security.ws().dbInsert(newMobilizations);
+                }
+            } finally {
+                // Always reset runOnce flag to prevent recursion issues
+                MobilizationGroupTriggerHandler.runOnce = true;
             }
-            
-            // Recreate all mobilizations with new weekend settings
-            List<Mobilization__c> newMobilizations = new List<Mobilization__c>();
-            for(Mobilization_Group__c mg : fullMobGroups){
-                newMobilizations.addAll(createNewMobilization(mg.Start_Date__c, mg.End_Date__c, mg));
-            }
-            
-            if(!newMobilizations.isEmpty()){
-                Lib_Security.ws().dbInsert(newMobilizations);
-            }
-            
-            // Reset runOnce flag
-            MobilizationGroupTriggerHandler.runOnce = true;
         }
         
         // Handle other changes (dates, status) with the existing logic
@@ -113,18 +115,17 @@ public with sharing class MobilizationGroupTriggerHandler {
             }
             List<Mobilization__c> mobilizations = mobGroup.Mobilizations__r;
             DateTime dateCounter;
-            //creating the new one
+            //creating the new one - when START_DATE moves EARLIER
             if(oldMobGroups.get(mobGroup.Id).Start_Date__c > mobGroup.Start_Date__c){
-                Integer countRecords = (oldMobGroups.get(mobGroup.Id).Start_Date__c.date().daysBetween(mobGroup.End_Date__c.date())) + 1;
-                countRecords+= oldMobGroups.get(mobGroup.Id).End_Date__c.date().daysBetween(mobGroup.End_Date__c.date());
-                dateCounter = mobGroup.End_Date__c;
-                mobilizationsToUpsert.addAll(createNewMobilization(mobGroup.Start_Date__c,isMidnight == true ? dateCounter.addDays(-(countRecords - 1)) :dateCounter.addDays(-countRecords) ,mobGroup));
+                // Create mobilizations from new start date to day before old start date
+                DateTime newEndDate = oldMobGroups.get(mobGroup.Id).Start_Date__c.addDays(-1);
+                mobilizationsToUpsert.addAll(createNewMobilization(mobGroup.Start_Date__c, newEndDate, mobGroup));
             }
+            //creating the new one - when END_DATE moves LATER
             if(oldMobGroups.get(mobGroup.Id).End_Date__c < mobGroup.End_Date__c){
-                Integer countRecords = (oldMobGroups.get(mobGroup.Id).Start_Date__c.date().daysBetween(oldMobGroups.get(mobGroup.Id).End_Date__c.date())) + 1;
-                countRecords+= mobGroup.Start_Date__c.date().daysBetween(oldMobGroups.get(mobGroup.Id).Start_Date__c.date());
-                dateCounter = mobGroup.Start_Date__c;
-                mobilizationsToUpsert.addAll(createNewMobilization(isMidnight == true ? dateCounter.addDays(countRecords - 1) :dateCounter.addDays(countRecords),mobGroup.End_Date__c,mobGroup));
+                // Create mobilizations from day after old end date to new end date
+                DateTime newStartDate = oldMobGroups.get(mobGroup.Id).End_Date__c.addDays(1);
+                mobilizationsToUpsert.addAll(createNewMobilization(newStartDate, mobGroup.End_Date__c, mobGroup));
             }
             dateCounter = oldMobGroups.get(mobGroup.Id).Start_Date__c;
             //updating the existing one
@@ -174,12 +175,16 @@ public with sharing class MobilizationGroupTriggerHandler {
     * @param mobGroups 
     **/
     public static void handleBeforeDelete(List<Mobilization_Group__c> mobGroups){
-        List<Mobilization__c> mobToDelete = Lib_Security.ws().dbQuery('Select Id,Name From Mobilization__c Where Mobilization_Group__c IN :arg1',
-                                            new Object[]{mobGroups});
+        try {
+            List<Mobilization__c> mobToDelete = Lib_Security.ws().dbQuery('Select Id,Name From Mobilization__c Where Mobilization_Group__c IN :arg1',
+                                                new Object[]{mobGroups});
 
-        if(!mobToDelete.isEmpty()){
-            MobilizationGroupTriggerHandler.runOnce = false;
-            Lib_Security.ws().dbDelete(mobToDelete);
+            if(!mobToDelete.isEmpty()){
+                MobilizationGroupTriggerHandler.runOnce = false;
+                Lib_Security.ws().dbDelete(mobToDelete);
+            }
+        } finally {
+            // Always reset runOnce flag to prevent recursion issues
             MobilizationGroupTriggerHandler.runOnce = true;
         }
     }
