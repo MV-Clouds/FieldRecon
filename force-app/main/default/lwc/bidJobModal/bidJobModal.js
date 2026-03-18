@@ -13,6 +13,10 @@ const BID_FIELDS = [
     'wfrecon__Bid__c.wfrecon__AccountId__c',
     'wfrecon__Bid__c.wfrecon__Amount__c',
     'wfrecon__Bid__c.wfrecon__Description__c',
+    'wfrecon__Bid__c.wfrecon__Street__c',
+    'wfrecon__Bid__c.wfrecon__City__c',
+    'wfrecon__Bid__c.wfrecon__State__c',
+    'wfrecon__Bid__c.wfrecon__Zip_Code__c',
     'wfrecon__Bid__c.wfrecon__Status__c',
     'wfrecon__Bid__c.wfrecon__Job__c'
 ];
@@ -35,6 +39,10 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
     defaultBudgetedMaterialCost;
     defaultBudgetedLabourCost;
     defaultBudgetedHotelCost;
+    bidStreet;
+    bidCity;
+    bidState;
+    bidZip;
 
     // Page navigation
     @track currentPage = 'createLink'; // 'createLink' or 'proposals'
@@ -78,6 +86,12 @@ export default class BidJobModal extends NavigationMixin(LightningElement) {
             this.defaultjobId = job;
             this.defaultAmount = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Amount__c');
             this.defaultDescription = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Description__c') || '';
+            
+            // Extract address fields
+            this.bidStreet = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Street__c');
+            this.bidCity = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__City__c');
+            this.bidState = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__State__c');
+            this.bidZip = getFieldValue(data, 'wfrecon__Bid__c.wfrecon__Zip_Code__c');
 
             console.log('bidjobname ', this.selectedJobId);
 
