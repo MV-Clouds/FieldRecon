@@ -61,7 +61,7 @@
                 </div>
             </div>
 
-            <div class="kpi-card kpi-pending">
+            <div class="kpi-card kpi-pending" onclick={handlePendingClick}>
                 <div class="kpi-icon-wrapper">
                     <svg class="kpi-icon" viewBox="0 0 24 24">
                         <path
@@ -128,14 +128,14 @@
                         <tr>
                             <th class="th-serial">Sr. No.</th>
                             <th class="th-actions">Actions</th>
-                            <th class="th-log-number">Log Number</th>
+                            <th class="th-created">Created Date</th>
+                            <th class="th-created-by">Created By</th>
+                            <!-- <th class="th-log-number">Log Number</th> -->
                             <th class="th-job">Job</th>
                             <th class="th-text">Work Performed</th>
                             <th class="th-text">Plan for Tomorrow</th>
                             <th class="th-text">Exceptions</th>
                             <th class="th-text">Notes to Office</th>
-                            <th class="th-created">Created Date</th>
-                            <th class="th-created-by">Created By</th>
                             <th class="th-approved">Approve/Reject Date</th>
                             <th class="th-approved-by">Approve/Reject By</th>
                             <th class="th-status">Status</th>
@@ -166,7 +166,9 @@
                                         </button>
                                     </div>
                                 </td>
-                                <td class="td-log-number">{log.name}</td>
+                                <td class="td-created">{log.createdDate}</td>
+                                <td class="td-created-by">{log.createdBy}</td>
+                                <!-- <td class="td-log-number">{log.name}</td> -->
                                 <td class="td-job">
                                     <template if:true={log.jobId}>
                                         <a href="#" class="job-link" data-job-id={log.jobId} onclick={handleJobClick}>
@@ -192,8 +194,6 @@
                                 <td class="td-text">
                                     <div class="text-content">{log.notesToOffice}</div>
                                 </td>
-                                <td class="td-created">{log.createdDate}</td>
-                                <td class="td-created-by">{log.createdBy}</td>
                                 <td class="td-approved">
                                     <template if:true={log.approvedDate}>
                                         {log.approvedDate}

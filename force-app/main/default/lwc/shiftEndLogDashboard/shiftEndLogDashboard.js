@@ -221,6 +221,15 @@ export default class ShiftEndLogDashboard extends NavigationMixin(LightningEleme
             });
     }
 
+    handlePendingClick(){
+        this[NavigationMixin.Navigate]({
+            type: 'standard__navItemPage',
+            attributes: {
+                apiName: 'wfrecon__Shift_End_Log_Approval' 
+            }
+        });
+    }
+
     // Handle date filter change
     handleDateFilterChange(event) {
         this.selectedDateFilter = event.detail.value;
