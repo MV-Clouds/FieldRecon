@@ -10,6 +10,7 @@ import saveJobSchedule from '@salesforce/apex/NewMobilizationCalendarController.
 import getMobilizationGroup from '@salesforce/apex/NewMobilizationCalendarController.getMobilizationGroup';
 import deleteMobilizationGroup from '@salesforce/apex/NewMobilizationCalendarController.deleteMobilizationGroup';
 import getMobStatusOptions from '@salesforce/apex/NewMobilizationCalendarController.getMobStatusOptions';
+import syncMobilizations from '@salesforce/apex/NewMobilizationCalendarController.syncMobilizations';
 
 // Resource Assignment Imports
 import getAllResources from '@salesforce/apex/MobSchedulerController.getAllResources';
@@ -651,11 +652,31 @@ export default class NewMobilizationCalendar extends NavigationMixin(LightningEl
         });
     }
 
-    handleSuccess(){
-        this.showToast('Success', 'Record saved successfully!', 'success');
-        this.openModal = false;
-        this.resetTempVariables();
-        this.refreshCalendar();
+    handleSuccess(event) {
+        try {
+            const recordId = event.detail.id;
+            this.isSpinner = true;
+            syncMobilizations({ groupId: recordId })
+                .then(() => {
+                    this.showToast('Success', 'Record saved and synchronized successfully!', 'success');
+                    this.openModal = false;
+                    this.resetTempVariables();
+                    this.refreshCalendar();
+                })
+                .catch(error => {
+                    console.error('Error syncing mobilizations:', error);
+                    this.showToast('Warning', 'Record saved but mobilization synchronization failed: ' + (error.body?.message || error.message), 'warning');
+                    this.openModal = false;
+                    this.resetTempVariables();
+                    this.refreshCalendar();
+                })
+                .finally(() => {
+                    this.isSpinner = false;
+                });
+        } catch (e) {
+            console.error('Error in handleSuccess:', e.message);
+            this.isSpinner = false;
+        }
     }
 
     handleMobFormSubmitted(event){
