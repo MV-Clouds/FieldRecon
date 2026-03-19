@@ -120,12 +120,7 @@ public with sharing class ProposalDeepCloneController {
             Database.rollback(sp);
             
             // 2. Log the exception
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => 'ProposalDeepCloneController',
-                'methodName' => 'cloneProposal',
-                'exceptionObj' => e,
-                'moreDetails' => e.getMessage()
-            });
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => 'ProposalDeepCloneController', 'methodName' => 'cloneProposal', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
             
             return null;
         }

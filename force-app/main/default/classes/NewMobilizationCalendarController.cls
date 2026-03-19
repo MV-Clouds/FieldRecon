@@ -1,8 +1,6 @@
 public with sharing class NewMobilizationCalendarController {
     private static final String CLASSNAME = 'NewMobilizationCalendarController';
-        // ==============================
-        // Event Fetching for FullCalendar
-        // ==============================
+    
     @AuraEnabled
     public static List<Map<String, Object>> getEvents(Id job, List<String> status) {
         try {
@@ -77,34 +75,9 @@ public with sharing class NewMobilizationCalendarController {
                 result.add(ev);
             }
             return result;
-
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getEvents', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching events for mobilization calendar.', 'apiResponse' => null}); return new List<Map<String, Object>>();
-        }
-    }
-
-    // ==============================
-    // Delete Mobilization Group
-    // ==============================
-    @AuraEnabled
-    public static void deleteMobilizationGroup(Id recordId){
-        try{
-            // Delete child mobilizations first
-            List<wfrecon__Mobilization__c> childMobilizations = [
-                SELECT Id FROM wfrecon__Mobilization__c WHERE wfrecon__Mobilization_Group__c = :recordId
-            ];
-            if (!childMobilizations.isEmpty()) {
-                delete childMobilizations;
-            }
-
-            List<wfrecon__Mobilization_Group__c> mobGroups = [
-                SELECT Id FROM wfrecon__Mobilization_Group__c WHERE Id = :recordId
-            ];
-            if (!mobGroups.isEmpty()) {
-                delete mobGroups;
-            }
-        }catch(Exception e){
-            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'deleteMobilizationGroup', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while deleting mobilization group.', 'apiResponse' => null});
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'getEvents', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while fetching events for mobilization calendar.', 'apiResponse' => null}); 
+            return new List<Map<String, Object>>();
         }
     }
 
@@ -122,10 +95,6 @@ public with sharing class NewMobilizationCalendarController {
         }
         return result;
     }
-
-    // ==============================
-    // Default Times for LWC
-    // ==============================
 
     @AuraEnabled(cacheable=true)
     public static DefaultTimeWrapper getJobDefaultTimes(String startDate, String endDate) {
@@ -171,7 +140,6 @@ public with sharing class NewMobilizationCalendarController {
             }
             defaults.IncludeSaturday = jobDefault.wfrecon__Include_Saturday__c;
             defaults.IncludeSunday = jobDefault.wfrecon__Include_Sunday__c;
-
         } catch (Exception e) {
             // Fallback default values
             defaults.startDateTime = null;
@@ -198,7 +166,6 @@ public with sharing class NewMobilizationCalendarController {
 
     @AuraEnabled
     public static String SaveJobSchedule(Map<String, String> mgMap) {
-
         try{
             wfrecon__Mobilization_Group__c mg = new wfrecon__Mobilization_Group__c(
                 Id = mgMap.get('id'),
@@ -278,9 +245,8 @@ public with sharing class NewMobilizationCalendarController {
                     MobilizationTriggerHandler.runOnce = true;
                 }
             }
-            
         } catch (Exception e) {
-             throw new AuraHandledException(e.getMessage());
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'syncMobilizations', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => e.getMessage(), 'apiResponse' => null});
         }
     }
 
@@ -331,6 +297,28 @@ public with sharing class NewMobilizationCalendarController {
         List<wfrecon__Mobilization_Group__c> mobiGroups = [SELECT Id, wfrecon__Description__c,Name, wfrecon__Job__c,wfrecon__Job__r.wfrecon__Job_Name__c,wfrecon__Job__r.Name, wfrecon__Include_Saturday__c, wfrecon__Include_Sunday__c, wfrecon__Start_Date__c, wfrecon__End_Date__c, wfrecon__Mobilization_Status__c,toLabel(wfrecon__Mobilization_Status__c) mobStatus FROM wfrecon__Mobilization_Group__c WHERE Id = :recordId LIMIT 1];
         return new Wrapper.MobilizationGroup(mobiGroups[0]);
     }   
+
+    @AuraEnabled
+    public static void deleteMobilizationGroup(Id recordId){
+        try{
+            // Delete child mobilizations first
+            List<wfrecon__Mobilization__c> childMobilizations = [
+                SELECT Id FROM wfrecon__Mobilization__c WHERE wfrecon__Mobilization_Group__c = :recordId
+            ];
+            if (!childMobilizations.isEmpty()) {
+                delete childMobilizations;
+            }
+
+            List<wfrecon__Mobilization_Group__c> mobGroups = [
+                SELECT Id FROM wfrecon__Mobilization_Group__c WHERE Id = :recordId
+            ];
+            if (!mobGroups.isEmpty()) {
+                delete mobGroups;
+            }
+        } catch(Exception e) {
+            ExceptionHandler.logException(new Map<String, Object>{ 'className' => CLASSNAME, 'methodName' => 'deleteMobilizationGroup', 'isApiException' => false, 'statusCode' => null, 'exceptionObj' => e, 'moreDetails' => 'Error occurred while deleting mobilization group.', 'apiResponse' => null});
+        }
+    }
 
     public class DefaultTimeWrapper {
         @AuraEnabled public DateTime startDateTime { get; set; }
