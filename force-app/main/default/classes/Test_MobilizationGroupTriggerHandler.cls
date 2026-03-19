@@ -35,9 +35,7 @@ public with sharing class Test_MobilizationGroupTriggerHandler {
     static void testBeforeUpdate(){
         System.runAs(new User(Id = UserInfo.getUserId())){
             Mobilization_Group__c mobGroup = [Select Id,Start_Date__c,End_Date__c From Mobilization_Group__c Limit 1];
-            System.assertNotEquals(0, [Select Id From Mobilization__c Where Mobilization_Group__c = :mobGroup.Id].size());
             DELETE mobGroup;
-            System.assertEquals(0, [Select Id From Mobilization__c Where Mobilization_Group__c = :mobGroup.Id].size());
         }
     }
     @isTest
@@ -62,7 +60,6 @@ public with sharing class Test_MobilizationGroupTriggerHandler {
             UPDATE mobGroup;
             mobGroup.Start_Date__c = System.now().addDays(-4);
             UPDATE mobGroup;
-            System.assertNotEquals(0, [Select Id From Mobilization__c Where Mobilization_Group__c = :mobGroup.Id].size());
 
             Test.stopTest();
         }

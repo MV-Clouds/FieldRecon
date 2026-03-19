@@ -6,24 +6,21 @@
 global class PostInstallSetup implements InstallHandler {
     public void onInstall(InstallContext context){
         try {
-
             List<CronJobDetail> schdJobsMerge = [SELECT Id FROM CronJobDetail WHERE Name = 'Merge Job'];
             List<PermissionSetAssignment> permAssignes = [SELECT Id,PermissionSetId,AssigneeId FROM PermissionSetAssignment WHERE PermissionSet.Name LIKE '%WF_Recon%' AND AssigneeId = :context.installerID()];
             List<PermissionSet> firstLevelSet = [SELECT Id,Name FROM PermissionSet WHERE Name = 'WF_Recon_Level_1'];
             
-            // Assign FR_Base to all users and FR_Admin to installer
-            assignPermissionSets(context.installerID());
-            
+            if(context.previousVersion() == null || Test.isRunningTest()){
+                // Assign FR_Base to all users and FR_Admin to installer
+                assignPermissionSets(context.installerID());
+            }
+                
             if(permAssignes.size() > 0 && schdJobsMerge.size() > 0){ return;}
             if(permAssignes.size() == 0 && firstLevelSet.size() >0){
                 PermissionSetAssignment psa = new PermissionSetAssignment(AssigneeId = context.installerID(),PermissionSetId = firstLevelSet[0].Id);
                 insert psa;
             }
-            /*if(schdJobs.size() == 0){
-                FeatureJob fj = new FeatureJob();
-                String sch = '0 0 0,12 ? * *';
-                String jobID = System.schedule('FeatureJobSchd', sch, fj); 
-            }*/
+            
             if(schdJobsMerge.size() == 0){
                 BatchSchdAccountGeofieldUpdate m = new BatchSchdAccountGeofieldUpdate();
                 String sch = '00 00 00 ? * * *';
@@ -53,11 +50,7 @@ global class PostInstallSetup implements InstallHandler {
         try {
             // Fetch FR_Base and FR_Admin permission sets
             Map<String, Id> permSetMap = new Map<String, Id>();
-            for (PermissionSet ps : [
-                SELECT Id, Name 
-                FROM PermissionSet 
-                WHERE Name IN ('FR_Base', 'FR_Admin')
-            ]) {
+            for (PermissionSet ps : [SELECT Id, Name FROM PermissionSet WHERE Name IN ('FR_Base', 'FR_Admin')]) {
                 permSetMap.put(ps.Name, ps.Id);
             }
 
@@ -75,11 +68,7 @@ global class PostInstallSetup implements InstallHandler {
             if (frAdminId != null) permSetIds.add(frAdminId);
 
             Map<Id, Set<Id>> userToAssignedPerms = new Map<Id, Set<Id>>();
-            for (PermissionSetAssignment psa : [
-                SELECT AssigneeId, PermissionSetId 
-                FROM PermissionSetAssignment 
-                WHERE PermissionSetId IN :permSetIds
-            ]) {
+            for (PermissionSetAssignment psa : [SELECT AssigneeId, PermissionSetId FROM PermissionSetAssignment WHERE PermissionSetId IN :permSetIds]) {
                 if (!userToAssignedPerms.containsKey(psa.AssigneeId)) {
                     userToAssignedPerms.put(psa.AssigneeId, new Set<Id>());
                 }
@@ -91,20 +80,14 @@ global class PostInstallSetup implements InstallHandler {
             // Assign FR_Base to all active users
             if (frBaseId != null) {
                 for (User u : [SELECT Id FROM User WHERE IsActive = true]) {
-                    if (!userToAssignedPerms.containsKey(u.Id) ||
-                        !userToAssignedPerms.get(u.Id).contains(frBaseId)) {
-                        toInsert.add(new PermissionSetAssignment(
-                            AssigneeId = u.Id,
-                            PermissionSetId = frBaseId
-                        ));
+                    if (!userToAssignedPerms.containsKey(u.Id) || !userToAssignedPerms.get(u.Id).contains(frBaseId)) {
+                        toInsert.add(new PermissionSetAssignment(AssigneeId = u.Id, PermissionSetId = frBaseId));
                     }
                 }
             }
 
             // Assign FR_Admin to installer only
-            if (frAdminId != null &&
-                (!userToAssignedPerms.containsKey(installerId) ||
-                !userToAssignedPerms.get(installerId).contains(frAdminId))) {
+            if (frAdminId != null && (!userToAssignedPerms.containsKey(installerId) || !userToAssignedPerms.get(installerId).contains(frAdminId))) {
                 toInsert.add(new PermissionSetAssignment(
                     AssigneeId = installerId,
                     PermissionSetId = frAdminId
@@ -114,7 +97,6 @@ global class PostInstallSetup implements InstallHandler {
             if (!toInsert.isEmpty() && !Test.isRunningTest()) {
                 Database.executeBatch(new GenericDmlBatch(toInsert, 'INSERT'), 1);
             }
-
         } catch (Exception e) {
             System.debug('Error in PostInstallScript: ' + e.getMessage());
             String errorDetails =  '--- Context ---\n' + 'Org Id: ' + UserInfo.getOrganizationId() + '\n' + 'User Id (Running): ' + UserInfo.getUserId() + '\n' + '\n--- Error ---\n' + 'Message: ' + e.getMessage() + '\n' + 'Type: ' + e.getTypeName() + '\n' + 'Line: ' + String.valueOf(e.getLineNumber()) + '\n' + 'Stack Trace:\n' + e.getStackTraceString();
@@ -139,6 +121,4 @@ global class PostInstallSetup implements InstallHandler {
             System.debug('Failed to send error email: ' + emailEx.getMessage());
         }
     }
-
-    
 }

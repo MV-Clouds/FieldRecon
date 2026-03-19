@@ -6,11 +6,7 @@ public with sharing class ProposalConfigController {
             ProposalConfigData result = new ProposalConfigData();
             
             List<wfrecon__Proposal_Config__mdt> configs = [
-                SELECT wfrecon__Number_Configs__c,
-                       wfrecon__Agreement_Config__c,
-                       wfrecon__Footer_Config__c,
-                       wfrecon__Limitations_Config__c,
-                       wfrecon__Warranty_Config__c
+                SELECT wfrecon__Number_Configs__c, wfrecon__Agreement_Config__c, wfrecon__Footer_Config__c, wfrecon__Limitations_Config__c, wfrecon__Warranty_Config__c
                 FROM wfrecon__Proposal_Config__mdt 
                 LIMIT 1
             ];
@@ -26,12 +22,7 @@ public with sharing class ProposalConfigController {
             
             return result;
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => 'ProposalConfigController', 
-                'methodName' => 'getProposalConfig', 
-                'exceptionObj' => e, 
-                'moreDetails' => e.getMessage()
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ProposalConfigController', 'methodName' => 'getProposalConfig', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
             return null;
         }
     }
@@ -95,14 +86,8 @@ public with sharing class ProposalConfigController {
             Metadata.DeployContainer container = new Metadata.DeployContainer();
             container.addMetadata(mdata);
             Metadata.Operations.enqueueDeployment(container, null);
-
         } catch (Exception e) {
-            ExceptionHandler.logException(new Map<String, Object>{
-                'className' => 'ProposalConfigController', 
-                'methodName' => 'saveProposalConfig', 
-                'exceptionObj' => e, 
-                'moreDetails' => e.getMessage()
-            });
+            ExceptionHandler.logException(new Map<String, Object>{'className' => 'ProposalConfigController', 'methodName' => 'saveProposalConfig', 'exceptionObj' => e, 'moreDetails' => e.getMessage()});
         }
     }
 
